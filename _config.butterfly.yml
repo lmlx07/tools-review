@@ -1,0 +1,196 @@
+# ======================================
+# Butterfly Theme Configuration
+# Docs: https://butterfly.js.org/
+# ======================================
+
+# ---------- Navigation ----------
+nav:
+  logo:
+  display_title: true
+  fixed: true
+
+menu:
+  首页: / || fas fa-home
+  归档: /archives/ || fas fa-archive
+  分类: /categories/ || fas fa-folder-open
+  标签: /tags/ || fas fa-tags
+  关于: /about/ || fas fa-info-circle
+
+# ---------- Code Blocks ----------
+code_blocks:
+  theme: light
+  macStyle: true
+  height_limit: false
+  word_wrap: true
+  copy: true
+  language: true
+  shrink: false
+  fullpage: true
+
+# ---------- Social ----------
+social:
+  fab fa-github: https://github.com/你的用户名 || GitHub || '#24292e'
+
+# ---------- Images ----------
+favicon: /img/favicon.png
+avatar:
+  img: /img/avatar.png
+  effect: true
+
+disable_top_img: false
+default_top_img: /img/default_bg.jpg
+
+# ---------- Post Settings ----------
+toc:
+  post: true
+  page: false
+  number: true
+  expand: false
+  style_simple: false
+  scroll_percent: true
+
+post_copyright:
+  enable: true
+  license: CC BY-NC-SA 4.0
+  license_url: https://creativecommons.org/licenses/by-nc-sa/4.0/
+
+related_post:
+  enable: true
+  limit: 6
+  date_type: created
+
+post_pagination: 1
+
+noticeOutdate:
+  enable: true
+  style: flat
+  limit_day: 365
+  position: top
+  message_prev: 本文距离上次更新已过去
+  message_next: 天，内容可能已过时。
+
+# ---------- Footer ----------
+footer:
+  owner:
+    enable: true
+    since: 2026
+  copyright:
+    enable: true
+    version: false
+  custom_text: 🚀 CDP 自动化指南
+
+# ---------- Aside ----------
+aside:
+  enable: true
+  hide: false
+  button: true
+  mobile: true
+  position: right
+  display:
+    archive: true
+    tag: true
+    category: true
+  card_author:
+    enable: true
+    description: Chrome DevTools Protocol 中文教程
+    button:
+      enable: true
+      icon: fab fa-github
+      text: 关注我
+      link: https://github.com/你的用户名
+  card_announcement:
+    enable: true
+    content: 📢 CDP 自动化指南是一个专注于 Chrome DevTools Protocol 的中文技术博客，提供 Python 控制浏览器的实战教程。
+  card_recent_post:
+    enable: true
+    limit: 5
+    sort: date
+  card_categories:
+    enable: true
+    limit: 8
+    expand: none
+  card_tags:
+    enable: true
+    limit: 40
+    orderby: random
+    order: 1
+  card_archives:
+    enable: true
+    type: monthly
+    format: YYYY年MM月
+    order: -1
+    limit: 8
+  card_webinfo:
+    enable: true
+    post_count: true
+    last_push_date: true
+
+# ---------- Dark Mode ----------
+darkmode:
+  enable: true
+  button: true
+  autoChangeMode: false
+
+readmode: true
+
+# ---------- Search ----------
+# Local Search (need hexo-generator-search)
+search:
+  enable: true
+  path: search.xml
+  field: post
+  content: true
+
+# ---------- Comments ----------
+comments:
+  # Up to 2 comments can be used
+  use:
+    - Valine
+  # You can add comments settings in the bottom of this file
+
+# ---------- Analytics ----------
+# Baidu Analytics
+baidu_analytics:
+# Google Analytics
+google_analytics:
+
+# ---------- SEO ----------
+# Google Fonts (disable for better load speed)
+google_fonts:
+  enable: false
+  font-family:
+
+# Preconnect
+preconnect:
+  - https://cdnjs.cloudflare.com
+
+# ---------- Performance ----------
+# Pjax (Enable SPA-like navigation)
+pjax:
+  enable: true
+
+# Lazy load images
+lazyload:
+  enable: true
+  field: post
+
+# ---------- Footer social ----------
+social2:
+  - icon: fas fa-rss
+    text: RSS
+    link: /atom.xml
+
+# ---------- Index Page ----------
+index_layout: 3
+index_post_content:
+  method: 2
+  length: 500
+
+subtitle:
+  enable: true
+  effect: true
+  source: false
+  sub:
+    - 用 Python 掌控 Chrome 浏览器
+    - Chrome DevTools Protocol 中文教程
+    - 爬虫 · RPA · 自动化测试
