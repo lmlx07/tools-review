@@ -24,13 +24,9 @@
 
   // ---------- DOM helpers ----------
   function getContentRoot() {
-    // #post wraps just the article body (no sidebar/layout chrome)
-    return document.querySelector('#post')
-        || document.querySelector('.post-content')
-        || document.querySelector('article')
-        || document.querySelector('#article-container')
-        || document.querySelector('#content')
-        || document.body;
+    // Use the full page body. getTargets() already excludes code blocks
+    // and very short fragments, so this is both thorough and safe.
+    return document.body;
   }
 
   /** Paragraph-level elements that hold translatable text */
@@ -39,7 +35,8 @@
   function getTargets(root) {
     const els = root.querySelectorAll(SELECTOR);
     return Array.from(els).filter(el => {
-      if (el.closest('pre, code, .highlight, .code-block, .gist, script, style')) return false;
+      // Skip code blocks, scripts, and the language switch itself
+      if (el.closest('pre, code, .highlight, .code-block, .gist, script, style, #lang-switch')) return false;
       const raw = el.textContent.replace(/\s+/g, '').trim();
       return raw.length >= 5; // skip very short fragments (TOC, single chars)
     });
