@@ -24,9 +24,11 @@
 
   // ---------- DOM helpers ----------
   function getContentRoot() {
-    return document.querySelector('#article-container')
+    // #post wraps just the article body (no sidebar/layout chrome)
+    return document.querySelector('#post')
         || document.querySelector('.post-content')
         || document.querySelector('article')
+        || document.querySelector('#article-container')
         || document.querySelector('#content')
         || document.body;
   }
@@ -39,7 +41,7 @@
     return Array.from(els).filter(el => {
       if (el.closest('pre, code, .highlight, .code-block, .gist, script, style')) return false;
       const raw = el.textContent.replace(/\s+/g, '').trim();
-      return raw.length >= 2;
+      return raw.length >= 5; // skip very short fragments (TOC, single chars)
     });
   }
 
