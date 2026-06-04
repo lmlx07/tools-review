@@ -141,6 +141,7 @@
       if (lang === 'en') {
         const root = getContentRoot();
         const targets = getTargets(root);
+        window._lngDebug = { targets: targets.length };
         if (targets.length === 0) return;
 
         // Translate all targets in parallel
@@ -148,7 +149,11 @@
         const translations = await Promise.all(
           texts.map(t => translate(t, 'zh-CN', 'en'))
         );
+        window._lngDebug.translations = translations.length;
+        window._lngDebug.firstOrig = targets[0]?.textContent?.substring(0,30);
+        window._lngDebug.firstTrans = translations[0]?.substring(0,30);
         applyEn(targets, translations);
+        window._lngDebug.applied = true;
       } else {
         restoreCn();
       }
