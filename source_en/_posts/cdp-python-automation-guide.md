@@ -1,57 +1,44 @@
 ---
-title: Chrome DevTools Protocol (CDP) 完全指南：用 Python 控制浏览器的终极方案
-date: 2026-06-03 14:00:00
+lang: en
+title: "The Complete Guide to Chrome DevTools Protocol (CDP): The Ultimate Solution to Controlling Your Browser with Python"
+date: "2026-06-03 14:00:00"
 tags:
   - Chrome DevTools Protocol
   - CDP
   - Python
-  - 浏览器自动化
+  - Browser Automation
   - Selenium
   - Playwright
 categories:
-  - CDP 基础
-  - Python 实战
-description: Chrome DevTools Protocol（CDP）是什么？为什么说它是比 Selenium 更强大的浏览器自动化方案？本文将带你从零开始，用 Python 通过 WebSocket 直接控制 Chrome 浏览器，实现导航、截图、网络拦截等高级操作，并附完整的实战代码。
+  - CDP Basics
+  - Python Practice
+description: What is Chrome DevTools Protocol (CDP)? Why is it said to be a more powerful browser automation solution than Selenium? This article will help you start from scratch, use Python to directly control the Chrome browser through WebSocket, and implement advanced operations such as navigation, screenshots, and network interception, and attaches complete practical code.
 ---
 
-> **一句话总结**：Chrome DevTools Protocol（CDP）是 Chrome 内置的"远程控制 API"，让你可以用代码直接操控浏览器的一切 — 从打开网页到拦截网络请求，从截取截图到追踪性能。它正是 Puppeteer、Playwright 这些工具的底层基石。
-
----
-
-## 目录
-
-1. [CDP 是什么](#cdp-是什么)
-2. [CDP vs Selenium vs Playwright：该怎么选](#cdp-vs-selenium-vs-playwright该怎么选)
-3. [环境搭建](#环境搭建)
-4. [第一个 CDP 程序：连接 Chrome](#第一个-cdp-程序连接-chrome)
-5. [核心命令实战](#核心命令实战)
-6. [进阶技巧](#进阶技巧)
-7. [完整实战：自动化截图工具](#完整实战自动化截图工具)
-8. [踩坑记录与最佳实践](#踩坑记录与最佳实践)
-9. [总结与下一步](#总结与下一步)
+> **Summary in one sentence**: Chrome DevTools Protocol (CDP) is Chrome's built-in "remote control API", which allows you to directly control everything in the browser with code - from opening web pages to intercepting network requests, from taking screenshots to tracking performance. It is the underlying foundation of tools such as Puppeteer and Playwright.
 
 ---
 
-## CDP 是什么
+## What is CDP
 
-Chrome DevTools Protocol（简称 CDP）是一个基于 **WebSocket** 的通信协议。本质上，它就是你在 Chrome 开发者工具（F12）中看到的所有功能的"后台 API"。
+Chrome DevTools Protocol (CDP for short) is a communication protocol based on **WebSocket**. Essentially, it's the "backend API" for all the functionality you see in Chrome Developer Tools (F12).
 
-每当你打开 DevTools 的 Elements、Console、Network 面板时，Chrome 就在内部通过 CDP 和 DevTools 前端通信。换句话说：**DevTools 能做的任何事情，CDP 都能通过代码做到**。
+Whenever you open the Elements, Console, or Network panels of DevTools, Chrome internally communicates with the DevTools frontend via CDP. In other words: anything DevTools can do, CDP can do through code.
 
-### CDP 能做什么
+### What CDP can do
 
-| 功能领域 | 典型应用场景 |
-|---------|------------|
-| 页面导航与控制 | 打开 URL、前进/后退、刷新 |
-| DOM 操作 | 获取/修改页面元素、监听 DOM 变化 |
-| JavaScript 执行 | 在页面上下文中运行任意 JS 代码 |
-| 网络拦截 | 捕获请求/响应、修改请求头、模拟网络条件 |
-| 截图与录制 | 页面截图、元素截图、生成 PDF |
-| 性能追踪 | 加载性能分析、内存快照、FPS 监控 |
-| 模拟设备 | 修改 User-Agent、视口大小、地理位置 |
-| 安全与认证 | 处理 SSL 证书、基本认证、Cookie 管理 |
+| Functional areas | Typical application scenarios |
+|---------|----------------|
+| Page navigation and control | Open URL, forward/backward, refresh |
+| DOM operations | Get/modify page elements and monitor DOM changes |
+| JavaScript execution | Run arbitrary JS code in the context of the page |
+| Network interception | Capture requests/responses, modify request headers, simulate network conditions |
+| Screenshots and recording | Page screenshots, element screenshots, and PDF generation |
+| Performance tracking | Loading performance analysis, memory snapshot, FPS monitoring |
+| Simulate device | Modify User-Agent, viewport size, geographical location |
+| Security & Authentication | Handling SSL Certificates, Basic Authentication, Cookie Management |
 
-### CDP 的通信模型
+### Communication model of CDP
 
 ```
 ┌─────────────────┐         WebSocket         ┌──────────────────┐
@@ -67,15 +54,15 @@ Chrome DevTools Protocol（简称 CDP）是一个基于 **WebSocket** 的通信�
                                                └──────────────────┘
 ```
 
-每个命令以 JSON 格式发送，Chrome 也同样以 JSON 返回结果。**请求和响应通过 `id` 字段一一对应**，这是 CDP 通信的核心约定。
+Each command is sent in JSON format, and Chrome returns results in JSON. **Requests and responses correspond one-to-one through the `id` field**, which is the core convention of CDP communication.
 
 ---
 
-## CDP vs Selenium vs Playwright：该怎么选
+## CDP vs Selenium vs Playwright: How to choose
 
-很多初学者会问："既然有 Selenium 和 Playwright，为什么还要学 CDP？"
+Many beginners will ask: "Since there are Selenium and Playwright, why should I learn CDP?"
 
-答案是：**它们不在同一个层次上**。
+The answer is: **They are not on the same level**.
 
 ```
            ┌─────────────────────────┐
@@ -87,56 +74,56 @@ Chrome DevTools Protocol（简称 CDP）是一个基于 **WebSocket** 的通信�
            └─────────────────────────┘
 ```
 
-Playwright 和 Puppeteer 本质上就是对 CDP 的高层封装。它们把 CDP 的原始命令包装成 `page.goto()`、`page.screenshot()` 这样简洁的 API。
+Playwright and Puppeteer are essentially high-level encapsulation of CDP. They wrap CDP's original commands into concise APIs such as `page.goto()` and `page.screenshot()`.
 
-### 对比表格
+### Comparison table
 
-| 特性 | CDP（原生） | Playwright | Selenium |
+| Features | CDP (native) | Playwright | Selenium |
 |------|-----------|-----------|----------|
-| 学习曲线 | 陡峭 | 平缓 | 平缓 |
-| 控制粒度 | **最细** | 中等 | 粗 |
-| 网络拦截 | 原生支持，全量控制 | 支持，封装良好 | 有限（需中间代理） |
-| 性能追踪 | 原生支持 | 支持 | 不支持 |
-| 跨浏览器 | ❌ Chrome/Chromium 系 | ✅ Chromium + Firefox + WebKit | ✅ 最广 |
-| 调试透明度 | **最高**（能看到每个命令） | 中等 | 低 |
-| 依赖 | 仅 websocket-client | 需要安装浏览器 | 需要 WebDriver |
+| Learning Curve | Steep | Smooth | Smooth |
+| Control granularity | **Finest** | Medium | Coarse |
+| Network interception | Native support, full control | Support, well packaged | Limited (intermediate agent required) |
+| Performance Tracking | Native Support | Supported | Not Supported |
+| Cross-browser | ❌ Chrome/Chromium series | ✅ Chromium + Firefox + WebKit | ✅ Widest |
+| Debug Transparency | **Highest** (can see every command) | Medium | Low |
+| Dependencies | websocket-client only | Browser installation required | WebDriver required |
 
-### 什么时候该用 CDP？
+### When should you use CDP?
 
-直接用 CDP（而非高层框架）的场景：
+Scenarios using CDP directly (instead of high-level framework):
 
-1. **需要最细粒度的控制** — 比如要精确控制网络请求的 timing，或拦截 WebSocket 连接
-2. **绕过自动化检测** — Selenium/Playwright 的特征容易被反爬识别，CDP 更接近真实用户
-3. **爬虫/逆向工程** — 需要拦截加密参数、追踪 JS 调用栈
-4. **性能分析自动化** — 需要采集 Lighthouse 级别的性能数据
-5. **构建自己的工具框架** — 你想在 Playwright 之上做二次开发，需要理解底层机制
-6. **调试和学习** — 想深入理解浏览器工作原理
+1. **Requires the most fine-grained control** — for example, to precisely control the timing of network requests, or to intercept WebSocket connections
+2. **Bypass automated detection** — Selenium/Playwright features are easily identified by anti-crawling, and CDP is closer to real users
+3. **Crawler/Reverse Engineering** — Need to intercept encrypted parameters and trace JS call stack
+4. **Performance Analysis Automation** — Need to collect Lighthouse-level performance data
+5. **Build your own tool framework** — If you want to do secondary development on Playwright, you need to understand the underlying mechanism
+6. **Debug and Learn** — Want to deeply understand how the browser works
 
-> **小建议**：如果是常规的 E2E 测试或简单爬虫，优先用 Playwright。需要精细控制或反反爬时，再下沉到 CDP。
+> **Tips**: If it is a regular E2E test or a simple crawler, use Playwright first. When fine control or anti-reverse climbing is required, then sink to CDP.
 
 ---
 
-## 环境搭建
+## Environment setup
 
-### 1. 安装 Python 依赖
+### 1. Install Python dependencies
 
-只需要一个库：
+Only one library is needed:
 
 ```bash
 pip install websocket-client
 ```
 
-没错，只靠 `websocket-client` 就能和 Chrome 通信。不需要安装 ChromeDriver、不需要下载浏览器二进制文件。
+That’s right, you can communicate with Chrome using just `websocket-client`. There is no need to install ChromeDriver or download browser binaries.
 
-### 2. 安装 / 确认 Chrome 浏览器
+### 2. Install/Confirm Chrome Browser
 
-任何基于 Chromium 的浏览器都可以（Chrome、Edge、Brave 等）。确保版本不要太旧（Chrome 90+ 即可）。
+Any Chromium-based browser will do (Chrome, Edge, Brave, etc.). Make sure the version is not too old (Chrome 90+ will do).
 
-查看版本：地址栏输入 `chrome://version/`
+View version: Enter `chrome://version/` in the address bar
 
-### 3. 启动 Chrome 的远程调试模式
+### 3. Start Chrome’s remote debugging mode
 
-这是最关键的一步。关闭所有 Chrome 窗口后，用命令行启动：
+This is the most critical step. After closing all Chrome windows, launch it from the command line:
 
 ```bash
 # Windows
@@ -149,17 +136,17 @@ chrome.exe --remote-debugging-port=9222 --remote-allow-origins=* --no-first-run 
 google-chrome --remote-debugging-port=9222 --remote-allow-origins=* --no-first-run
 ```
 
-参数说明：
-- `--remote-debugging-port=9222`：开启远程调试，端口 9222
-- `--remote-allow-origins=*`：允许来自任何来源的 WebSocket 连接
-- `--no-first-run`：跳过首次运行引导
-- `--no-default-browser-check`：不检查默认浏览器
+Parameter description:
+- `--remote-debugging-port=9222`: Enable remote debugging, port 9222
+- `--remote-allow-origins=*`: Allow WebSocket connections from any origin
+- `--no-first-run`: skip first run boot
+- `--no-default-browser-check`: Do not check the default browser
 
-> **⚠️ 安全提醒**：`--remote-allow-origins=*` 会让任何能访问 9222 端口的程序控制你的浏览器。**仅在受信任的本地网络中使用**，不要在生产环境的服务器上开启。
+> **⚠️ Security Reminder**: `--remote-allow-origins=*` will allow any program that can access port 9222 to control your browser. **Only use within a trusted local network**, do not enable it on a production server.
 
-### 验证连接
+### Verify connection
 
-启动 Chrome 后，在浏览器中打开 `http://localhost:9222/json`，应该能看到类似这样的 JSON 响应：
+After starting Chrome, open `http://localhost:9222/json` in the browser and you should see a JSON response similar to this:
 
 ```json
 [
@@ -172,15 +159,15 @@ google-chrome --remote-debugging-port=9222 --remote-allow-origins=* --no-first-r
 ]
 ```
 
-这个 `webSocketDebuggerUrl` 就是我们接下来要连接的目标。
+This `webSocketDebuggerUrl` is the target we want to connect to next.
 
 ---
 
-## 第一个 CDP 程序：连接 Chrome
+## First CDP program: Connect Chrome
 
-### 基础框架
+### Basic framework
 
-下面是一个最精简的 CDP 连接示例。它完成了三件事：发现页面 → 建立 WebSocket → 发送命令。
+Below is a minimal example of a CDP connection. It does three things: Discover the page → Establish the WebSocket → Send the command.
 
 ```python
 import json
@@ -249,41 +236,41 @@ print(f'Page title: {result["result"]["value"]}')
 ws.close()
 ```
 
-运行这段代码，你会看到控制台输出页面的标题。恭喜，你已经通过 CDP 直接控制浏览器了！
+Run this code and you will see the title of the console output page. Congratulations, you now control your browser directly through CDP!
 
-### 代码解析
+### Code analysis
 
-这段代码虽然简单，但包含了 CDP 通信的核心模式：
+Although this code is simple, it contains the core pattern of CDP communication:
 
-1. **发现阶段**：通过 HTTP 请求 `http://localhost:9222/json` 获取所有页面列表
-2. **连接阶段**：使用页面的 `webSocketDebuggerUrl` 建立 WebSocket 连接
-3. **就绪阶段**：通过 `Page.enable` / `Runtime.enable` 启用需要的"域"（Domain）
-4. **命令阶段**：发送命令（如 `Page.navigate`）并等待对应的响应
+1. **Discovery phase**: Obtain a list of all pages through HTTP request `http://localhost:9222/json`
+2. **Connection phase**: Use the `webSocketDebuggerUrl` of the page to establish a WebSocket connection
+3. **Ready Phase**: Enable the required "Domain" through `Page.enable` / `Runtime.enable`
+4. **Command phase**: Send commands (such as `Page.navigate`) and wait for the corresponding response
 
-每个命令通过递增的 `id` 来匹配请求和响应。这是 CDP 协议的重要设计：**同一个 WebSocket 连接上可以同时发送多个命令，通过 id 来区分返回结果归属**。
+Each command is matched against requests and responses by an incrementing `id`. This is an important design of the CDP protocol: **Multiple commands can be sent simultaneously on the same WebSocket connection, and the ownership of the returned results is distinguished by id**.
 
 ---
 
-## 核心命令实战
+## Core command actual combat
 
-掌握 CDP 的关键是理解它的"域"（Domain）体系。CDP 将功能划分为几十个域，每个域下有一组相关命令：
+The key to mastering CDP is to understand its "Domain" system. CDP divides functions into dozens of domains, and each domain has a set of related commands:
 
-| 域名 | 用途 | 常用命令 |
+| Domain name | Purpose | Common commands |
 |------|------|---------|
-| `Page` | 页面控制 | `navigate`, `reload`, `captureScreenshot`, `printToPDF` |
-| `Runtime` | JS 运行时 | `evaluate`, `runScript`, `getProperties` |
-| `DOM` | DOM 操作 | `getDocument`, `querySelector`, `getOuterHTML` |
-| `Network` | 网络控制 | `enable`, `setBlockedURLs`, `getResponseBody` |
-| `Input` | 输入模拟 | `dispatchMouseEvent`, `dispatchKeyEvent`, `insertText` |
-| `Console` | 控制台 | `enable`, `clearMessages` |
-| `Performance` | 性能 | `enable`, `getMetrics`, `getTime` |
-| `Overlay` | 可视化 | `highlightNode`, `setShowFPSCounter` |
+| `Page` | Page control | `navigate`, `reload`, `captureScreenshot`, `printToPDF` |
+| `Runtime` | JS runtime | `evaluate`, `runScript`, `getProperties` |
+| `DOM` | DOM operations | `getDocument`, `querySelector`, `getOuterHTML` |
+| `Network` | Network Control | `enable`, `setBlockedURLs`, `getResponseBody` |
+| `Input` | Input simulation | `dispatchMouseEvent`, `dispatchKeyEvent`, `insertText` |
+| `Console` | Console | `enable`, `clearMessages` |
+| `Performance` | Performance | `enable`, `getMetrics`, `getTime` |
+| `Overlay` | Visualization | `highlightNode`, `setShowFPSCounter` |
 
-下面逐一介绍最常用的命令。
+The most commonly used commands are introduced one by one below.
 
-### 1. 页面截图
+### 1. Screenshot of the page
 
-截图是 CDP 的"Hello World"。它比 Selenium 的截图更灵活——你可以截取**整个页面**（包括不可见部分）或**单个元素**。
+The screenshot is CDP's "Hello World". It's more flexible than Selenium's screenshots - you can screenshot the entire page (including invisible parts) or individual elements.
 
 ```python
 import base64
@@ -308,11 +295,11 @@ result = send_cmd(ws, 'Page.captureScreenshot', {
 })
 ```
 
-> **小技巧**：`fromSurface: True` 会截取完整的渲染结果（含 GPU 合成层），设为 `False` 则只截取视口内容。
+> **Tips**: `fromSurface: True` will intercept the complete rendering result (including GPU composition layer), set to `False` to only intercept the viewport content.
 
-### 2. 执行 JavaScript 并获取返回值
+### 2. Execute JavaScript and get the return value
 
-这是 CDP 最强大的能力之一——在页面上下文中执行任意 JS，并获取返回值。
+This is one of the most powerful capabilities of CDP - execute arbitrary JS in the context of the page and get the return value.
 
 ```python
 # 获取页面信息
@@ -337,13 +324,13 @@ send_cmd(ws, 'Runtime.evaluate', {
 })
 ```
 
-**重要参数**：
-- `returnByValue`：设为 `true` 时，返回值会序列化为 JSON；设为 `false`（默认）时，返回一个对象引用，可以用 `Runtime.getProperties` 进一步查看
-- `awaitPromise`：设为 `true` 时，会等待 Promise 解析完成再返回（适用于异步操作）
+**Important Parameters**:
+- `returnByValue`: When set to `true`, the return value will be serialized into JSON; when set to `false` (default), an object reference is returned, which can be further viewed with `Runtime.getProperties`
+- `awaitPromise`: When set to `true`, it will wait for Promise resolution to complete before returning (applicable to asynchronous operations)
 
-### 3. DOM 操作
+### 3. DOM operations
 
-CDP 的 DOM 操作通过 `DOM` 域实现，使用"节点 ID"来定位元素。
+CDP's DOM operations are implemented through `DOM` fields, using "node IDs" to locate elements.
 
 ```python
 # 获取文档根节点
@@ -371,11 +358,11 @@ send_cmd(ws, 'DOM.setAttributeValue', {
 })
 ```
 
-> **CDP 的特性**：DOM 操作是基于 Chrome 的 Blink 渲染引擎的**内部表示**，绕过了页面的 JavaScript 框架。这意味着即使页面用了 React/Vue，你也可以直接操作最终的渲染结果。
+> **Features of CDP**: DOM operations are based on the **internal representation** of Chrome's Blink rendering engine, bypassing the page's JavaScript framework. This means that even if the page uses React/Vue, you can directly manipulate the final rendering result.
 
-### 4. 网络拦截与监控
+### 4. Network interception and monitoring
 
-这是爬虫和渗透测试中最常用的功能。CDP 可以捕获页面发出的每一个请求。
+This is the most commonly used feature in crawlers and penetration testing. CDP can capture every request made by a page.
 
 ```python
 # 启用网络域
@@ -420,7 +407,7 @@ import time
 time.sleep(5)  # 等待页面加载
 ```
 
-**Network 域的高级用法**：
+**Advanced usage of Network domain**:
 
 ```python
 # 拦截特定 URL 模式
@@ -446,9 +433,9 @@ print(f'Response body: {result["body"][:500]}')
 print(f'Base64 encoded: {result["base64Encoded"]}')
 ```
 
-### 5. 鼠标与键盘模拟
+### 5. Mouse and keyboard simulation
 
-CDP 的 `Input` 域可以模拟鼠标点击和键盘输入，这是实现 RPA（机器人流程自动化）的关键。
+CDP's `Input` field can simulate mouse clicks and keyboard input, which is key to implementing RPA (Robotic Process Automation).
 
 ```python
 def click(ws, x, y, button='left'):
@@ -491,11 +478,11 @@ press_enter(ws)              # 提交
 
 ---
 
-## 进阶技巧
+## Advanced skills
 
-### 1. 绕过自动化检测
+### 1. Bypass automated detection
 
-Selenium 和 Playwright 会在浏览器中留下自动化痕迹（如 `navigator.webdriver` 属性为 `true`）。CDP 可以从更底层控制，更难被检测。
+Selenium and Playwright leave automation traces in the browser (e.g. `navigator.webdriver` property is `true`). CDP can be controlled from a lower level and is harder to detect.
 
 ```python
 # 在页面加载前注入脚本，覆盖自动化特征
@@ -539,9 +526,9 @@ send_cmd(ws, 'Page.addScriptToEvaluateOnNewDocument', {
 send_cmd(ws, 'Page.navigate', {'url': 'https://bot.sannysoft.com/'})
 ```
 
-> **注意**：反爬技术不断进化，这里展示的只是基础防护。实际使用时需要根据目标网站的检测机制针对性调整。
+> **Note**: Anti-crawling technology is constantly evolving, and what is shown here is only basic protection. In actual use, it needs to be adjusted according to the detection mechanism of the target website.
 
-### 2. 处理新窗口 / 新标签页
+### 2. Handling new windows/new tabs
 
 ```python
 # 监听 Target.targetCreated 事件
@@ -556,7 +543,7 @@ def on_target_created(event_data):
 # 或者用 Target.attachToTarget 命令
 ```
 
-### 3. 性能追踪
+### 3. Performance tracking
 
 ```python
 # 开始性能追踪
@@ -577,7 +564,7 @@ print(f'布局次数: {metrics.get("LayoutCount", "N/A")}')
 print(f'重绘次数: {metrics.get("RecalcStyleCount", "N/A")}')
 ```
 
-### 4. 生成 PDF
+### 4. Generate PDF
 
 ```python
 result = send_cmd(ws, 'Page.printToPDF', {
@@ -599,9 +586,9 @@ with open('output.pdf', 'wb') as f:
 
 ---
 
-## 完整实战：自动化截图工具
+## Complete practice: automated screenshot tool
 
-下面是一个完整的实战项目——一个命令行截图工具，可以指定 URL、输出路径和视口大小。
+Below is a complete practical project - a command line screenshot tool that can specify the URL, output path and viewport size.
 
 ```python
 #!/usr/bin/env python3
@@ -709,7 +696,7 @@ if __name__ == '__main__':
     main()
 ```
 
-使用方法：
+How to use:
 
 ```bash
 # 基础用法
@@ -724,44 +711,44 @@ python cdp_screenshooter.py https://example.com --pattern "login"
 
 ---
 
-## 踩坑记录与最佳实践
+## Pitfall records and best practices
 
-### 常见问题
+### FAQ
 
-#### ❌ 连接被拒绝（Connection Refused）
+#### ❌ Connection Refused
 
 ```
 websocket._exceptions.WebSocketBadStatusException: Handshake status 500
 ```
 
-**原因**：Chrome 没有以 `--remote-debugging-port` 参数启动。
+**Cause**: Chrome was not started with the `--remote-debugging-port` parameter.
 
-**解决**：确保所有 Chrome 进程已关闭，重新用命令行启动 Chrome。
+**Solution**: Make sure all Chrome processes are closed and re-launch Chrome from the command line.
 
-#### ❌ WebSocket 连接超时
+#### ❌ WebSocket connection timeout
 
 ```
 socket.timeout: timed out
 ```
 
-**原因**：端口被防火墙拦截，或者启动了多个 Chrome 实例导致端口冲突。
+**Cause**: The port is blocked by the firewall, or multiple Chrome instances are started, causing port conflicts.
 
-**解决**：
-- 检查 `http://localhost:9222/json` 是否能正常访问
-- 检查防火墙是否放行了 9222 端口
-- 如果有多个 Chrome 实例，把旧的全部关闭再重试
+**Solution**:
+- Check whether `http://localhost:9222/json` can be accessed normally
+- Check whether the firewall has allowed port 9222
+- If there are multiple instances of Chrome, close all the old ones and try again
 
-#### ❌ 找不到页面（get_page_ws 返回 None）
+#### ❌ Page not found (get_page_ws returns None)
 
-**原因**：`http://localhost:9222/json` 返回空列表，还没有打开任何标签页。
+**Cause**: `http://localhost:9222/json` returns an empty list and no tabs have been opened.
 
-**解决**：确保 Chrome 中至少有一个标签页打开（而不是只有一个"新标签页"）。
+**Fix**: Make sure you have at least one tab open in Chrome (instead of just a "New Tab").
 
-#### ❌ `Input.insertText` 在 xterm.js 终端中不生效
+#### ❌ `Input.insertText` does not take effect in xterm.js terminal
 
-**原因**：xterm.js 等基于 Canvas 渲染的终端不会触发标准的 DOM 输入事件。
+**Cause**: Canvas-rendered terminals such as xterm.js do not trigger standard DOM input events.
 
-**解决**：改用 JavaScript 直接操作 textarea：
+**Solution**: Use JavaScript to directly operate the textarea:
 ```python
 result = send_cmd(ws, 'Runtime.evaluate', {
     'expression': '''
@@ -777,49 +764,49 @@ result = send_cmd(ws, 'Runtime.evaluate', {
 })
 ```
 
-### 最佳实践总结
+### Summary of best practices
 
-1. **始终先 `enable` 再使用**：每个域在使用前必须先调用对应的 `enable` 方法
-2. **事件监听用独立线程**：CDP 事件通过 WebSocket 主动推送，需要另开线程处理
-3. **合理等待页面加载**：`Page.navigate` 不会等待页面完全加载，建议监听 `Page.loadEventFired` 事件
-4. **注意内存泄漏**：每次 `Runtime.evaluate` 创建的对象引用会占用内存，用完后调用 `Runtime.releaseObject`
-5. **使用独立用户数据目录**：用 `--user-data-dir=/path/to/profile` 指定独立的浏览器配置目录，避免与日常浏览器冲突
-6. **异常处理**：WebSocket 连接可能因网络问题断开，建议加入重连机制
-7. **日志记录**：CDP 返回的数据可能很大（尤其是截图和响应体），注意控制日志输出
+1. **Always `enable` before using**: Each field must call the corresponding `enable` method before using it.
+2. **Independent threads for event monitoring**: CDP events are actively pushed through WebSocket and require a separate thread for processing.
+3. **Wait reasonably for the page to load**: `Page.navigate` will not wait for the page to be fully loaded. It is recommended to listen to the `Page.loadEventFired` event.
+4. **Pay attention to memory leaks**: Each time `Runtime.evaluate` creates an object reference, it will occupy memory. Call `Runtime.releaseObject` after it is used up.
+5. **Use independent user data directory**: Use `--user-data-dir=/path/to/profile` to specify an independent browser configuration directory to avoid conflicts with daily browsers
+6. **Exception handling**: The WebSocket connection may be disconnected due to network problems. It is recommended to add a reconnection mechanism.
+7. **Logging**: The data returned by CDP may be large (especially screenshots and response bodies), so be careful to control log output.
 
 ---
 
-## 总结与下一步
+## Summary and next steps
 
-通过本文，你已经掌握了 CDP 的核心概念和实战技能：
+Through this article, you have mastered the core concepts and practical skills of CDP:
 
-- ✅ CDP 是什么以及它的通信模型
-- ✅ CDP 与 Selenium/Playwright 的定位差异
-- ✅ 如何搭建环境并连接 Chrome
-- ✅ 5 个核心域的使用：Page、Runtime、DOM、Network、Input
-- ✅ 进阶技巧：反检测、新标签页处理、性能追踪
-- ✅ 完整项目：命令行截图工具
+- ✅ What is CDP and its communication model
+- ✅ Positioning differences between CDP and Selenium/Playwright
+- ✅ How to set up the environment and connect Chrome
+- ✅ Use of 5 core domains: Page, Runtime, DOM, Network, Input
+- ✅ Advanced skills: anti-detection, new tab processing, performance tracking
+- ✅ Complete project: Command line screenshot tool
 
-### 接下来可以尝试的方向
+### Directions you can try next
 
-| 方向 | 适合场景 | 参考资源 |
+| Direction | Suitable scene | Reference resources |
 |------|---------|---------|
-| **爬虫** | 拦截 SPA 页面的 XHR 请求、绕过反爬 | 查看本站的"爬虫实战"系列 |
-| **RPA 自动化** | 重复性网页操作、跨系统数据迁移 | 查看本站的"RPA 实战"系列 |
-| **性能测试** | Core Web Vitals 采集、页面加载分析 | 查看本站的"性能优化"系列 |
-| **安全测试** | XSS 探测、CSRF 验证、信息泄露检测 | Playwright + CDP 结合使用 |
-| **工具开发** | 构建自己的无头浏览器管理平台 | 关注本站的"框架搭建"系列 |
+| **Crawler** | Intercept XHR requests of SPA pages and bypass anti-crawling | Check out this site's "Crawler Combat" series |
+| **RPA Automation** | Repetitive web page operations, cross-system data migration | Check out this site's "RPA Practice" series |
+| **Performance Test** | Core Web Vitals collection, page loading analysis | View the "Performance Optimization" series of this site |
+| **Security Testing** | XSS detection, CSRF verification, information leakage detection | Playwright + CDP combined use |
+| **Tool Development** | Build your own headless browser management platform | Follow the "Framework Building" series of this site |
 
-> 💡 **小提示**：如果你想快速上手生产级应用，建议先掌握本文的 CDP 基础，然后去学习 [Playwright](https://playwright.dev/) 或 [Puppeteer](https://pptr.dev/)。理解了底层协议后，使用高层框架会更加得心应手。
-
----
-
-*本文是「CDP 自动化指南」系列的开篇之作。后续将深入 CDP 爬虫实战、RPA 流程自动化、Playwright 底层原理等话题，敬请关注。*
+> 💡 **Tips**: If you want to quickly get started with production-level applications, it is recommended to master the CDP basics in this article first, and then learn [Playwright](https://playwright.dev/) or [Puppeteer](https://pptr.dev/). After understanding the underlying protocol, you will be more comfortable using the high-level framework.
 
 ---
 
-**觉得有用？分享给更多人：**
+*This article is the first in the "CDP Automation Guide" series. In the follow-up, we will delve into topics such as CDP crawler practice, RPA process automation, and the underlying principles of Playwright, so stay tuned. *
 
-<!-- 分享按钮区域（待添加） -->
+---
 
-**遇到问题或有建议？** 欢迎在评论区留言讨论，或提交 [GitHub Issue](https://github.com/your-repo/issues)。
+**Find it useful? Share with more people: **
+
+<!-- Share button area (to be added) -->
+
+**Have any questions or suggestions? ** Welcome to leave a message in the comment area for discussion, or submit a [GitHub Issue](https://github.com/your-repo/issues).
