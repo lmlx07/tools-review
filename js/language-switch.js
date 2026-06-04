@@ -7,6 +7,7 @@
   'use strict';
 
   const STORE_KEY = 'lng_cache';
+  const BATCH_SIZE = 10; // how many parallel translate requests at once
 
   let currentLang = localStorage.getItem('lng_current') || 'zh-CN';
   let busy = false;
@@ -24,8 +25,6 @@
 
   // ---------- DOM helpers ----------
   function getContentRoot() {
-    // Use the full page body. getTargets() already excludes code blocks
-    // and very short fragments, so this is both thorough and safe.
     return document.body;
   }
 
@@ -35,10 +34,9 @@
   function getTargets(root) {
     const els = root.querySelectorAll(SELECTOR);
     return Array.from(els).filter(el => {
-      // Skip code blocks, scripts, and the language switch itself
       if (el.closest('pre, code, .highlight, .code-block, .gist, script, style, #lang-switch')) return false;
       const raw = el.textContent.replace(/\s+/g, '').trim();
-      return raw.length >= 5; // skip very short fragments (TOC, single chars)
+      return raw.length >= 5;
     });
   }
 
@@ -66,11 +64,26 @@
     const res = await fetch(url);
     const data = await res.json();
 
-    // data[0] = [[translated, original, ...], ...]
     const result = data[0].map(p => p[0]).join('');
     cache[key] = result;
     saveCache(cache);
     return result;
+  }
+
+  /**
+   * Translate texts in parallel batches, applying results progressively.
+   * Each batch is applied to the DOM as soon as it arrives, so the user
+   * sees incremental progress rather than waiting for everything.
+   */
+  async function translateProgressive(elements, from, to) {
+    for (let i = 0; i < elements.length; i += BATCH_SIZE) {
+      const batch = elements.slice(i, i + BATCH_SIZE);
+      const texts = batch.map(el => el.textContent.trim());
+      const translations = await Promise.all(
+        texts.map(t => translate(t, from, to))
+      );
+      applyEn(batch, translations);
+    }
   }
 
   // ---------- apply translations ----------
@@ -79,24 +92,19 @@
       const translated = translations[i];
       if (!translated) return;
 
-      // Store original HTML (only once)
       if (!el.hasAttribute('data-lng-orig')) {
         el.setAttribute('data-lng-orig', el.innerHTML);
       }
 
       const textNodes = getTextNodes(el);
       if (textNodes.length > 0) {
-        // Put all translated text into the first text node, clear the rest
         textNodes[0].textContent = translated;
         for (let j = 1; j < textNodes.length; j++) {
           textNodes[j].textContent = '';
         }
       } else if (el.children.length > 0) {
-        // No direct text nodes — all text is in child elements
-        // Replace the innermost text of deepest child
         let deepest = el;
         while (deepest.children.length > 0) {
-          // Find a child that has text content
           let found = false;
           for (let k = 0; k < deepest.children.length; k++) {
             const c = deepest.children[k];
@@ -141,19 +149,10 @@
       if (lang === 'en') {
         const root = getContentRoot();
         const targets = getTargets(root);
-        window._lngDebug = { targets: targets.length };
         if (targets.length === 0) return;
 
-        // Translate all targets in parallel
-        const texts = targets.map(el => el.textContent.trim());
-        const translations = await Promise.all(
-          texts.map(t => translate(t, 'zh-CN', 'en'))
-        );
-        window._lngDebug.translations = translations.length;
-        window._lngDebug.firstOrig = targets[0]?.textContent?.substring(0,30);
-        window._lngDebug.firstTrans = translations[0]?.substring(0,30);
-        applyEn(targets, translations);
-        window._lngDebug.applied = true;
+        // Translate in progressive batches
+        await translateProgressive(targets, 'zh-CN', 'en');
       } else {
         restoreCn();
       }
@@ -202,7 +201,6 @@
 
     // Restore last language on page load
     if (currentLang === 'en') {
-      // Delayed to let page render first, then translate
       setTimeout(() => switchTo('en'), 800);
     }
 
@@ -213,7 +211,6 @@
     document.addEventListener('pjax:complete', function () {
       setTimeout(injectNav, 500);
       if (currentLang === 'en') {
-        // Re-translate new content
         setTimeout(() => switchTo('en'), 1000);
       }
     });
