@@ -42,12 +42,12 @@ Whenever you open the Elements, Console, or Network panels of DevTools, Chrome i
 
 ```
 ┌─────────────────┐         WebSocket         ┌──────────────────┐
-│  你的 Python 脚本 │ ◄──────────────────────► │  Chrome 浏览器    │
+│  Your Python Script │ ◄──────────────────────► │  Chrome Browser    │
 │                  │    ws://localhost:9222     │                  │
 └─────────────────┘                            │  ┌────────────┐  │
-                                               │  │  页面 Tab 1  │  │
+                                               │  │  Tab 1      │  │
                                                │  ├────────────┤  │
-                                               │  │  页面 Tab 2  │  │
+                                               │  │  Tab 2      │  │
                                                │  ├────────────┤  │
                                                │  │  ...        │  │
                                                │  └────────────┘  │
@@ -66,11 +66,11 @@ The answer is: **They are not on the same level**.
 
 ```
            ┌─────────────────────────┐
-           │     Playwright / Puppeteer    │  ← 高层封装，API 最友好
+           │     Playwright / Puppeteer    │  ← High-level, friendliest API
            ├─────────────────────────┤
-           │        Selenium WebDriver       │  ← 中间层，跨浏览器标准
+           │        Selenium WebDriver       │  ← Middle layer, cross-browser standard
            ├─────────────────────────┤
-           │  Chrome DevTools Protocol (CDP) │  ← 底层协议，能力最强
+           │  Chrome DevTools Protocol (CDP) │  ← Lowest-level, most powerful
            └─────────────────────────┘
 ```
 
@@ -152,7 +152,7 @@ After starting Chrome, open `http://localhost:9222/json` in the browser and you 
 [
   {
     "id": "1A2B3C4D",
-    "title": "新标签页",
+    "title": "New Tab",
     "url": "chrome://new-tab-page/",
     "webSocketDebuggerUrl": "ws://localhost:9222/devtools/page/1A2B3C4D"
   }
@@ -216,8 +216,8 @@ def send_cmd(ws, method, params=None):
 
 # ========== Step 4: Enable necessary domains ==========
 
-send_cmd(ws, 'Page.enable')       # 启用页面域
-send_cmd(ws, 'Runtime.enable')    # 启用运行时域
+send_cmd(ws, 'Page.enable') # Enable page domain
+send_cmd(ws, 'Runtime.enable') # Enable runtime domain
 
 # ========== Step 5: Start controlling the browser ==========
 
@@ -234,6 +234,7 @@ print(f'Page title: {result["result"]["value"]}')
 
 # close connection
 ws.close()
+
 
 ```
 
@@ -321,7 +322,7 @@ print(f'H1 text: {result["result"]["value"]}')
 
 # Modify the page (can perform any JS operation)
 send_cmd(ws, 'Runtime.evaluate', {
-    'expression': 'document.title = "被 CDP 修改的标题"',
+    'expression': 'document.title = "Title modified by CDP"',
     'returnByValue': True
 })
 
@@ -408,7 +409,8 @@ send_cmd(ws, 'Page.navigate', {'url': 'https://example.com'})
 
 # ...The page is loading, the event listener will output all requests...
 import time
-time.sleep(5)  # 等待页面加载
+time.sleep(5) # Wait for page to load
+
 
 ```
 
@@ -417,15 +419,15 @@ time.sleep(5)  # 等待页面加载
 ```python
 # Block specific URL patterns
 send_cmd(ws, 'Network.setBlockedURLs', {
-    'urls': ['*.jpg', '*.png', '*.gif']   # 拦截所有图片
+    'urls': ['*.jpg', '*.png', '*.gif'] # Block all pictures
 })
 
 # Simulate weak network environment
 send_cmd(ws, 'Network.emulateNetworkConditions', {
     'offline': False,
-    'latency': 300,          # 延迟 300ms
-    'downloadThroughput': 500 * 1024,   # 下载 500 KB/s
-    'uploadThroughput': 100 * 1024      # 上传 100 KB/s
+    'latency': 300, # Delay 300ms
+    'downloadThroughput': 500 * 1024, # Download 500 KB/s
+    'uploadThroughput': 100 * 1024 # Upload 100 KB/s
 })
 
 # Get response body
@@ -436,6 +438,7 @@ result = send_cmd(ws, 'Network.getResponseBody', {
 })
 print(f'Response body: {result["body"][:500]}')
 print(f'Base64 encoded: {result["base64Encoded"]}')
+
 
 ```
 
@@ -477,9 +480,10 @@ def press_enter(ws):
     })
 
 # Usage example: Autofill forms
-click(ws, 500, 300)          # 点击输入框
-type_text(ws, 'hello@example.com')  # 输入邮箱
-press_enter(ws)              # 提交
+click(ws, 500, 300) # Click on the input box
+type_text(ws, 'hello@example.com') # Enter email
+press_enter(ws) # submit
+
 
 ```
 
@@ -544,7 +548,7 @@ send_cmd(ws, 'Page.navigate', {'url': 'https://bot.sannysoft.com/'})
 
 def on_target_created(event_data):
     target_info = event_data['params']['targetInfo']
-    print(f'新标签页: {target_info["url"]}')
+    print(f'New tab: {target_info["url"]}')
     # The WebSocket URL of the new page can be obtained via CDP_HTTP/json
 
 # You can also use the --remote-debugging-pipe parameter to use a pipe instead of WebSocket
@@ -567,10 +571,10 @@ result = send_cmd(ws, 'Performance.getMetrics')
 metrics = {m['name']: m['value'] for m in result['metrics']}
 
 print(f'DOMContentLoaded: {metrics.get("DomContentLoaded", "N/A")} ms')
-print(f'首次绘制: {metrics.get("FirstPaint", "N/A")} ms')
-print(f'JS 堆大小: {metrics.get("JSHeapUsedSize", "N/A")} bytes')
-print(f'布局次数: {metrics.get("LayoutCount", "N/A")}')
-print(f'重绘次数: {metrics.get("RecalcStyleCount", "N/A")}')
+print(f'First Paint: {metrics.get("FirstPaint", "N/A")} ms')
+print(f'JS Heap Size: {metrics.get("JSHeapUsedSize", "N/A")} bytes')
+print(f'Layouts: {metrics.get("LayoutCount", "N/A")}')
+print(f'Style Recalculations: {metrics.get("RecalcStyleCount", "N/A")}')
 
 ```
 
@@ -578,20 +582,21 @@ print(f'重绘次数: {metrics.get("RecalcStyleCount", "N/A")}')
 
 ```python
 result = send_cmd(ws, 'Page.printToPDF', {
-    'paperWidth': 8.27,       # A4 宽度（英寸）
-    'paperHeight': 11.69,     # A4 高度
+    'paperWidth': 8.27, # A4 width (inches)
+    'paperHeight': 11.69, # A4 height
     'marginTop': 0.4,
     'marginBottom': 0.4,
     'marginLeft': 0.4,
     'marginRight': 0.4,
     'printBackground': True,
     'displayHeaderFooter': True,
-    'headerTemplate': '<span style="font-size:10px;margin-left:10px;">标题</span>',
-    'footerTemplate': '<span style="font-size:10px;margin-right:10px;">第 <span class="pageNumber"></span> 页 / 共 <span class="totalPages"></span> 页</span>'
+    'headerTemplate': '<span style="font-size:10px;margin-left:10px;">Title</span>',
+    'footerTemplate': '<span style="font-size:10px;margin-right:10px;">Page <span class="pageNumber"></span> of <span class="totalPages"></span></span>'
 })
 
 with open('output.pdf', 'wb') as f:
     f.write(base64.b64decode(result['data']))
+
 ```
 
 ---
@@ -603,9 +608,9 @@ Below is a complete practical project - a command line screenshot tool that can 
 ```python
 #!/usr/bin/env python3
 """
-CDP 命令行截图工具
+CDP Command Line Screenshot Tool
 
-用法：
+Usage:
     python cdp_screenshooter.py https://example.com -o screenshot.png -w 1920 -h 1080
 """
 import json
@@ -669,37 +674,37 @@ class CDPConnection:
         
         with open(output_path, 'wb') as f:
             f.write(base64.b64decode(result['data']))
-        print(f'✅ 截图已保存: {output_path} ({width}x{height})')
+        print(f'✅ Screenshot saved: {output_path} ({width}x{height})')
     
     def close(self):
         self.ws.close()
 
 
 def main():
-    parser = argparse.ArgumentParser(description='CDP 命令行截图工具')
-    parser.add_argument('url', help='目标 URL')
-    parser.add_argument('-o', '--output', default='screenshot.png', help='输出文件路径')
-    parser.add_argument('-w', '--width', type=int, default=1920, help='视口宽度')
-    parser.add_argument('-H', '--height', type=int, default=1080, help='视口高度')
-    parser.add_argument('--cdp', default='http://localhost:9222', help='CDP HTTP 地址')
-    parser.add_argument('--pattern', default='', help='匹配特定标签页')
+    parser = argparse.ArgumentParser(description='CDP command line screenshot tool')
+    parser.add_argument('url', help='Target URL')
+    parser.add_argument('-o', '--output', default='screenshot.png', help='Output file path')
+    parser.add_argument('-w', '--width', type=int, default=1920, help='Viewport width')
+    parser.add_argument('-H', '--height', type=int, default=1080, help='Viewport height')
+    parser.add_argument('--cdp', default='http://localhost:9222', help='CDP HTTP address')
+    parser.add_argument('--pattern', default='', help='Match specific tab')
     args = parser.parse_args()
     
-    print(f'🔍 连接 Chrome: {args.cdp}')
+    print(f'🔍 Connecting to Chrome: {args.cdp}')
     ws_url = find_page_ws(args.cdp, args.pattern)
     if not ws_url:
-        print('❌ 未找到可用的页面')
+        print('❌ No available page found')
         return
     
     print(f'🔗 WebSocket: {ws_url[:60]}...')
     cdp = CDPConnection(ws_url)
     
-    print(f'🌐 导航到: {args.url}')
+    print(f'🌐 Navigating to: {args.url}')
     cdp.navigate(args.url)
     
     cdp.screenshot(args.output, args.width, args.height)
     cdp.close()
-    print('🎉 完成！')
+    print('🎉 Done!')
 
 
 if __name__ == '__main__':
@@ -767,7 +772,7 @@ result = send_cmd(ws, 'Runtime.evaluate', {
         (() => {
             const ta = document.querySelector('.xterm-helper-textarea');
             if (!ta) return false;
-            ta.value = '要输入的命令';
+            ta.value = 'command to enter';
             ta.dispatchEvent(new Event('input', {bubbles: true}));
             return true;
         })()

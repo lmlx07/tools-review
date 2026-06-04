@@ -42,25 +42,42 @@ def has_chinese_comment(line):
     s = line.strip()
     if not s:
         return None
+
+    indent = line[:len(line) - len(s)]
+
+    # Standalone comment lines (start with #, //, or """)
     if s.startswith('# ') and not s.startswith('#!'):
         t = s[2:].strip()
         p = '# '
+        before = ''
     elif s.startswith('#') and not s.startswith('#!'):
         t = s[1:].strip()
         p = '# '
+        before = ''
     elif s.startswith('// '):
         t = s[3:].strip()
         p = '// '
+        before = ''
     elif s.startswith('//'):
         t = s[2:].strip()
         p = '// '
+        before = ''
     elif s.startswith('"""') and s.endswith('"""') and len(s) > 6:
         t = s[3:-3].strip()
         p = '"""'
+        before = ''
     else:
-        return None
+        # Inline comments: code  # Chinese or code  // Chinese
+        m = re.search(r'(# |// )(.*)$', s)
+        if m:
+            before = s[:m.start(1)].rstrip()
+            p = ' ' + m.group(1)
+            t = m.group(2).strip()
+        else:
+            return None
+
     if t and re.search(r'[一-鿿]', t):
-        return {'text': t, 'prefix': p, 'indent': line[:len(line) - len(s)]}
+        return {'text': t, 'prefix': p, 'before': before, 'indent': indent}
     return None
 
 
@@ -105,7 +122,7 @@ def process_file(fpath):
                 if info['prefix'] == '"""':
                     lines[li] = info['indent'] + '"""' + trans + '"""'
                 else:
-                    lines[li] = info['indent'] + info['prefix'] + trans
+                    lines[li] = info['indent'] + info['before'] + info['prefix'] + trans
                 print(f'-> {trans[:50]}')
                 changed = True
                 total_done += 1

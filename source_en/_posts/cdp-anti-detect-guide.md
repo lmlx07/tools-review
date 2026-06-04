@@ -47,8 +47,9 @@ Before discussing how to bypass it, let’s first understand how websites detect
 ### 1. WebDriver logo
 
 ```javascript
-// 正常浏览器：navigator.webdriver = undefined 或 false
-// 自动化浏览器：navigator.webdriver = true
+// Normal browser: navigator.webdriver = undefined or false
+// Automated browser: navigator.webdriver = true
+
 ```
 
 This is the most basic test. Selenium and Puppeteer will set this flag by default.
@@ -56,29 +57,33 @@ This is the most basic test. Selenium and Puppeteer will set this flag by defaul
 ### 2. Chrome-specific properties
 
 ```javascript
-// 真实 Chrome 有 chrome 对象
+// Real Chrome has chrome objects
 typeof window.chrome !== 'undefined'
 
-// 但自动化工具可能暴露过多属性
-window.chrome.runtime  // Puppeteer 模式下存在这个
+// But automated tools can expose too many attributes
+window.chrome.runtime // This exists in Puppeteer mode
+
+
 ```
 
 ### 3. Behavioral characteristics
 
 ```javascript
-// 鼠标是否真实移动？
-// 滚动是否太"完美"？
-// 点击间隔是否太规律？
-// 页面加载后是否立即触发所有事件？
+// Is the mouse really moving?
+// Is the scroll too "perfect"?
+// Is the click interval too regular?
+// Are all events triggered immediately after the page loads?
+
 ```
 
 ### 4. Permissions API
 
 ```javascript
-// 自动化浏览器通常返回提示状态
+// Automated browsers usually return to the prompt state
 navigator.permissions.query({name: 'notifications'})
-// 真实用户：prompt（默认）
-// headless 浏览器：denied
+// Real users: prompt (default)
+// headless browser: denied
+
 ```
 
 ### 5. CDP detection
@@ -86,9 +91,10 @@ navigator.permissions.query({name: 'notifications'})
 Some advanced detection tools can detect the presence of CDP connections:
 
 ```javascript
-// 检测 DevTools 是否打开
-// 检测 WebSocket 调试连接
-// 检测 performance API 中的异常
+// Detect DevTools on
+// Detect WebSocket debug connections
+// Detect anomalies in the performance API
+
 ```
 
 ---
@@ -104,12 +110,13 @@ Inject a script before each new document is executed. The properties and methods
 ```python
 cmd(ws, 'Page.addScriptToEvaluateOnNewDocument', {
     'source': '''
-        // 这段代码在每个页面加载前执行
+        // This code executes before each page loads
         Object.defineProperty(navigator, 'webdriver', {
             get: () => undefined
         });
     '''
 })
+
 ```
 
 **Good for**: Modifying JavaScript-level properties and methods
@@ -136,22 +143,23 @@ This is the most basic bypass and required by almost every anti-detection scheme
 
 ```python
 def override_webdriver(ws):
-    """注入脚本覆盖 navigator.webdriver"""
+    """Injection script overrides navigator.webdriver"""
     cmd(ws, 'Page.addScriptToEvaluateOnNewDocument', {
         'source': '''
-        // 覆盖 webdriver 属性
+        // Override webdriver properties
         Object.defineProperty(navigator, 'webdriver', {
             get: () => undefined,
             configurable: true
         });
         
-        // 因为一些检测会用 Object.getOwnPropertyDescriptor 来检查
-        // 所以需要确保看起来像是原生未定义的属性
+        // because some tests are checked with Object.getOwnPropertyDescriptor
+        // So we need to make sure it looks like a native undefined property.
         '''
     })
 
-# 在 Page.enable 之后、Page.navigate 之前调用
+# Called after Page.enable, before Page.navigate
 override_webdriver(ws)
+
 ```
 
 Verification effect:
@@ -161,7 +169,8 @@ result = cmd(ws, 'Runtime.evaluate', {
     'expression': 'navigator.webdriver',
     'returnByValue': True
 })
-print(result['result']['value'])  # 输出：undefined
+print(result['result']['value']) # Output: undefined
+
 ```
 
 ### Advanced: Handling more in-depth inspections
@@ -169,26 +178,27 @@ print(result['result']['value'])  # 输出：undefined
 Some websites check the **property descriptor** of `navigator.webdriver`:
 
 ```javascript
-// 检测是否被 Object.defineProperty 覆盖过
+// Detect if overridden by Object.defineProperty
 const desc = Object.getOwnPropertyDescriptor(navigator, 'webdriver');
-// 如果是原生 undefined，desc 应该是 undefined
-// 如果被覆盖过，desc 会是一个属性描述符对象
+// If native undefined, desc should be undefined
+// If overridden, desc will be a property descriptor object
+
 ```
 
 A more thorough bypass:
 
 ```python
 def stealth_webdriver(ws):
-    """深度隐藏 webdriver 痕迹"""
+    """Hide webdriver traces in depth"""
     cmd(ws, 'Page.addScriptToEvaluateOnNewDocument', {
         'source': '''
-        // 使用 Proxy 隐藏 webdriver
+        // Hide webdriver with proxy
         const originalNavigator = window.navigator;
         const navigatorProxy = new Proxy(originalNavigator, {
             get(target, prop) {
                 if (prop === 'webdriver') return undefined;
                 if (prop === 'plugins' && target.plugins.length === 0) {
-                    // 模拟几个插件
+                    // Simulate several plugins
                     return {
                         ...target.plugins,
                         length: 3,
@@ -201,11 +211,12 @@ def stealth_webdriver(ws):
             }
         });
         
-        // 用 Proxy 替换 navigator
-        // 注意：这种方法更激进，可能会被检测
-        // 但实际上，更简单的方式就够用
+        // Replace navigator with proxy
+        // Note: This method is more aggressive and may be tested
+        // But actually, the simpler way is enough.
         '''
     })
+
 ```
 
 ---
@@ -216,10 +227,10 @@ User-Agent is one of the most obvious fingerprints, and the `Emulation` domain o
 
 ```python
 def set_user_agent(ws, ua=None, platform=None):
-    """设置自定义 User-Agent 和平台"""
+    """Set up custom User-Agent and Platform"""
     
     if ua is None:
-        # Windows 11 + Chrome 125 的标准 UA
+        # Standard UA for Windows 11 + Chrome 125
         ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36'
     
     if platform is None:
@@ -231,15 +242,17 @@ def set_user_agent(ws, ua=None, platform=None):
         'acceptLanguage': 'zh-CN,zh;q=0.9,en;q=0.8'
     })
 
-# 调用
+# Recall
 set_user_agent(ws)
+
 ```
 
 What is easier to overlook here is the **platform** parameter. If you only change UA but not platform:
 
 ```javascript
-// navigator.platform 仍然是 'MacIntel'（如果你在用 Mac）
-// 但 UA 写的是 Windows，这就露出马脚了
+// navigator.platform is still 'MacIntel' (if you're using a Mac)
+// But UA is writing Windows, which shows the horse's feet.
+
 ```
 
 ### Use real device UA
@@ -260,23 +273,23 @@ The principle of Canvas fingerprinting: the website uses JavaScript to draw text
 
 ```python
 def override_canvas_fingerprint(ws):
-    """修改 Canvas 指纹，每次返回略有差异的结果"""
+    """Modify your Canvas fingerprint to return slightly different results each time"""
     cmd(ws, 'Page.addScriptToEvaluateOnNewDocument', {
         'source': '''
-        // 保存原始方法
+        // Save original method
         const originalToDataURL = HTMLCanvasElement.prototype.toDataURL;
         const originalToBlob = HTMLCanvasElement.prototype.toBlob;
         
-        // 添加少量噪声来改变指纹
+        // Add a little noise to change your fingerprint
         function addNoise(canvas) {
-            // 在画布角落添加一个几乎不可见的像素
+            // Add an almost invisible pixel to the corner of the canvas
             const ctx = canvas.getContext('2d');
             if (!ctx) return canvas;
             
             const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            // 修改第一个像素的蓝色通道
+            // Modify the blue channel of the first pixel
             if (imageData.data.length > 3) {
-                imageData.data[0] = imageData.data[0] ^ 1;  // XOR 1 来翻转最低位
+                imageData.data[0] = imageData.data[0] ^ 1; // XOR 1 to flip the lowest bit
                 ctx.putImageData(imageData, 0, 0);
             }
             return canvas;
@@ -293,13 +306,15 @@ def override_canvas_fingerprint(ws):
         };
         '''
     })
+
+
 ```
 
 A more refined solution: **change the amount of noise** at each startup to avoid returning a fixed fingerprint value (because the fixed value itself is also a fingerprint).
 
 ```python
 def override_canvas_with_variation(ws, seed=None):
-    """每次注入不同的噪声来产生变化"""
+    """Make a difference by injecting a different noise each time"""
     import random
     if seed is None:
         seed = random.randint(1, 255)
@@ -324,6 +339,7 @@ def override_canvas_with_variation(ws, seed=None):
         }})(HTMLCanvasElement.prototype.toDataURL);
         '''
     })
+
 ```
 
 ---
@@ -334,16 +350,16 @@ WebGL provides a wealth of information: graphics card models, renderers, vendors
 
 ```python
 def override_webgl_fingerprint(ws):
-    """修改 WebGL 参数，隐藏真实显卡信息"""
+    """Modify WebGL parameters to hide real video card information"""
     cmd(ws, 'Page.addScriptToEvaluateOnNewDocument', {
         'source': '''
-        // 修改 WebGLRenderingContext 的 getParameter 方法
+        // Modify the getParameter method of the WebGLRenderingContext
         const originalGetParameter = WebGLRenderingContext.prototype.getParameter;
         
         WebGLRenderingContext.prototype.getParameter = function(param) {
             const result = originalGetParameter.call(this, param);
             
-            // UNMASKED_VENDOR (0x9245) 和 UNMASKED_RENDERER (0x9246) 暴露显卡信息
+            // UNMASKED_vendor (0x9245) and UNMASKED_render (0x9246) exposed graphics card information
             if (param === 0x9245) {  // UNMASKED_VENDOR_WEBGL
                 return 'Intel Inc.';
             }
@@ -351,7 +367,7 @@ def override_webgl_fingerprint(ws):
                 return 'Intel Iris OpenGL Engine';
             }
             
-            // RENDERER (0x1F01) 和 VENDOR (0x1F00)
+            // Renderer (0x1F01) and vendor (0x1F00)
             if (param === 0x1F00) {  // VENDOR
                 return 'WebKit';
             }
@@ -359,9 +375,9 @@ def override_webgl_fingerprint(ws):
                 return 'WebKit WebGL';
             }
             
-            // 修改 extensions 返回结果
+            // Modify extensions to return results
             if (param === 0x1F03) {  // EXTENSIONS
-                // 删掉一些不常见的扩展
+                // Remove some unusual extensions
                 const extStr = String(result);
                 const blocked = ['WEBGL_debug_renderer_info', 'WEBGL_debug_shaders'];
                 return extStr.split(' ').filter(e => !blocked.includes(e)).join(' ');
@@ -370,12 +386,13 @@ def override_webgl_fingerprint(ws):
             return result;
         };
         
-        // 还要处理 WebGL2
+        // Also work on WebGL2
         if (WebGL2RenderingContext) {
             WebGL2RenderingContext.prototype.getParameter = WebGLRenderingContext.prototype.getParameter;
         }
         '''
     })
+
 ```
 
 ### Get the real WebGL parameters
@@ -383,7 +400,7 @@ def override_webgl_fingerprint(ws):
 You can start by getting these parameters from a real Windows machine:
 
 ```javascript
-// 在真实浏览器中执行，记录返回值
+// Execute in real browser, record return value
 const canvas = document.createElement('canvas');
 const gl = canvas.getContext('webgl');
 console.log({
@@ -394,6 +411,7 @@ console.log({
     unmaskedRenderer: gl.getExtension('WEBGL_debug_renderer_info')
         ?.getParameter(gl.UNMASKED_RENDERER_WEBGL)
 });
+
 ```
 
 These real values ​​are then used to override the automation browser's WebGL parameters.
@@ -406,23 +424,23 @@ AudioContext fingerprint obtains subtle differences in the device audio stack by
 
 ```python
 def override_audio_fingerprint(ws):
-    """修改 AudioContext 指纹"""
+    """Modify AudioContext Fingerprint"""
     cmd(ws, 'Page.addScriptToEvaluateOnNewDocument', {
         'source': '''
-        // 修改 AudioContext 的方法来改变指纹
+        // Method to modify AudioContext to change fingerprint
         const originalGetChannelData = AudioBuffer.prototype.getChannelData;
         
         AudioBuffer.prototype.getChannelData = function(channel) {
             const data = originalGetChannelData.call(this, channel);
-            // 在返回的数据中添加微小的噪声（0.0001% 级别）
+            // Add tiny noise (level 0.0001%) to the returned data
             for (let i = 0; i < data.length; i += 10) {
-                data[i] *= 1.000001;  // 几乎不可感知的差异
+                data[i] *= 1.000001; // Almost imperceptible difference
             }
             return data;
         };
         
-        // 覆盖 AudioContext 的创建，使其使用修改后的方法
-        // 或者直接覆盖 createOscillator / createAnalyser
+        // Override the creation of the AudioContext to use the modified method
+        // or just overwrite createOscillator/createAnalyser
         const originalCreateOscillator = BaseAudioContext.prototype.createOscillator;
         BaseAudioContext.prototype.createOscillator = function() {
             console.log('[CDP] AudioContext access blocked');
@@ -430,6 +448,8 @@ def override_audio_fingerprint(ws):
         };
         '''
     })
+
+
 ```
 
 ---
@@ -438,9 +458,9 @@ def override_audio_fingerprint(ws):
 
 ```python
 def set_viewport(ws, width=1920, height=1080, device_scale_factor=1.0):
-    """设置浏览器视口和屏幕参数"""
+    """Setting Browser Viewport and Screen Parameters"""
     
-    # 使用 Emulation 域设置
+    # Use Emulation Domain Settings
     cmd(ws, 'Emulation.setDeviceMetricsOverride', {
         'width': width,
         'height': height,
@@ -453,8 +473,9 @@ def set_viewport(ws, width=1920, height=1080, device_scale_factor=1.0):
         'screenOrientation': {'type': 'landscapePrimary', 'angle': 0}
     })
 
-# 用法
+# Usage Example
 set_viewport(ws, width=1920, height=1080)
+
 ```
 
 **Why it matters**:
@@ -481,14 +502,14 @@ Some websites use time zone and language to determine whether a user is using an
 
 ```python
 def set_timezone_and_locale(ws, timezone='Asia/Shanghai', locale='zh-CN'):
-    """设置时区和语言环境"""
+    """Set time zone and locale"""
     
-    # 修改时区（Emulation 域）
+    # Modify Time Zone (Emulation Field)
     cmd(ws, 'Emulation.setTimezoneOverride', {
         'timezoneId': timezone
     })
     
-    # 修改语言（通过脚本注入）
+    # Change language (via script injection)
     cmd(ws, 'Page.addScriptToEvaluateOnNewDocument', {
         'source': f'''
         Object.defineProperties(navigator, {{
@@ -498,11 +519,12 @@ def set_timezone_and_locale(ws, timezone='Asia/Shanghai', locale='zh-CN'):
         '''
     })
 
-# 常见时区
-# 'Asia/Shanghai' — 中国
-# 'America/New_York' — 美东
-# 'Europe/London' — 伦敦
-# 'Asia/Tokyo' — 东京
+# Common Time Zones
+# 'Asia/Shanghai' — China
+# 'America/New_York' — East Coast
+# 'Europe/London' — London
+# 'Asia/Tokyo' — Tokyo
+
 ```
 
 **Note**: `Emulation.setTimezoneOverride` modifies the time zone at the browser kernel level, `Date.toString()`, `Intl.DateTimeFormat`, etc. will be affected, which is more thorough than JS injection.
@@ -519,16 +541,16 @@ Integrate all the above techniques into a complete tool class:
 import json, urllib.request, websocket, time, random, base64
 
 class CDPAntiDetect:
-    """CDP 反检测工具类"""
+    """CDP Counter Detection Tool Class"""
     
-    # 常用分辨率
+    # Common resolutions
     VIEWPORTS = {
         'desktop':  {'width': 1920, 'height': 1080, 'scale': 1.0},
         'laptop':   {'width': 1366, 'height': 768,  'scale': 1.0},
         'macbook':  {'width': 1440, 'height': 900,  'scale': 2.0},
     }
     
-    # 常用 User-Agent
+    # Common User-Agent
     USER_AGENTS = {
         'win_chrome': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
         'mac_chrome': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
@@ -541,7 +563,7 @@ class CDPAntiDetect:
         self.script_ids = []
     
     def connect(self):
-        """连接 Chrome"""
+        """Connect Chrome"""
         data = json.loads(urllib.request.urlopen(f'http://{self.host}/json', timeout=5).read())
         ws_url = data[0]['webSocketDebuggerUrl']
         self.ws = websocket.create_connection(ws_url, timeout=30)
@@ -558,13 +580,13 @@ class CDPAntiDetect:
             if r.get('id') == self._id: return r.get('result', {})
     
     def _inject_js(self, source):
-        """注入页面脚本"""
+        """Inject Page Script"""
         result = self._cmd('Page.addScriptToEvaluateOnNewDocument', {'source': source})
         self.script_ids.append(result.get('identifier'))
         return self
     
     def apply_preset(self, preset='desktop'):
-        """应用完整预设"""
+        """Apply full preset"""
         preset_actions = {
             'desktop': {
                 'viewport': self.VIEWPORTS['desktop'],
@@ -584,13 +606,13 @@ class CDPAntiDetect:
         
         config = preset_actions.get(preset, preset_actions['desktop'])
         
-        # 1. 设置 User-Agent 和平台
+        # 1. Set up User-Agent and Platform
         self._cmd('Emulation.setUserAgentOverride', {
             'userAgent': config['ua'],
             'platform': config['platform'],
         })
         
-        # 2. 设置视口和分辨率
+        # 2. Set the viewport and resolution
         vp = config['viewport']
         self._cmd('Emulation.setDeviceMetricsOverride', {
             'width': vp['width'], 'height': vp['height'],
@@ -600,22 +622,22 @@ class CDPAntiDetect:
             'positionX': 0, 'positionY': 0,
         })
         
-        # 3. 设置时区
+        # 3. Set time zone
         self._cmd('Emulation.setTimezoneOverride', {'timezoneId': config['timezone']})
         
-        # 4. 注入反检测脚本
+        # 4. Inject the counter-detection script
         seed = random.randint(1, 255)
         self._inject_js(f'''
-        // 覆盖 webdriver
+        // Override webdriver
         Object.defineProperty(navigator, 'webdriver', {{ get: () => undefined }});
         
-        // 设置语言
+        // Set languages
         Object.defineProperties(navigator, {{
             language: {{ get: () => '{config["locale"]}' }},
             languages: {{ get: () => ['{config["locale"]}', 'en', 'en-US'] }},
         }});
         
-        // Canvas 指纹噪声
+        // Canvas Fingerprint Noise
         const CANVAS_NOISE = {seed};
         const _toDataURL = HTMLCanvasElement.prototype.toDataURL.bind(HTMLCanvasElement.prototype);
         HTMLCanvasElement.prototype.toDataURL = function(...args) {{
@@ -632,7 +654,7 @@ class CDPAntiDetect:
             return _toDataURL.apply(this, args);
         }};
         
-        // WebGL 指纹覆盖
+        // WebGL Fingerprint Override
         if (WebGLRenderingContext) {{
             const _getParam = WebGLRenderingContext.prototype.getParameter;
             WebGLRenderingContext.prototype.getParameter = function(p) {{
@@ -644,7 +666,7 @@ class CDPAntiDetect:
             }};
         }}
         
-        // 覆盖 plugins 数组（非自动化浏览器通常有插件）
+        // Override plugins array (non-automated browsers usually have plugins)
         if (navigator.plugins.length === 0) {{
             Object.defineProperty(navigator, 'plugins', {{
                 get: () => {{
@@ -666,7 +688,7 @@ class CDPAntiDetect:
         return self
     
     def navigate(self, url):
-        """导航到目标页面（已应用反检测）"""
+        """Navigate to the destination page (anti-detection applied)"""
         self._cmd('Page.navigate', {'url': url})
         time.sleep(2)
         return self
@@ -676,22 +698,24 @@ class CDPAntiDetect:
             self.ws.close()
 
 
-# ====== 使用示例 ======
+# Usage Sample
 ad = CDPAntiDetect().connect()
 
-# 应用桌面端反检测预设
+# App Desktop Anti-Detection Preset
 ad.apply_preset('desktop')
 
-# 访问目标网站
-ad.navigate('https://bot.sannysoft.com/')  # 一个检测自动化浏览器的页面
+# Visit target website
+ad.navigate('https://bot.sannysoft.com/') # A page to detect automated browsers
 time.sleep(3)
 
-# 截屏验证
+# Screenshot verification
 screenshot = ad._cmd('Page.captureScreenshot', {'format': 'png'})
 with open('anti_detect_result.png', 'wb') as f:
     f.write(base64.b64decode(screenshot['data']))
 
 ad.close()
+
+
 ```
 
 Visit [bot.sannysoft.com](https://bot.sannysoft.com/) or [pixelscan.net](https://pixelscan.net/) to check your anti-camouflage effect.
@@ -703,9 +727,10 @@ Visit [bot.sannysoft.com](https://bot.sannysoft.com/) or [pixelscan.net](https:/
 ### 1. The CDP connection itself can be detected
 
 ```javascript
-// 检查 WebSocket 连接
-// 自动化浏览器通常有活跃的 WebSocket 连接到调试端口
-// 一些高级检测可以尝试发现这个连接
+// Check WebSocket Connection
+// Automated browsers typically have an active WebSocket connection to the debug port
+// Some advanced tests can try to discover this connection
+
 ```
 
 For ordinary websites, there is no need to worry, but for advanced protection systems such as Cloudflare 5-second shield and Akamai, CDP injection alone may not be enough.

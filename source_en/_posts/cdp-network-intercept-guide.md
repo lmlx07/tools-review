@@ -48,8 +48,9 @@ The Chrome DevTools Protocol provides two domains to control the network:
 The traditional method corresponds to the Network panel in DevTools.
 
 ```python
-# Network 域可以监听到所有网络活动
+# The Network domain can monitor all network activity
 cmd(ws, 'Network.enable')
+
 ```
 
 **Can be done**: monitor requests, obtain response bodies, and block cookies
@@ -60,10 +61,11 @@ cmd(ws, 'Network.enable')
 The Fetch domain is a more modern API that allows you to "pause" the request, make changes in the middle, and then decide to release, modify, or abort.
 
 ```python
-# Fetch 域启用后，每个请求都会被"拦截"
+# When a Fetch domain is enabled, every request is "blocked"
 cmd(ws, 'Fetch.enable', {
     'patterns': [{'urlPattern': '*', 'requestStage': 'Request'}]
 })
+
 ```
 
 **Core Concept**:
@@ -101,7 +103,7 @@ Let’s start with the basics — connecting to Chrome and listening for network
 ```python
 import json, urllib.request, websocket, time
 
-# ====== 连接 CDP ======
+# = = = = = = Connect CDP = = = = = =
 CDP_HTTP = 'http://localhost:9222'
 
 def get_ws():
@@ -125,6 +127,7 @@ ws_url = get_ws()
 ws = websocket.create_connection(ws_url, timeout=30)
 cmd(ws, 'Page.enable')
 cmd(ws, 'Network.enable')
+
 ```
 
 This is a standard CDP connection template, and all subsequent examples are based on it.
@@ -132,11 +135,11 @@ This is a standard CDP connection template, and all subsequent examples are base
 ### Listen to all network requests
 
 ```python
-# 启动后，所有网络事件都会通过 WebSocket 推送
+# Once started, all network events are pushed via WebSockets
 cmd(ws, 'Page.navigate', {'url': 'https://example.com'})
 time.sleep(3)
 
-# 持续接收消息（设置超时避免卡死）
+# Keep receiving messages (set timeout to avoid getting stuck)
 ws.settimeout(1)
 try:
     while True:
@@ -152,6 +155,7 @@ try:
             print(f'⬅ {resp["status"]} {resp["url"]}')
 except websocket.TimeoutError:
     pass
+
 ```
 
 You will see output similar to this:
@@ -172,7 +176,7 @@ You will see output similar to this:
 Some sites check for `Referer` or `User-Agent`, or you need to add custom authentication headers. This can be easily accomplished using the Fetch field.
 
 ```python
-# 启用 Fetch 拦截
+# Enable Fetch Blocking
 cmd(ws, 'Fetch.enable', {
     'patterns': [{
         'urlPattern': '*',
@@ -183,7 +187,7 @@ cmd(ws, 'Fetch.enable', {
 pending_requests = {}
 
 def process_message(msg):
-    """处理 CDP 消息，拦截并修改请求"""
+    """Process CDP messages, block and modify requests"""
     params = msg.get('params', {})
     method = msg.get('method', '')
     
@@ -192,14 +196,14 @@ def process_message(msg):
         request = params['request']
         url = request['url']
         
-        # 跳过 ws:// 和 data: 协议
+        # Skip ws://and data: protocols
         if url.startswith('data:') or url.startswith('blob:'):
             cmd(ws, 'Fetch.continueRequest', {
                 'requestId': request_id
             })
             return
         
-        # 修改请求头：添加自定义 Header
+        # Modify request headers: Add custom headers
         headers = request.get('headers', {})
         headers['X-Custom-Header'] = 'my-value'
         headers['Referer'] = 'https://my-custom-referer.com/'
@@ -211,10 +215,10 @@ def process_message(msg):
             'headers': [{'name': k, 'value': v} for k, v in headers.items()]
         })
 
-# 导航到目标页面
+# Navigate to the destination page
 cmd(ws, 'Page.navigate', {'url': 'https://httpbin.org/headers'})
 
-# 持续处理消息
+# Ongoing message processing
 timeout = 10
 start = time.time()
 while time.time() - start < timeout:
@@ -224,6 +228,7 @@ while time.time() - start < timeout:
         process_message(msg)
     except websocket.TimeoutError:
         break
+
 ```
 
 **Note**: The `headers` parameter of `Fetch.continueRequest` needs to pass an `{name, value}` object array instead of an ordinary dictionary. This is the format requirement for Fetch fields.
@@ -232,12 +237,13 @@ If you want to **modify the request body** (such as a POST request), you can do 
 
 ```python
 if request['method'] == 'POST':
-    # 修改 POST 请求体
+    # Modify post request body
     new_body = json.dumps({"modified": True, "original": request.get('postData', '')})
     cmd(ws, 'Fetch.continueRequest', {
         'requestId': request_id,
         'postData': base64.b64encode(new_body.encode()).decode()
     })
+
 ```
 
 POST data needs to be Base64 encoded before being sent back.
@@ -253,7 +259,7 @@ This is a more advanced feature - modifying the content of the response before i
 - Inject custom scripts
 
 ```python
-# 启用 Fetch 拦截（Request + Response 两个阶段）
+# Enable Fetch Blocking (Request + Response two phases)
 cmd(ws, 'Fetch.enable', {
     'patterns': [{
         'urlPattern': '*',
@@ -270,12 +276,12 @@ def process_response(msg):
     request = params['request']
     url = request['url']
     
-    # 只拦截 API 请求
+    # Block API requests only
     if '/api/' not in url:
         cmd(ws, 'Fetch.continueRequest', {'requestId': request_id})
         return
     
-    # 构造替代响应
+    # Construct an override response
     response_body = json.dumps({
         "code": 0,
         "message": "This is mocked by CDP",
@@ -284,7 +290,7 @@ def process_response(msg):
     
     print(f'🔧 Mocking API: {url[:60]}')
     
-    # 使用 Fetch.fulfillRequest 直接返回自定义内容
+    # Use Fetch.fulfillRequest to return custom content directly
     cmd(ws, 'Fetch.fulfillRequest', {
         'requestId': request_id,
         'responseCode': 200,
@@ -294,6 +300,7 @@ def process_response(msg):
         ],
         'body': base64.b64encode(response_body.encode()).decode()
     })
+
 ```
 
 **Note**: `Fetch.fulfillRequest` replaces the entire response, and the browser will not actually request the server. This feature is particularly suitable for:
@@ -305,7 +312,7 @@ def process_response(msg):
 
 ```python
 def inject_script(msg):
-    """拦截 JavaScript 文件，注入自定义代码"""
+    """Block JavaScript files and inject custom code"""
     params = msg.get('params', {})
     if msg.get('method') != 'Fetch.requestPaused':
         return
@@ -313,17 +320,17 @@ def inject_script(msg):
     request_id = params['requestId']
     url = params['request']['url']
     
-    # 只拦截 main.js
+    # Block main.js only
     if 'main.js' not in url:
         cmd(ws, 'Fetch.continueRequest', {'requestId': request_id})
         return
     
-    # 原本的 JS 被替换成我们的代码
+    # The original JS was replaced with our code
     custom_js = '''
     console.log("CDP injected script!");
-    // 修改页面标题
+    // Modify page title
     document.title = "[CDP Modified] " + document.title;
-    // 注入全局变量
+    // Inject global variables
     window.__CDP_INJECTED__ = true;
     '''
     
@@ -335,6 +342,7 @@ def inject_script(msg):
         ],
         'body': base64.b64encode(custom_js.encode()).decode()
     })
+
 ```
 
 ---
@@ -344,14 +352,14 @@ def inject_script(msg):
 Blocking unnecessary requests can significantly speed up page loading and reduce bandwidth consumption.
 
 ```python
-# 定义屏蔽规则
+# Define blocking rules
 BLOCKED_PATTERNS = [
     'google-analytics.com',
     'doubleclick.net',
     'facebook.net',
     'googlesyndication.com',
     'amazon-adsystem.com',
-    '.jpg',   # 屏蔽所有图片
+    '.jpg', # Block all images
     '.png',
     '.gif',
 ]
@@ -364,19 +372,21 @@ def block_requests(msg):
     request_id = params['requestId']
     url = params['request']['url']
     
-    # 检查是否命中屏蔽列表
+    # Check if the block list is hit
     for pattern in BLOCKED_PATTERNS:
         if pattern in url:
             print(f'🚫 Blocked: {url[:60]}')
-            # 使用 Fetch.failRequest 让请求失败
+            # Use Fetch.failRequest to fail the request
             cmd(ws, 'Fetch.failRequest', {
                 'requestId': request_id,
                 'errorReason': 'BlockedByClient'
             })
             return
     
-    # 放行其他请求
+    # Release other requests
     cmd(ws, 'Fetch.continueRequest', {'requestId': request_id})
+
+
 ```
 
 Optional abort reason (`errorReason`):
@@ -397,7 +407,7 @@ SPA (Single Page Application) sites are difficult to crawl with traditional `req
 
 ```python
 def crawl_spa():
-    """抓取 SPA 页面的 API 数据"""
+    """Crawl API data for spa pages"""
     
     captured_data = []
     
@@ -409,11 +419,11 @@ def crawl_spa():
             resp = params['response']
             url = resp['url']
             
-            # 识别 API 请求（根据 URL 特征）
+            # Identify API requests (based on URL characteristics)
             if '/api/' in url or '/graphql' in url:
                 request_id = params['requestId']
                 
-                # 获取响应体
+                # Get Response Body
                 result = cmd(ws, 'Network.getResponseBody', {
                     'requestId': request_id
                 })
@@ -424,16 +434,16 @@ def crawl_spa():
                     print(f'   Data size: {len(body)} bytes')
                     captured_data.append({
                         'url': url,
-                        'body': body[:500]  # 只保存前 500 字符
+                        'body': body[:500] # Only the first 500 characters are saved
                     })
     
-    # 导航
+    # Navigation
     cmd(ws, 'Network.enable')
     cmd(ws, 'Page.navigate', {'url': 'https://example-spa.com/list'})
     
-    time.sleep(3)  # 等待页面加载
+    time.sleep(3) # Wait for page to load
     
-    # 模拟翻页：点击"下一页"按钮
+    # Mock Page Turn: Click the "Next" button
     cmd(ws, 'Runtime.evaluate', {
         'expression': 'document.querySelector(".next-page").click()',
         'returnByValue': True
@@ -441,7 +451,7 @@ def crawl_spa():
     
     time.sleep(2)
     
-    # 再翻一页
+    # Turn another page
     cmd(ws, 'Runtime.evaluate', {
         'expression': 'document.querySelector(".next-page").click()',
         'returnByValue': True
@@ -450,6 +460,8 @@ def crawl_spa():
     time.sleep(2)
     
     return captured_data
+
+
 ```
 
 This method is more efficient than traditional Selenium + parsing HTML, because you directly get the original JSON data returned by the API, eliminating the step of parsing HTML.
@@ -460,7 +472,7 @@ Sometimes you need to wait for an API to return before performing the next step.
 
 ```python
 def wait_for_api(ws, url_pattern, timeout=10):
-    """等待特定的 API 请求完成"""
+    """Wait for a specific API request to complete"""
     import re
     pattern = re.compile(url_pattern)
     start = time.time()
@@ -482,10 +494,11 @@ def wait_for_api(ws, url_pattern, timeout=10):
     
     return None
 
-# 用法
+# Usage Example
 data = wait_for_api(ws, r'/api/products\?page=2')
 if data:
     print(f'Got {len(data.get("items", []))} products')
+
 ```
 
 ---
@@ -495,13 +508,13 @@ if data:
 Front-end testing often requires mocking API responses. CDP allows you to implement interface mocks without modifying the code.
 
 ```python
-# Mock 配置：URL 模式 -> 模拟响应
+# Mock Configuration: URL Mode - > Simulate Response
 MOCK_CONFIG = {
     '/api/user/info': {
         'code': 0,
         'data': {
             'id': 10001,
-            'name': '测试用户',
+            'name': 'Test User',
             'avatar': 'https://example.com/avatar.png',
             'vip': True
         }
@@ -510,8 +523,8 @@ MOCK_CONFIG = {
         'code': 0,
         'data': {
             'items': [
-                {'id': 1, 'name': '商品A', 'price': 99.00},
-                {'id': 2, 'name': '商品B', 'price': 199.00},
+                {'id': 1, 'name': 'Product A', 'price': 99.00},
+                {'id': 2, 'name': 'Product B', 'price': 199.00},
             ],
             'total': 2,
             'page': 1
@@ -519,11 +532,11 @@ MOCK_CONFIG = {
     }
 }
 
-# 模拟 500 错误
+# Simulate 500 Error
 MOCK_ERROR = {
     '/api/error/test': {
         'status': 500,
-        'body': {'code': -1, 'message': '服务器内部错误'}
+        'body': {'code': -1, 'message': 'Internal server error'}
     }
 }
 
@@ -535,7 +548,7 @@ def handle_mock(msg):
     request_id = params['requestId']
     url = params['request']['url']
     
-    # 检查是否匹配 Mock 配置
+    # Check if the Mock configuration is matched
     for pattern, mock_data in MOCK_CONFIG.items():
         if pattern in url:
             print(f'🎭 Mocking: {url[:50]}')
@@ -550,7 +563,7 @@ def handle_mock(msg):
             })
             return
     
-    # 检查错误模拟
+    # Check for error simulations
     for pattern, error_data in MOCK_ERROR.items():
         if pattern in url:
             print(f'💥 Simulating error: {url[:50]}')
@@ -565,8 +578,9 @@ def handle_mock(msg):
             })
             return
     
-    # 放行未配置的请求
+    # Release unconfigured requests
     cmd(ws, 'Fetch.continueRequest', {'requestId': request_id})
+
 ```
 
 This technique is particularly useful in the following scenarios:
@@ -582,9 +596,9 @@ Many modern websites use lazy loading (loading="lazy"), where images are only lo
 
 ```python
 def trigger_all_images(ws):
-    """触发页面中所有懒加载图片开始加载"""
+    """Trigger all lazy loading images in the page to start loading"""
     
-    # 通过 Fetch 域拦截图片加载
+    # Block image loading via Fetch domain
     cmd(ws, 'Fetch.enable', {
         'patterns': [
             {'urlPattern': '*.jpg', 'requestStage': 'Request'},
@@ -594,7 +608,7 @@ def trigger_all_images(ws):
         ]
     })
     
-    # 滚动页面到底部，触发懒加载
+    # Scroll to the bottom to trigger lazy loading
     cmd(ws, 'Runtime.evaluate', {
         'expression': '''
         (async () => {
@@ -604,10 +618,10 @@ def trigger_all_images(ws):
             
             for (let y = 0; y < totalScroll; y += scrollStep) {
                 window.scrollTo(0, y);
-                await delay(300);  // 等待图片触发加载
+                await delay(300); // Wait for the image to trigger loading
             }
             
-            // 回到顶部
+            // Back to top
             window.scrollTo(0, 0);
             return 'Scrolled full page';
         })()
@@ -616,7 +630,7 @@ def trigger_all_images(ws):
         'awaitPromise': True
     })
     
-    # 收集所有图片 URL
+    # Collect all image URLs
     images = cmd(ws, 'Runtime.evaluate', {
         'expression': '''
         (() => {
@@ -631,6 +645,8 @@ def trigger_all_images(ws):
     })
     
     return images.get('result', {}).get('value', '')
+
+
 ```
 
 After the images are loaded, you can also use `Page.captureScreenshot` to take a screenshot of the complete page including all images.
@@ -644,10 +660,10 @@ After the images are loaded, you can also use `Page.captureScreenshot` to take a
 When `Fetch.enable` is enabled, every request matching the pattern will be suspended until you call `continueRequest`, `fulfillRequest` or `failRequest`. **If you don't handle a request, the page will wait forever** and other requests will also be blocked.
 
 ```python
-# ❌ 错误：只处理部分请求
-# 未处理的请求会一直挂起
+# ❌ Error: only partial request processed
+# Unhandled requests will stay suspended
 
-# ✅ 正确：所有请求都有对应处理
+# ✅ Correct: All requests are handled accordingly
 def safe_handler(msg):
     if msg.get('method') != 'Fetch.requestPaused':
         return
@@ -656,8 +672,9 @@ def safe_handler(msg):
     if should_intercept(msg):
         do_intercept(msg)
     else:
-        # 一定要放行！
+        # Always release unhandled requests
         cmd(ws, 'Fetch.continueRequest', {'requestId': request_id})
+
 ```
 
 ### 2. Pitfalls of Base64 encoding
@@ -667,12 +684,14 @@ The `body` of `Fetch.fulfillRequest` requires Base64 encoding, and so does the `
 ```python
 import base64
 
-# 正确做法
+# Correct approach:
 body = '{"key": "value"}'
-encoded = base64.b64encode(body.encode()).decode()  # 标准 Base64
+encoded = base64.b64encode(body.encode()).decode() # Standard Base64
 
-# 注意：不是 URL-safe 的 base64
+# Note: Not base64 for URL-safe
 encoded_wrong = base64.urlsafe_b64encode(body.encode()).decode()  # ❌
+
+
 ```
 
 ### 3. Conflict in using Fetch and Network domains at the same time
@@ -690,14 +709,15 @@ Intercepting a large number of requests (especially 100+ requests on the initial
 - Call `Fetch.disable` when interception is not needed to close
 
 ```python
-# 精准拦截
+# Precision Intercept
 cmd(ws, 'Fetch.enable', {
     'patterns': [
         {'urlPattern': '*/api/*', 'requestStage': 'Request'},
         {'urlPattern': '*.json', 'requestStage': 'Response'}
     ]
 })
-# 不要用 {'urlPattern': '*'} 除非确实需要拦截所有请求
+# Don't use {'urlPattern': '*'} unless you really need to block all requests
+
 ```
 
 ### 5. Special handling of WebSocket requests
@@ -706,9 +726,10 @@ WebSocket requests (`ws://` and `wss://`) require special handling when intercep
 
 ```python
 if url.startswith('ws://') or url.startswith('wss://'):
-    # WebSocket 请求必须放行，不支持修改
+    # WebSocket request must be released, modification is not supported
     cmd(ws, 'Fetch.continueRequest', {'requestId': request_id})
     return
+
 ```
 
 ### 6. Request body acquisition restrictions
@@ -718,8 +739,9 @@ In the `Fetch.requestPaused` event, `request.postData` is only available when th
 At this time, the request body can be captured through the Network domain:
 
 ```python
-# 在 Network 域中监听
-# Network.requestWillBeSent 事件中有更完整的 request.postData
+# Listen in the Network domain
+# More complete request.postData in Network.requestWillBeSent event
+
 ```
 
 ---
@@ -732,7 +754,7 @@ Finally, I combined the above techniques into a complete network interceptor too
 import json, websocket, time, base64, urllib.request
 
 class CDPNetworkInterceptor:
-    """CDP 网络拦截器"""
+    """CDP Network Blocker"""
     
     def __init__(self, host='localhost:9222'):
         self.host = host
@@ -742,7 +764,7 @@ class CDPNetworkInterceptor:
         self.mock_count = 0
     
     def connect(self):
-        """连接 CDP"""
+        """Connect CDP"""
         data = json.loads(urllib.request.urlopen(
             f'http://{self.host}/json', timeout=5).read())
         ws_url = data[0]['webSocketDebuggerUrl']
@@ -760,25 +782,25 @@ class CDPNetworkInterceptor:
             if r.get('id') == self._id: return r.get('result', {})
     
     def start_intercept(self, patterns=None):
-        """启动请求拦截"""
+        """Start Request Blocking"""
         if patterns is None:
             patterns = [{'urlPattern': '*', 'requestStage': 'Request'}]
         self._cmd('Fetch.enable', {'patterns': patterns})
         print(f'🔍 Intercept started with {len(patterns)} pattern(s)')
     
     def stop_intercept(self):
-        """停止拦截"""
+        """Stop blocking"""
         self._cmd('Fetch.disable')
         print('⏹ Intercept stopped')
     
     def run(self, url, handlers=None, timeout=15):
         """
-        打开页面并运行拦截处理
+        Open page and run intercept handler
         
         Args:
-            url: 要打开的页面
-            handlers: 自定义处理函数，接收 request_id, url, params
-            timeout: 运行时间（秒）
+            url: Page to open
+            handlers: Custom handler functions, receives request_id, url, params
+            timeout: Run duration (seconds)
         """
         if handlers is None:
             handlers = {'on_request': None, 'on_response': None}
@@ -796,18 +818,18 @@ class CDPNetworkInterceptor:
                     request_id = params['requestId']
                     url = params['request']['url']
                     
-                    # 跳过特殊协议
+                    # Skip special agreements
                     if url.startswith('data:') or url.startswith('blob:') or url.startswith('ws'):
                         self._cmd('Fetch.continueRequest', {'requestId': request_id})
                         continue
                     
-                    # 调用自定义处理
+                    # Call Custom Processing
                     if handlers.get('on_request'):
                         handled = handlers['on_request'](request_id, url, params)
                         if handled:
                             continue
                     
-                    # 默认放行
+                    # Default Release
                     self._cmd('Fetch.continueRequest', {'requestId': request_id})
                     
             except websocket.TimeoutError:
@@ -818,26 +840,28 @@ class CDPNetworkInterceptor:
             self.ws.close()
 
 
-# ====== 使用示例 ======
-# 创建一个拦截器
+# Usage Sample
+# Create a blocker
 interceptor = CDPNetworkInterceptor().connect()
 interceptor.start_intercept()
 
-# 访问页面，拦截广告
+# Visit the page to block ads
 interceptor.run('https://example.com', {
     'on_request': lambda rid, url, params: (
-        # 屏蔽 Google Analytics
+        # Google Analytics
         'google-analytics.com' in url and (
             interceptor._cmd('Fetch.failRequest', {
                 'requestId': rid,
                 'errorReason': 'BlockedByClient'
-            }) or True  # 返回 True 表示已处理
+            }) or True # Return True to indicate that it has been processed
         )
     ) or None
 })
 
 interceptor.stop_intercept()
 interceptor.close()
+
+
 ```
 
 ---
