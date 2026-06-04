@@ -109,3 +109,21 @@ seo:
     homepage: true
   links:
     enable: true
+
+# ---------- Theme Overrides (English) ----------
+theme_config:
+  menu:
+    Home: / || fas fa-home
+    Archives: /archives/ || fas fa-archive
+    Categories: /categories/ || fas fa-folder-open
+    Tags: /tags/ || fas fa-tags
+    About: /about/ || fas fa-info-circle
+  aside:
+    card_author:
+      description: Chrome DevTools Protocol Tutorial
+      button:
+        text: Follow me
+    card_announcement:
+      content: 📢 CDP Automation Guide is a Chinese tech blog focused on Chrome DevTools Protocol, providing hands-on tutorials for controlling browsers with Python.
+  footer:
+    custom_text: 🚀 CDP Automation Guide
