@@ -1,0 +1,625 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>Chrome DevTools Protocol (CDP) 完全指南：用 Python 控制浏览器的终极方案 | CDP 自动化指南</title><meta name="author" content=""><meta name="copyright" content=""><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="Chrome DevTools Protocol（CDP）是什么？为什么说它是比 Selenium 更强大的浏览器自动化方案？本文将带你从零开始，用 Python 通过 WebSocket 直接控制 Chrome 浏览器，实现导航、截图、网络拦截等高级操作，并附完整的实战代码。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Chrome DevTools Protocol (CDP) 完全指南：用 Python 控制浏览器的终极方案">
+<meta property="og:url" content="https://cdp.autify.cc/cdp-python-automation-guide/index.html">
+<meta property="og:site_name" content="CDP 自动化指南">
+<meta property="og:description" content="Chrome DevTools Protocol（CDP）是什么？为什么说它是比 Selenium 更强大的浏览器自动化方案？本文将带你从零开始，用 Python 通过 WebSocket 直接控制 Chrome 浏览器，实现导航、截图、网络拦截等高级操作，并附完整的实战代码。">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://cdp.autify.cc/img/avatar.png">
+<meta property="article:published_time" content="2026-06-03T06:00:00.000Z">
+<meta property="article:modified_time" content="2026-06-03T13:30:33.922Z">
+<meta property="article:tag" content="CDP">
+<meta property="article:tag" content="Chrome DevTools Protocol">
+<meta property="article:tag" content="Playwright">
+<meta property="article:tag" content="Python">
+<meta property="article:tag" content="Selenium">
+<meta property="article:tag" content="浏览器自动化">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://cdp.autify.cc/img/avatar.png"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Chrome DevTools Protocol (CDP) 完全指南：用 Python 控制浏览器的终极方案",
+  "url": "https://cdp.autify.cc/cdp-python-automation-guide/",
+  "image": "https://cdp.autify.cc/img/avatar.png",
+  "datePublished": "2026-06-03T06:00:00.000Z",
+  "dateModified": "2026-06-03T13:30:33.922Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "",
+      "url": "https://cdp.autify.cc"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon.png"><link rel="canonical" href="https://cdp.autify.cc/cdp-python-automation-guide/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="stylesheet" href="/css/index.css?v=5.5.4"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":false,"highlightFullpage":true,"highlightMacStyle":true},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: '',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.13.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: false,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'Chrome DevTools Protocol (CDP) 完全指南：用 Python 控制浏览器的终极方案',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><meta name="generator" content="Hexo 8.1.2"></head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/avatar.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">1</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">6</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">2</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-info-circle"></i><span> 关于</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/default_bg.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">CDP 自动化指南</span></a><a class="nav-page-title" href="/"><span class="site-name">Chrome DevTools Protocol (CDP) 完全指南：用 Python 控制浏览器的终极方案</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-info-circle"></i><span> 关于</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">Chrome DevTools Protocol (CDP) 完全指南：用 Python 控制浏览器的终极方案</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">发表于</span><time class="post-meta-date-created" datetime="2026-06-03T06:00:00.000Z" title="发表于 2026-06-03 14:00:00">2026-06-03</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">更新于</span><time class="post-meta-date-updated" datetime="2026-06-03T13:30:33.922Z" title="更新于 2026-06-03 21:30:33">2026-06-03</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/CDP-%E5%9F%BA%E7%A1%80/">CDP 基础</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/CDP-%E5%9F%BA%E7%A1%80/Python-%E5%AE%9E%E6%88%98/">Python 实战</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><div id="post-outdate-notice" data="{&quot;limitDay&quot;:365,&quot;messagePrev&quot;:&quot;本文距离上次更新已过去&quot;,&quot;messageNext&quot;:&quot;天，内容可能已过时。&quot;,&quot;postUpdate&quot;:&quot;2026-06-03 21:30:33&quot;}" hidden></div><blockquote>
+<p><strong>一句话总结</strong>：Chrome DevTools Protocol（CDP）是 Chrome 内置的”远程控制 API”，让你可以用代码直接操控浏览器的一切 — 从打开网页到拦截网络请求，从截取截图到追踪性能。它正是 Puppeteer、Playwright 这些工具的底层基石。</p>
+</blockquote>
+<hr>
+<h2 id="目录"><a href="#目录" class="headerlink" title="目录"></a>目录</h2><ol>
+<li><a href="#cdp-%E6%98%AF%E4%BB%80%E4%B9%88">CDP 是什么</a></li>
+<li><a href="#cdp-vs-selenium-vs-playwright%E8%AF%A5%E6%80%8E%E4%B9%88%E9%80%89">CDP vs Selenium vs Playwright：该怎么选</a></li>
+<li><a href="#%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA">环境搭建</a></li>
+<li><a href="#%E7%AC%AC%E4%B8%80%E4%B8%AA-cdp-%E7%A8%8B%E5%BA%8F%E8%BF%9E%E6%8E%A5-chrome">第一个 CDP 程序：连接 Chrome</a></li>
+<li><a href="#%E6%A0%B8%E5%BF%83%E5%91%BD%E4%BB%A4%E5%AE%9E%E6%88%98">核心命令实战</a></li>
+<li><a href="#%E8%BF%9B%E9%98%B6%E6%8A%80%E5%B7%A7">进阶技巧</a></li>
+<li><a href="#%E5%AE%8C%E6%95%B4%E5%AE%9E%E6%88%98%E8%87%AA%E5%8A%A8%E5%8C%96%E6%88%AA%E5%9B%BE%E5%B7%A5%E5%85%B7">完整实战：自动化截图工具</a></li>
+<li><a href="#%E8%B8%A9%E5%9D%91%E8%AE%B0%E5%BD%95%E4%B8%8E%E6%9C%80%E4%BD%B3%E5%AE%9E%E8%B7%B5">踩坑记录与最佳实践</a></li>
+<li><a href="#%E6%80%BB%E7%BB%93%E4%B8%8E%E4%B8%8B%E4%B8%80%E6%AD%A5">总结与下一步</a></li>
+</ol>
+<hr>
+<h2 id="CDP-是什么"><a href="#CDP-是什么" class="headerlink" title="CDP 是什么"></a>CDP 是什么</h2><p>Chrome DevTools Protocol（简称 CDP）是一个基于 <strong>WebSocket</strong> 的通信协议。本质上，它就是你在 Chrome 开发者工具（F12）中看到的所有功能的”后台 API”。</p>
+<p>每当你打开 DevTools 的 Elements、Console、Network 面板时，Chrome 就在内部通过 CDP 和 DevTools 前端通信。换句话说：<strong>DevTools 能做的任何事情，CDP 都能通过代码做到</strong>。</p>
+<h3 id="CDP-能做什么"><a href="#CDP-能做什么" class="headerlink" title="CDP 能做什么"></a>CDP 能做什么</h3><table>
+<thead>
+<tr>
+<th>功能领域</th>
+<th>典型应用场景</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>页面导航与控制</td>
+<td>打开 URL、前进&#x2F;后退、刷新</td>
+</tr>
+<tr>
+<td>DOM 操作</td>
+<td>获取&#x2F;修改页面元素、监听 DOM 变化</td>
+</tr>
+<tr>
+<td>JavaScript 执行</td>
+<td>在页面上下文中运行任意 JS 代码</td>
+</tr>
+<tr>
+<td>网络拦截</td>
+<td>捕获请求&#x2F;响应、修改请求头、模拟网络条件</td>
+</tr>
+<tr>
+<td>截图与录制</td>
+<td>页面截图、元素截图、生成 PDF</td>
+</tr>
+<tr>
+<td>性能追踪</td>
+<td>加载性能分析、内存快照、FPS 监控</td>
+</tr>
+<tr>
+<td>模拟设备</td>
+<td>修改 User-Agent、视口大小、地理位置</td>
+</tr>
+<tr>
+<td>安全与认证</td>
+<td>处理 SSL 证书、基本认证、Cookie 管理</td>
+</tr>
+</tbody></table>
+<h3 id="CDP-的通信模型"><a href="#CDP-的通信模型" class="headerlink" title="CDP 的通信模型"></a>CDP 的通信模型</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">┌─────────────────┐         WebSocket         ┌──────────────────┐</span><br><span class="line">│  你的 Python 脚本 │ ◄──────────────────────► │  Chrome 浏览器    │</span><br><span class="line">│                  │    ws://localhost:9222     │                  │</span><br><span class="line">└─────────────────┘                            │  ┌────────────┐  │</span><br><span class="line">                                               │  │  页面 Tab 1  │  │</span><br><span class="line">                                               │  ├────────────┤  │</span><br><span class="line">                                               │  │  页面 Tab 2  │  │</span><br><span class="line">                                               │  ├────────────┤  │</span><br><span class="line">                                               │  │  ...        │  │</span><br><span class="line">                                               │  └────────────┘  │</span><br><span class="line">                                               └──────────────────┘</span><br></pre></td></tr></table></figure>
+
+<p>每个命令以 JSON 格式发送，Chrome 也同样以 JSON 返回结果。<strong>请求和响应通过 <code>id</code> 字段一一对应</strong>，这是 CDP 通信的核心约定。</p>
+<hr>
+<h2 id="CDP-vs-Selenium-vs-Playwright：该怎么选"><a href="#CDP-vs-Selenium-vs-Playwright：该怎么选" class="headerlink" title="CDP vs Selenium vs Playwright：该怎么选"></a>CDP vs Selenium vs Playwright：该怎么选</h2><p>很多初学者会问：”既然有 Selenium 和 Playwright，为什么还要学 CDP？”</p>
+<p>答案是：<strong>它们不在同一个层次上</strong>。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">┌─────────────────────────┐</span><br><span class="line">│     Playwright / Puppeteer    │  ← 高层封装，API 最友好</span><br><span class="line">├─────────────────────────┤</span><br><span class="line">│        Selenium WebDriver       │  ← 中间层，跨浏览器标准</span><br><span class="line">├─────────────────────────┤</span><br><span class="line">│  Chrome DevTools Protocol (CDP) │  ← 底层协议，能力最强</span><br><span class="line">└─────────────────────────┘</span><br></pre></td></tr></table></figure>
+
+<p>Playwright 和 Puppeteer 本质上就是对 CDP 的高层封装。它们把 CDP 的原始命令包装成 <code>page.goto()</code>、<code>page.screenshot()</code> 这样简洁的 API。</p>
+<h3 id="对比表格"><a href="#对比表格" class="headerlink" title="对比表格"></a>对比表格</h3><table>
+<thead>
+<tr>
+<th>特性</th>
+<th>CDP（原生）</th>
+<th>Playwright</th>
+<th>Selenium</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>学习曲线</td>
+<td>陡峭</td>
+<td>平缓</td>
+<td>平缓</td>
+</tr>
+<tr>
+<td>控制粒度</td>
+<td><strong>最细</strong></td>
+<td>中等</td>
+<td>粗</td>
+</tr>
+<tr>
+<td>网络拦截</td>
+<td>原生支持，全量控制</td>
+<td>支持，封装良好</td>
+<td>有限（需中间代理）</td>
+</tr>
+<tr>
+<td>性能追踪</td>
+<td>原生支持</td>
+<td>支持</td>
+<td>不支持</td>
+</tr>
+<tr>
+<td>跨浏览器</td>
+<td>❌ Chrome&#x2F;Chromium 系</td>
+<td>✅ Chromium + Firefox + WebKit</td>
+<td>✅ 最广</td>
+</tr>
+<tr>
+<td>调试透明度</td>
+<td><strong>最高</strong>（能看到每个命令）</td>
+<td>中等</td>
+<td>低</td>
+</tr>
+<tr>
+<td>依赖</td>
+<td>仅 websocket-client</td>
+<td>需要安装浏览器</td>
+<td>需要 WebDriver</td>
+</tr>
+</tbody></table>
+<h3 id="什么时候该用-CDP？"><a href="#什么时候该用-CDP？" class="headerlink" title="什么时候该用 CDP？"></a>什么时候该用 CDP？</h3><p>直接用 CDP（而非高层框架）的场景：</p>
+<ol>
+<li><strong>需要最细粒度的控制</strong> — 比如要精确控制网络请求的 timing，或拦截 WebSocket 连接</li>
+<li><strong>绕过自动化检测</strong> — Selenium&#x2F;Playwright 的特征容易被反爬识别，CDP 更接近真实用户</li>
+<li><strong>爬虫&#x2F;逆向工程</strong> — 需要拦截加密参数、追踪 JS 调用栈</li>
+<li><strong>性能分析自动化</strong> — 需要采集 Lighthouse 级别的性能数据</li>
+<li><strong>构建自己的工具框架</strong> — 你想在 Playwright 之上做二次开发，需要理解底层机制</li>
+<li><strong>调试和学习</strong> — 想深入理解浏览器工作原理</li>
+</ol>
+<blockquote>
+<p><strong>小建议</strong>：如果是常规的 E2E 测试或简单爬虫，优先用 Playwright。需要精细控制或反反爬时，再下沉到 CDP。</p>
+</blockquote>
+<hr>
+<h2 id="环境搭建"><a href="#环境搭建" class="headerlink" title="环境搭建"></a>环境搭建</h2><h3 id="1-安装-Python-依赖"><a href="#1-安装-Python-依赖" class="headerlink" title="1. 安装 Python 依赖"></a>1. 安装 Python 依赖</h3><p>只需要一个库：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">pip install websocket-client</span><br></pre></td></tr></table></figure>
+
+<p>没错，只靠 <code>websocket-client</code> 就能和 Chrome 通信。不需要安装 ChromeDriver、不需要下载浏览器二进制文件。</p>
+<h3 id="2-安装-确认-Chrome-浏览器"><a href="#2-安装-确认-Chrome-浏览器" class="headerlink" title="2. 安装 &#x2F; 确认 Chrome 浏览器"></a>2. 安装 &#x2F; 确认 Chrome 浏览器</h3><p>任何基于 Chromium 的浏览器都可以（Chrome、Edge、Brave 等）。确保版本不要太旧（Chrome 90+ 即可）。</p>
+<p>查看版本：地址栏输入 <code>chrome://version/</code></p>
+<h3 id="3-启动-Chrome-的远程调试模式"><a href="#3-启动-Chrome-的远程调试模式" class="headerlink" title="3. 启动 Chrome 的远程调试模式"></a>3. 启动 Chrome 的远程调试模式</h3><p>这是最关键的一步。关闭所有 Chrome 窗口后，用命令行启动：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># Windows</span></span><br><span class="line">chrome.exe --remote-debugging-port=9222 --remote-allow-origins=* --no-first-run --no-default-browser-check</span><br><span class="line"></span><br><span class="line"><span class="comment"># macOS</span></span><br><span class="line">/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome --remote-debugging-port=9222 --remote-allow-origins=* --no-first-run</span><br><span class="line"></span><br><span class="line"><span class="comment"># Linux</span></span><br><span class="line">google-chrome --remote-debugging-port=9222 --remote-allow-origins=* --no-first-run</span><br></pre></td></tr></table></figure>
+
+<p>参数说明：</p>
+<ul>
+<li><code>--remote-debugging-port=9222</code>：开启远程调试，端口 9222</li>
+<li><code>--remote-allow-origins=*</code>：允许来自任何来源的 WebSocket 连接</li>
+<li><code>--no-first-run</code>：跳过首次运行引导</li>
+<li><code>--no-default-browser-check</code>：不检查默认浏览器</li>
+</ul>
+<blockquote>
+<p><strong>⚠️ 安全提醒</strong>：<code>--remote-allow-origins=*</code> 会让任何能访问 9222 端口的程序控制你的浏览器。<strong>仅在受信任的本地网络中使用</strong>，不要在生产环境的服务器上开启。</p>
+</blockquote>
+<h3 id="验证连接"><a href="#验证连接" class="headerlink" title="验证连接"></a>验证连接</h3><p>启动 Chrome 后，在浏览器中打开 <code>http://localhost:9222/json</code>，应该能看到类似这样的 JSON 响应：</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">[</span></span><br><span class="line">  <span class="punctuation">&#123;</span></span><br><span class="line">    <span class="attr">&quot;id&quot;</span><span class="punctuation">:</span> <span class="string">&quot;1A2B3C4D&quot;</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;title&quot;</span><span class="punctuation">:</span> <span class="string">&quot;新标签页&quot;</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;url&quot;</span><span class="punctuation">:</span> <span class="string">&quot;chrome://new-tab-page/&quot;</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;webSocketDebuggerUrl&quot;</span><span class="punctuation">:</span> <span class="string">&quot;ws://localhost:9222/devtools/page/1A2B3C4D&quot;</span></span><br><span class="line">  <span class="punctuation">&#125;</span></span><br><span class="line"><span class="punctuation">]</span></span><br></pre></td></tr></table></figure>
+
+<p>这个 <code>webSocketDebuggerUrl</code> 就是我们接下来要连接的目标。</p>
+<hr>
+<h2 id="第一个-CDP-程序：连接-Chrome"><a href="#第一个-CDP-程序：连接-Chrome" class="headerlink" title="第一个 CDP 程序：连接 Chrome"></a>第一个 CDP 程序：连接 Chrome</h2><h3 id="基础框架"><a href="#基础框架" class="headerlink" title="基础框架"></a>基础框架</h3><p>下面是一个最精简的 CDP 连接示例。它完成了三件事：发现页面 → 建立 WebSocket → 发送命令。</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> json</span><br><span class="line"><span class="keyword">import</span> urllib.request</span><br><span class="line"><span class="keyword">import</span> websocket</span><br><span class="line"></span><br><span class="line"><span class="comment"># ========== 第一步：获取页面的 WebSocket URL ==========</span></span><br><span class="line"></span><br><span class="line">CDP_HTTP = <span class="string">&#x27;http://localhost:9222&#x27;</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">get_page_ws</span>(<span class="params">pattern=<span class="string">&#x27;&#x27;</span></span>):</span><br><span class="line">    <span class="string">&quot;&quot;&quot;获取第一个匹配 pattern 的页面的 WebSocket URL&quot;&quot;&quot;</span></span><br><span class="line">    data = json.loads(</span><br><span class="line">        urllib.request.urlopen(<span class="string">f&#x27;<span class="subst">&#123;CDP_HTTP&#125;</span>/json&#x27;</span>, timeout=<span class="number">5</span>).read()</span><br><span class="line">    )</span><br><span class="line">    <span class="keyword">for</span> page <span class="keyword">in</span> data:</span><br><span class="line">        <span class="keyword">if</span> pattern <span class="keyword">in</span> page.get(<span class="string">&#x27;url&#x27;</span>, <span class="string">&#x27;&#x27;</span>):</span><br><span class="line">            <span class="keyword">return</span> page[<span class="string">&#x27;webSocketDebuggerUrl&#x27;</span>]</span><br><span class="line">    <span class="comment"># 如果没有匹配，默认取第一个页面</span></span><br><span class="line">    <span class="keyword">return</span> data[<span class="number">0</span>][<span class="string">&#x27;webSocketDebuggerUrl&#x27;</span>] <span class="keyword">if</span> data <span class="keyword">else</span> <span class="literal">None</span></span><br><span class="line"></span><br><span class="line">ws_url = get_page_ws()</span><br><span class="line"><span class="built_in">print</span>(<span class="string">f&#x27;Connecting to: <span class="subst">&#123;ws_url&#125;</span>&#x27;</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># ========== 第二步：建立 WebSocket 连接 ==========</span></span><br><span class="line"></span><br><span class="line">ws = websocket.create_connection(ws_url, timeout=<span class="number">30</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># ========== 第三步：封装 send/receive ==========</span></span><br><span class="line"></span><br><span class="line">_request_id = <span class="number">1</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">send_cmd</span>(<span class="params">ws, method, params=<span class="literal">None</span></span>):</span><br><span class="line">    <span class="string">&quot;&quot;&quot;发送 CDP 命令并等待返回结果&quot;&quot;&quot;</span></span><br><span class="line">    <span class="keyword">global</span> _request_id</span><br><span class="line">    <span class="keyword">if</span> params <span class="keyword">is</span> <span class="literal">None</span>:</span><br><span class="line">        params = &#123;&#125;</span><br><span class="line">    _request_id += <span class="number">1</span></span><br><span class="line">    request = &#123;<span class="string">&#x27;id&#x27;</span>: _request_id, <span class="string">&#x27;method&#x27;</span>: method, <span class="string">&#x27;params&#x27;</span>: params&#125;</span><br><span class="line">    ws.send(json.dumps(request))</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">while</span> <span class="literal">True</span>:</span><br><span class="line">        response = json.loads(ws.recv())</span><br><span class="line">        <span class="keyword">if</span> response.get(<span class="string">&#x27;id&#x27;</span>) == _request_id:</span><br><span class="line">            <span class="keyword">return</span> response.get(<span class="string">&#x27;result&#x27;</span>, &#123;&#125;)</span><br><span class="line"></span><br><span class="line"><span class="comment"># ========== 第四步：启用必要域 ==========</span></span><br><span class="line"></span><br><span class="line">send_cmd(ws, <span class="string">&#x27;Page.enable&#x27;</span>)       <span class="comment"># 启用页面域</span></span><br><span class="line">send_cmd(ws, <span class="string">&#x27;Runtime.enable&#x27;</span>)    <span class="comment"># 启用运行时域</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># ========== 第五步：开始操控浏览器 ==========</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 导航到目标页面</span></span><br><span class="line">result = send_cmd(ws, <span class="string">&#x27;Page.navigate&#x27;</span>, &#123;<span class="string">&#x27;url&#x27;</span>: <span class="string">&#x27;https://www.example.com&#x27;</span>&#125;)</span><br><span class="line"><span class="built_in">print</span>(<span class="string">f&#x27;Navigation started, frameId: <span class="subst">&#123;result.get(<span class="string">&quot;frameId&quot;</span>)&#125;</span>&#x27;</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 在当前页面执行 JavaScript</span></span><br><span class="line">result = send_cmd(ws, <span class="string">&#x27;Runtime.evaluate&#x27;</span>, &#123;</span><br><span class="line">    <span class="string">&#x27;expression&#x27;</span>: <span class="string">&#x27;document.title&#x27;</span>,</span><br><span class="line">    <span class="string">&#x27;returnByValue&#x27;</span>: <span class="literal">True</span></span><br><span class="line">&#125;)</span><br><span class="line"><span class="built_in">print</span>(<span class="string">f&#x27;Page title: <span class="subst">&#123;result[<span class="string">&quot;result&quot;</span>][<span class="string">&quot;value&quot;</span>]&#125;</span>&#x27;</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 关闭连接</span></span><br><span class="line">ws.close()</span><br></pre></td></tr></table></figure>
+
+<p>运行这段代码，你会看到控制台输出页面的标题。恭喜，你已经通过 CDP 直接控制浏览器了！</p>
+<h3 id="代码解析"><a href="#代码解析" class="headerlink" title="代码解析"></a>代码解析</h3><p>这段代码虽然简单，但包含了 CDP 通信的核心模式：</p>
+<ol>
+<li><strong>发现阶段</strong>：通过 HTTP 请求 <code>http://localhost:9222/json</code> 获取所有页面列表</li>
+<li><strong>连接阶段</strong>：使用页面的 <code>webSocketDebuggerUrl</code> 建立 WebSocket 连接</li>
+<li><strong>就绪阶段</strong>：通过 <code>Page.enable</code> &#x2F; <code>Runtime.enable</code> 启用需要的”域”（Domain）</li>
+<li><strong>命令阶段</strong>：发送命令（如 <code>Page.navigate</code>）并等待对应的响应</li>
+</ol>
+<p>每个命令通过递增的 <code>id</code> 来匹配请求和响应。这是 CDP 协议的重要设计：<strong>同一个 WebSocket 连接上可以同时发送多个命令，通过 id 来区分返回结果归属</strong>。</p>
+<hr>
+<h2 id="核心命令实战"><a href="#核心命令实战" class="headerlink" title="核心命令实战"></a>核心命令实战</h2><p>掌握 CDP 的关键是理解它的”域”（Domain）体系。CDP 将功能划分为几十个域，每个域下有一组相关命令：</p>
+<table>
+<thead>
+<tr>
+<th>域名</th>
+<th>用途</th>
+<th>常用命令</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>Page</code></td>
+<td>页面控制</td>
+<td><code>navigate</code>, <code>reload</code>, <code>captureScreenshot</code>, <code>printToPDF</code></td>
+</tr>
+<tr>
+<td><code>Runtime</code></td>
+<td>JS 运行时</td>
+<td><code>evaluate</code>, <code>runScript</code>, <code>getProperties</code></td>
+</tr>
+<tr>
+<td><code>DOM</code></td>
+<td>DOM 操作</td>
+<td><code>getDocument</code>, <code>querySelector</code>, <code>getOuterHTML</code></td>
+</tr>
+<tr>
+<td><code>Network</code></td>
+<td>网络控制</td>
+<td><code>enable</code>, <code>setBlockedURLs</code>, <code>getResponseBody</code></td>
+</tr>
+<tr>
+<td><code>Input</code></td>
+<td>输入模拟</td>
+<td><code>dispatchMouseEvent</code>, <code>dispatchKeyEvent</code>, <code>insertText</code></td>
+</tr>
+<tr>
+<td><code>Console</code></td>
+<td>控制台</td>
+<td><code>enable</code>, <code>clearMessages</code></td>
+</tr>
+<tr>
+<td><code>Performance</code></td>
+<td>性能</td>
+<td><code>enable</code>, <code>getMetrics</code>, <code>getTime</code></td>
+</tr>
+<tr>
+<td><code>Overlay</code></td>
+<td>可视化</td>
+<td><code>highlightNode</code>, <code>setShowFPSCounter</code></td>
+</tr>
+</tbody></table>
+<p>下面逐一介绍最常用的命令。</p>
+<h3 id="1-页面截图"><a href="#1-页面截图" class="headerlink" title="1. 页面截图"></a>1. 页面截图</h3><p>截图是 CDP 的”Hello World”。它比 Selenium 的截图更灵活——你可以截取<strong>整个页面</strong>（包括不可见部分）或<strong>单个元素</strong>。</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> base64</span><br><span class="line"></span><br><span class="line"><span class="comment"># 全页截图</span></span><br><span class="line">result = send_cmd(ws, <span class="string">&#x27;Page.captureScreenshot&#x27;</span>, &#123;</span><br><span class="line">    <span class="string">&#x27;format&#x27;</span>: <span class="string">&#x27;png&#x27;</span>,</span><br><span class="line">    <span class="string">&#x27;quality&#x27;</span>: <span class="number">80</span>,</span><br><span class="line">    <span class="string">&#x27;fromSurface&#x27;</span>: <span class="literal">True</span></span><br><span class="line">&#125;)</span><br><span class="line"></span><br><span class="line"><span class="keyword">with</span> <span class="built_in">open</span>(<span class="string">&#x27;screenshot.png&#x27;</span>, <span class="string">&#x27;wb&#x27;</span>) <span class="keyword">as</span> f:</span><br><span class="line">    f.write(base64.b64decode(result[<span class="string">&#x27;data&#x27;</span>]))</span><br><span class="line"><span class="built_in">print</span>(<span class="string">&#x27;Screenshot saved as screenshot.png&#x27;</span>)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="comment"># 指定区域的截图（裁剪）</span></span><br><span class="line"><span class="comment"># clip = x, y, width, height</span></span><br><span class="line">result = send_cmd(ws, <span class="string">&#x27;Page.captureScreenshot&#x27;</span>, &#123;</span><br><span class="line">    <span class="string">&#x27;format&#x27;</span>: <span class="string">&#x27;png&#x27;</span>,</span><br><span class="line">    <span class="string">&#x27;clip&#x27;</span>: &#123;<span class="string">&#x27;x&#x27;</span>: <span class="number">0</span>, <span class="string">&#x27;y&#x27;</span>: <span class="number">0</span>, <span class="string">&#x27;width&#x27;</span>: <span class="number">800</span>, <span class="string">&#x27;height&#x27;</span>: <span class="number">600</span>, <span class="string">&#x27;scale&#x27;</span>: <span class="number">1</span>&#125;</span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p><strong>小技巧</strong>：<code>fromSurface: True</code> 会截取完整的渲染结果（含 GPU 合成层），设为 <code>False</code> 则只截取视口内容。</p>
+</blockquote>
+<h3 id="2-执行-JavaScript-并获取返回值"><a href="#2-执行-JavaScript-并获取返回值" class="headerlink" title="2. 执行 JavaScript 并获取返回值"></a>2. 执行 JavaScript 并获取返回值</h3><p>这是 CDP 最强大的能力之一——在页面上下文中执行任意 JS，并获取返回值。</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 获取页面信息</span></span><br><span class="line">result = send_cmd(ws, <span class="string">&#x27;Runtime.evaluate&#x27;</span>, &#123;</span><br><span class="line">    <span class="string">&#x27;expression&#x27;</span>: <span class="string">&#x27;JSON.stringify(&#123;title: document.title, url: location.href, cookies: document.cookie&#125;)&#x27;</span>,</span><br><span class="line">    <span class="string">&#x27;returnByValue&#x27;</span>: <span class="literal">True</span></span><br><span class="line">&#125;)</span><br><span class="line">page_info = json.loads(result[<span class="string">&#x27;result&#x27;</span>][<span class="string">&#x27;value&#x27;</span>])</span><br><span class="line"><span class="built_in">print</span>(page_info)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 获取元素的文本内容</span></span><br><span class="line">result = send_cmd(ws, <span class="string">&#x27;Runtime.evaluate&#x27;</span>, &#123;</span><br><span class="line">    <span class="string">&#x27;expression&#x27;</span>: <span class="string">&#x27;document.querySelector(&quot;h1&quot;).innerText&#x27;</span>,</span><br><span class="line">    <span class="string">&#x27;returnByValue&#x27;</span>: <span class="literal">True</span></span><br><span class="line">&#125;)</span><br><span class="line"><span class="built_in">print</span>(<span class="string">f&#x27;H1 text: <span class="subst">&#123;result[<span class="string">&quot;result&quot;</span>][<span class="string">&quot;value&quot;</span>]&#125;</span>&#x27;</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 修改页面（可以执行任何 JS 操作）</span></span><br><span class="line">send_cmd(ws, <span class="string">&#x27;Runtime.evaluate&#x27;</span>, &#123;</span><br><span class="line">    <span class="string">&#x27;expression&#x27;</span>: <span class="string">&#x27;document.title = &quot;被 CDP 修改的标题&quot;&#x27;</span>,</span><br><span class="line">    <span class="string">&#x27;returnByValue&#x27;</span>: <span class="literal">True</span></span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure>
+
+<p><strong>重要参数</strong>：</p>
+<ul>
+<li><code>returnByValue</code>：设为 <code>true</code> 时，返回值会序列化为 JSON；设为 <code>false</code>（默认）时，返回一个对象引用，可以用 <code>Runtime.getProperties</code> 进一步查看</li>
+<li><code>awaitPromise</code>：设为 <code>true</code> 时，会等待 Promise 解析完成再返回（适用于异步操作）</li>
+</ul>
+<h3 id="3-DOM-操作"><a href="#3-DOM-操作" class="headerlink" title="3. DOM 操作"></a>3. DOM 操作</h3><p>CDP 的 DOM 操作通过 <code>DOM</code> 域实现，使用”节点 ID”来定位元素。</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 获取文档根节点</span></span><br><span class="line">result = send_cmd(ws, <span class="string">&#x27;DOM.getDocument&#x27;</span>)</span><br><span class="line">root_node_id = result[<span class="string">&#x27;root&#x27;</span>][<span class="string">&#x27;nodeId&#x27;</span>]</span><br><span class="line"></span><br><span class="line"><span class="comment"># 通过选择器查找元素</span></span><br><span class="line">result = send_cmd(ws, <span class="string">&#x27;DOM.querySelector&#x27;</span>, &#123;</span><br><span class="line">    <span class="string">&#x27;nodeId&#x27;</span>: root_node_id,</span><br><span class="line">    <span class="string">&#x27;selector&#x27;</span>: <span class="string">&#x27;div.content&#x27;</span></span><br><span class="line">&#125;)</span><br><span class="line">content_node_id = result[<span class="string">&#x27;nodeId&#x27;</span>]</span><br><span class="line"></span><br><span class="line"><span class="comment"># 获取元素的 HTML</span></span><br><span class="line">result = send_cmd(ws, <span class="string">&#x27;DOM.getOuterHTML&#x27;</span>, &#123;</span><br><span class="line">    <span class="string">&#x27;nodeId&#x27;</span>: content_node_id</span><br><span class="line">&#125;)</span><br><span class="line"><span class="built_in">print</span>(<span class="string">f&#x27;Element HTML: <span class="subst">&#123;result[<span class="string">&quot;outerHTML&quot;</span>][:<span class="number">200</span>]&#125;</span>...&#x27;</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 修改元素的属性</span></span><br><span class="line">send_cmd(ws, <span class="string">&#x27;DOM.setAttributeValue&#x27;</span>, &#123;</span><br><span class="line">    <span class="string">&#x27;nodeId&#x27;</span>: content_node_id,</span><br><span class="line">    <span class="string">&#x27;name&#x27;</span>: <span class="string">&#x27;style&#x27;</span>,</span><br><span class="line">    <span class="string">&#x27;value&#x27;</span>: <span class="string">&#x27;background-color: yellow;&#x27;</span></span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p><strong>CDP 的特性</strong>：DOM 操作是基于 Chrome 的 Blink 渲染引擎的<strong>内部表示</strong>，绕过了页面的 JavaScript 框架。这意味着即使页面用了 React&#x2F;Vue，你也可以直接操作最终的渲染结果。</p>
+</blockquote>
+<h3 id="4-网络拦截与监控"><a href="#4-网络拦截与监控" class="headerlink" title="4. 网络拦截与监控"></a>4. 网络拦截与监控</h3><p>这是爬虫和渗透测试中最常用的功能。CDP 可以捕获页面发出的每一个请求。</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 启用网络域</span></span><br><span class="line">send_cmd(ws, <span class="string">&#x27;Network.enable&#x27;</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 设置请求拦截的回调</span></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">on_request</span>(<span class="params">event_data</span>):</span><br><span class="line">    <span class="string">&quot;&quot;&quot;每次有网络请求时被调用&quot;&quot;&quot;</span></span><br><span class="line">    request = event_data[<span class="string">&#x27;params&#x27;</span>][<span class="string">&#x27;request&#x27;</span>]</span><br><span class="line">    url = request[<span class="string">&#x27;url&#x27;</span>]</span><br><span class="line">    method = request[<span class="string">&#x27;method&#x27;</span>]</span><br><span class="line">    <span class="built_in">print</span>(<span class="string">f&#x27;[<span class="subst">&#123;method&#125;</span>] <span class="subst">&#123;url&#125;</span>&#x27;</span>)</span><br><span class="line">    </span><br><span class="line">    <span class="comment"># 可以修改请求头</span></span><br><span class="line">    <span class="comment"># 返回 &#123;&#x27;continue&#x27;: True&#125; 表示继续请求</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 注册请求事件监听</span></span><br><span class="line"><span class="comment"># CDP 的事件通过 WebSocket 主动推送，需要单独处理</span></span><br><span class="line"><span class="keyword">import</span> threading</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">event_listener</span>(<span class="params">ws</span>):</span><br><span class="line">    <span class="string">&quot;&quot;&quot;后台线程：持续接收 CDP 事件&quot;&quot;&quot;</span></span><br><span class="line">    <span class="keyword">while</span> <span class="literal">True</span>:</span><br><span class="line">        <span class="keyword">try</span>:</span><br><span class="line">            msg = json.loads(ws.recv())</span><br><span class="line">            <span class="keyword">if</span> <span class="string">&#x27;method&#x27;</span> <span class="keyword">in</span> msg:</span><br><span class="line">                <span class="keyword">if</span> msg[<span class="string">&#x27;method&#x27;</span>] == <span class="string">&#x27;Network.requestWillBeSent&#x27;</span>:</span><br><span class="line">                    on_request(msg)</span><br><span class="line">                <span class="comment"># 可以添加更多事件处理</span></span><br><span class="line">        <span class="keyword">except</span> Exception <span class="keyword">as</span> e:</span><br><span class="line">            <span class="built_in">print</span>(<span class="string">f&#x27;Event listener error: <span class="subst">&#123;e&#125;</span>&#x27;</span>)</span><br><span class="line">            <span class="keyword">break</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 启动事件监听线程</span></span><br><span class="line">threading.Thread(target=event_listener, args=(ws,), daemon=<span class="literal">True</span>).start()</span><br><span class="line"></span><br><span class="line"><span class="comment"># 导航到页面</span></span><br><span class="line">send_cmd(ws, <span class="string">&#x27;Page.navigate&#x27;</span>, &#123;<span class="string">&#x27;url&#x27;</span>: <span class="string">&#x27;https://example.com&#x27;</span>&#125;)</span><br><span class="line"></span><br><span class="line"><span class="comment"># ... 页面加载中，事件监听器会输出所有请求 ...</span></span><br><span class="line"><span class="keyword">import</span> time</span><br><span class="line">time.sleep(<span class="number">5</span>)  <span class="comment"># 等待页面加载</span></span><br></pre></td></tr></table></figure>
+
+<p><strong>Network 域的高级用法</strong>：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 拦截特定 URL 模式</span></span><br><span class="line">send_cmd(ws, <span class="string">&#x27;Network.setBlockedURLs&#x27;</span>, &#123;</span><br><span class="line">    <span class="string">&#x27;urls&#x27;</span>: [<span class="string">&#x27;*.jpg&#x27;</span>, <span class="string">&#x27;*.png&#x27;</span>, <span class="string">&#x27;*.gif&#x27;</span>]   <span class="comment"># 拦截所有图片</span></span><br><span class="line">&#125;)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 模拟弱网环境</span></span><br><span class="line">send_cmd(ws, <span class="string">&#x27;Network.emulateNetworkConditions&#x27;</span>, &#123;</span><br><span class="line">    <span class="string">&#x27;offline&#x27;</span>: <span class="literal">False</span>,</span><br><span class="line">    <span class="string">&#x27;latency&#x27;</span>: <span class="number">300</span>,          <span class="comment"># 延迟 300ms</span></span><br><span class="line">    <span class="string">&#x27;downloadThroughput&#x27;</span>: <span class="number">500</span> * <span class="number">1024</span>,   <span class="comment"># 下载 500 KB/s</span></span><br><span class="line">    <span class="string">&#x27;uploadThroughput&#x27;</span>: <span class="number">100</span> * <span class="number">1024</span>      <span class="comment"># 上传 100 KB/s</span></span><br><span class="line">&#125;)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 获取响应体</span></span><br><span class="line"><span class="comment"># 首先在 Network.responseReceived 事件中拿到 requestId</span></span><br><span class="line"><span class="comment"># 然后：</span></span><br><span class="line">result = send_cmd(ws, <span class="string">&#x27;Network.getResponseBody&#x27;</span>, &#123;</span><br><span class="line">    <span class="string">&#x27;requestId&#x27;</span>: request_id</span><br><span class="line">&#125;)</span><br><span class="line"><span class="built_in">print</span>(<span class="string">f&#x27;Response body: <span class="subst">&#123;result[<span class="string">&quot;body&quot;</span>][:<span class="number">500</span>]&#125;</span>&#x27;</span>)</span><br><span class="line"><span class="built_in">print</span>(<span class="string">f&#x27;Base64 encoded: <span class="subst">&#123;result[<span class="string">&quot;base64Encoded&quot;</span>]&#125;</span>&#x27;</span>)</span><br></pre></td></tr></table></figure>
+
+<h3 id="5-鼠标与键盘模拟"><a href="#5-鼠标与键盘模拟" class="headerlink" title="5. 鼠标与键盘模拟"></a>5. 鼠标与键盘模拟</h3><p>CDP 的 <code>Input</code> 域可以模拟鼠标点击和键盘输入，这是实现 RPA（机器人流程自动化）的关键。</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">click</span>(<span class="params">ws, x, y, button=<span class="string">&#x27;left&#x27;</span></span>):</span><br><span class="line">    <span class="string">&quot;&quot;&quot;在指定坐标点击&quot;&quot;&quot;</span></span><br><span class="line">    send_cmd(ws, <span class="string">&#x27;Input.dispatchMouseEvent&#x27;</span>, &#123;</span><br><span class="line">        <span class="string">&#x27;type&#x27;</span>: <span class="string">&#x27;mousePressed&#x27;</span>,</span><br><span class="line">        <span class="string">&#x27;x&#x27;</span>: x, <span class="string">&#x27;y&#x27;</span>: y,</span><br><span class="line">        <span class="string">&#x27;button&#x27;</span>: button,</span><br><span class="line">        <span class="string">&#x27;clickCount&#x27;</span>: <span class="number">1</span></span><br><span class="line">    &#125;)</span><br><span class="line">    send_cmd(ws, <span class="string">&#x27;Input.dispatchMouseEvent&#x27;</span>, &#123;</span><br><span class="line">        <span class="string">&#x27;type&#x27;</span>: <span class="string">&#x27;mouseReleased&#x27;</span>,</span><br><span class="line">        <span class="string">&#x27;x&#x27;</span>: x, <span class="string">&#x27;y&#x27;</span>: y,</span><br><span class="line">        <span class="string">&#x27;button&#x27;</span>: button,</span><br><span class="line">        <span class="string">&#x27;clickCount&#x27;</span>: <span class="number">1</span></span><br><span class="line">    &#125;)</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">type_text</span>(<span class="params">ws, text</span>):</span><br><span class="line">    <span class="string">&quot;&quot;&quot;输入文本&quot;&quot;&quot;</span></span><br><span class="line">    send_cmd(ws, <span class="string">&#x27;Input.insertText&#x27;</span>, &#123;<span class="string">&#x27;text&#x27;</span>: text&#125;)</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">press_enter</span>(<span class="params">ws</span>):</span><br><span class="line">    <span class="string">&quot;&quot;&quot;按 Enter 键&quot;&quot;&quot;</span></span><br><span class="line">    send_cmd(ws, <span class="string">&#x27;Input.dispatchKeyEvent&#x27;</span>, &#123;</span><br><span class="line">        <span class="string">&#x27;type&#x27;</span>: <span class="string">&#x27;rawKeyDown&#x27;</span>,</span><br><span class="line">        <span class="string">&#x27;windowsVirtualKeyCode&#x27;</span>: <span class="number">13</span>,</span><br><span class="line">        <span class="string">&#x27;key&#x27;</span>: <span class="string">&#x27;Enter&#x27;</span></span><br><span class="line">    &#125;)</span><br><span class="line">    send_cmd(ws, <span class="string">&#x27;Input.dispatchKeyEvent&#x27;</span>, &#123;</span><br><span class="line">        <span class="string">&#x27;type&#x27;</span>: <span class="string">&#x27;keyUp&#x27;</span>,</span><br><span class="line">        <span class="string">&#x27;windowsVirtualKeyCode&#x27;</span>: <span class="number">13</span>,</span><br><span class="line">        <span class="string">&#x27;key&#x27;</span>: <span class="string">&#x27;Enter&#x27;</span></span><br><span class="line">    &#125;)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 使用示例：自动填写表单</span></span><br><span class="line">click(ws, <span class="number">500</span>, <span class="number">300</span>)          <span class="comment"># 点击输入框</span></span><br><span class="line">type_text(ws, <span class="string">&#x27;hello@example.com&#x27;</span>)  <span class="comment"># 输入邮箱</span></span><br><span class="line">press_enter(ws)              <span class="comment"># 提交</span></span><br></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="进阶技巧"><a href="#进阶技巧" class="headerlink" title="进阶技巧"></a>进阶技巧</h2><h3 id="1-绕过自动化检测"><a href="#1-绕过自动化检测" class="headerlink" title="1. 绕过自动化检测"></a>1. 绕过自动化检测</h3><p>Selenium 和 Playwright 会在浏览器中留下自动化痕迹（如 <code>navigator.webdriver</code> 属性为 <code>true</code>）。CDP 可以从更底层控制，更难被检测。</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 在页面加载前注入脚本，覆盖自动化特征</span></span><br><span class="line">send_cmd(ws, <span class="string">&#x27;Page.addScriptToEvaluateOnNewDocument&#x27;</span>, &#123;</span><br><span class="line">    <span class="string">&#x27;source&#x27;</span>: <span class="string">&#x27;&#x27;&#x27;</span></span><br><span class="line"><span class="string">        // 覆盖 webdriver 属性</span></span><br><span class="line"><span class="string">        Object.defineProperty(navigator, &#x27;webdriver&#x27;, &#123;</span></span><br><span class="line"><span class="string">            get: () =&gt; undefined</span></span><br><span class="line"><span class="string">        &#125;);</span></span><br><span class="line"><span class="string">        </span></span><br><span class="line"><span class="string">        // 覆盖 chrome 对象</span></span><br><span class="line"><span class="string">        window.chrome = &#123;</span></span><br><span class="line"><span class="string">            runtime: &#123;&#125;,</span></span><br><span class="line"><span class="string">            loadTimes: function() &#123;&#125;,</span></span><br><span class="line"><span class="string">            csi: function() &#123;&#125;,</span></span><br><span class="line"><span class="string">            app: &#123;&#125;</span></span><br><span class="line"><span class="string">        &#125;;</span></span><br><span class="line"><span class="string">        </span></span><br><span class="line"><span class="string">        // 覆盖权限查询</span></span><br><span class="line"><span class="string">        const originalQuery = navigator.permissions.query;</span></span><br><span class="line"><span class="string">        navigator.permissions.query = (params) =&gt; (</span></span><br><span class="line"><span class="string">            params.name === &#x27;notifications&#x27; ?</span></span><br><span class="line"><span class="string">                Promise.resolve(&#123;state: Notification.permission&#125;) :</span></span><br><span class="line"><span class="string">                originalQuery(params)</span></span><br><span class="line"><span class="string">        );</span></span><br><span class="line"><span class="string">        </span></span><br><span class="line"><span class="string">        // 覆盖 plugins</span></span><br><span class="line"><span class="string">        Object.defineProperty(navigator, &#x27;plugins&#x27;, &#123;</span></span><br><span class="line"><span class="string">            get: () =&gt; [1, 2, 3, 4, 5]</span></span><br><span class="line"><span class="string">        &#125;);</span></span><br><span class="line"><span class="string">        </span></span><br><span class="line"><span class="string">        // 覆盖 languages</span></span><br><span class="line"><span class="string">        Object.defineProperty(navigator, &#x27;languages&#x27;, &#123;</span></span><br><span class="line"><span class="string">            get: () =&gt; [&#x27;zh-CN&#x27;, &#x27;zh&#x27;, &#x27;en&#x27;]</span></span><br><span class="line"><span class="string">        &#125;);</span></span><br><span class="line"><span class="string">    &#x27;&#x27;&#x27;</span></span><br><span class="line">&#125;)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 以上脚本会在每个新页面上自动执行</span></span><br><span class="line"><span class="comment"># 然后再导航</span></span><br><span class="line">send_cmd(ws, <span class="string">&#x27;Page.navigate&#x27;</span>, &#123;<span class="string">&#x27;url&#x27;</span>: <span class="string">&#x27;https://bot.sannysoft.com/&#x27;</span>&#125;)</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p><strong>注意</strong>：反爬技术不断进化，这里展示的只是基础防护。实际使用时需要根据目标网站的检测机制针对性调整。</p>
+</blockquote>
+<h3 id="2-处理新窗口-新标签页"><a href="#2-处理新窗口-新标签页" class="headerlink" title="2. 处理新窗口 &#x2F; 新标签页"></a>2. 处理新窗口 &#x2F; 新标签页</h3><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 监听 Target.targetCreated 事件</span></span><br><span class="line"><span class="comment"># 当新窗口打开时，自动获取它的 WebSocket URL</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">on_target_created</span>(<span class="params">event_data</span>):</span><br><span class="line">    target_info = event_data[<span class="string">&#x27;params&#x27;</span>][<span class="string">&#x27;targetInfo&#x27;</span>]</span><br><span class="line">    <span class="built_in">print</span>(<span class="string">f&#x27;新标签页: <span class="subst">&#123;target_info[<span class="string">&quot;url&quot;</span>]&#125;</span>&#x27;</span>)</span><br><span class="line">    <span class="comment"># 可以通过 CDP_HTTP/json 获取新页面的 WebSocket URL</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 也可以用 --remote-debugging-pipe 参数使用管道而非 WebSocket</span></span><br><span class="line"><span class="comment"># 或者用 Target.attachToTarget 命令</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="3-性能追踪"><a href="#3-性能追踪" class="headerlink" title="3. 性能追踪"></a>3. 性能追踪</h3><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 开始性能追踪</span></span><br><span class="line">send_cmd(ws, <span class="string">&#x27;Performance.enable&#x27;</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 导航</span></span><br><span class="line">send_cmd(ws, <span class="string">&#x27;Page.navigate&#x27;</span>, &#123;<span class="string">&#x27;url&#x27;</span>: <span class="string">&#x27;https://example.com&#x27;</span>&#125;)</span><br><span class="line">time.sleep(<span class="number">3</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 获取性能指标</span></span><br><span class="line">result = send_cmd(ws, <span class="string">&#x27;Performance.getMetrics&#x27;</span>)</span><br><span class="line">metrics = &#123;m[<span class="string">&#x27;name&#x27;</span>]: m[<span class="string">&#x27;value&#x27;</span>] <span class="keyword">for</span> m <span class="keyword">in</span> result[<span class="string">&#x27;metrics&#x27;</span>]&#125;</span><br><span class="line"></span><br><span class="line"><span class="built_in">print</span>(<span class="string">f&#x27;DOMContentLoaded: <span class="subst">&#123;metrics.get(<span class="string">&quot;DomContentLoaded&quot;</span>, <span class="string">&quot;N/A&quot;</span>)&#125;</span> ms&#x27;</span>)</span><br><span class="line"><span class="built_in">print</span>(<span class="string">f&#x27;首次绘制: <span class="subst">&#123;metrics.get(<span class="string">&quot;FirstPaint&quot;</span>, <span class="string">&quot;N/A&quot;</span>)&#125;</span> ms&#x27;</span>)</span><br><span class="line"><span class="built_in">print</span>(<span class="string">f&#x27;JS 堆大小: <span class="subst">&#123;metrics.get(<span class="string">&quot;JSHeapUsedSize&quot;</span>, <span class="string">&quot;N/A&quot;</span>)&#125;</span> bytes&#x27;</span>)</span><br><span class="line"><span class="built_in">print</span>(<span class="string">f&#x27;布局次数: <span class="subst">&#123;metrics.get(<span class="string">&quot;LayoutCount&quot;</span>, <span class="string">&quot;N/A&quot;</span>)&#125;</span>&#x27;</span>)</span><br><span class="line"><span class="built_in">print</span>(<span class="string">f&#x27;重绘次数: <span class="subst">&#123;metrics.get(<span class="string">&quot;RecalcStyleCount&quot;</span>, <span class="string">&quot;N/A&quot;</span>)&#125;</span>&#x27;</span>)</span><br></pre></td></tr></table></figure>
+
+<h3 id="4-生成-PDF"><a href="#4-生成-PDF" class="headerlink" title="4. 生成 PDF"></a>4. 生成 PDF</h3><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">result = send_cmd(ws, <span class="string">&#x27;Page.printToPDF&#x27;</span>, &#123;</span><br><span class="line">    <span class="string">&#x27;paperWidth&#x27;</span>: <span class="number">8.27</span>,       <span class="comment"># A4 宽度（英寸）</span></span><br><span class="line">    <span class="string">&#x27;paperHeight&#x27;</span>: <span class="number">11.69</span>,     <span class="comment"># A4 高度</span></span><br><span class="line">    <span class="string">&#x27;marginTop&#x27;</span>: <span class="number">0.4</span>,</span><br><span class="line">    <span class="string">&#x27;marginBottom&#x27;</span>: <span class="number">0.4</span>,</span><br><span class="line">    <span class="string">&#x27;marginLeft&#x27;</span>: <span class="number">0.4</span>,</span><br><span class="line">    <span class="string">&#x27;marginRight&#x27;</span>: <span class="number">0.4</span>,</span><br><span class="line">    <span class="string">&#x27;printBackground&#x27;</span>: <span class="literal">True</span>,</span><br><span class="line">    <span class="string">&#x27;displayHeaderFooter&#x27;</span>: <span class="literal">True</span>,</span><br><span class="line">    <span class="string">&#x27;headerTemplate&#x27;</span>: <span class="string">&#x27;&lt;span style=&quot;font-size:10px;margin-left:10px;&quot;&gt;标题&lt;/span&gt;&#x27;</span>,</span><br><span class="line">    <span class="string">&#x27;footerTemplate&#x27;</span>: <span class="string">&#x27;&lt;span style=&quot;font-size:10px;margin-right:10px;&quot;&gt;第 &lt;span class=&quot;pageNumber&quot;&gt;&lt;/span&gt; 页 / 共 &lt;span class=&quot;totalPages&quot;&gt;&lt;/span&gt; 页&lt;/span&gt;&#x27;</span></span><br><span class="line">&#125;)</span><br><span class="line"></span><br><span class="line"><span class="keyword">with</span> <span class="built_in">open</span>(<span class="string">&#x27;output.pdf&#x27;</span>, <span class="string">&#x27;wb&#x27;</span>) <span class="keyword">as</span> f:</span><br><span class="line">    f.write(base64.b64decode(result[<span class="string">&#x27;data&#x27;</span>]))</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="完整实战：自动化截图工具"><a href="#完整实战：自动化截图工具" class="headerlink" title="完整实战：自动化截图工具"></a>完整实战：自动化截图工具</h2><p>下面是一个完整的实战项目——一个命令行截图工具，可以指定 URL、输出路径和视口大小。</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">#!/usr/bin/env python3</span></span><br><span class="line"><span class="string">&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">CDP 命令行截图工具</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">用法：</span></span><br><span class="line"><span class="string">    python cdp_screenshooter.py https://example.com -o screenshot.png -w 1920 -h 1080</span></span><br><span class="line"><span class="string">&quot;&quot;&quot;</span></span><br><span class="line"><span class="keyword">import</span> json</span><br><span class="line"><span class="keyword">import</span> urllib.request</span><br><span class="line"><span class="keyword">import</span> websocket</span><br><span class="line"><span class="keyword">import</span> base64</span><br><span class="line"><span class="keyword">import</span> argparse</span><br><span class="line"><span class="keyword">import</span> time</span><br><span class="line"></span><br><span class="line"><span class="comment"># ========== 工具函数 ==========</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">find_page_ws</span>(<span class="params">cdp_url, pattern=<span class="string">&#x27;&#x27;</span></span>):</span><br><span class="line">    data = json.loads(urllib.request.urlopen(<span class="string">f&#x27;<span class="subst">&#123;cdp_url&#125;</span>/json&#x27;</span>, timeout=<span class="number">5</span>).read())</span><br><span class="line">    <span class="keyword">for</span> page <span class="keyword">in</span> data:</span><br><span class="line">        <span class="keyword">if</span> pattern.lower() <span class="keyword">in</span> page.get(<span class="string">&#x27;url&#x27;</span>, <span class="string">&#x27;&#x27;</span>).lower():</span><br><span class="line">            <span class="keyword">return</span> page[<span class="string">&#x27;webSocketDebuggerUrl&#x27;</span>]</span><br><span class="line">    <span class="keyword">return</span> data[<span class="number">0</span>][<span class="string">&#x27;webSocketDebuggerUrl&#x27;</span>] <span class="keyword">if</span> data <span class="keyword">else</span> <span class="literal">None</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">CDPConnection</span>:</span><br><span class="line">    <span class="string">&quot;&quot;&quot;CDP 连接封装&quot;&quot;&quot;</span></span><br><span class="line">    </span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">__init__</span>(<span class="params">self, ws_url</span>):</span><br><span class="line">        <span class="variable language_">self</span>.ws = websocket.create_connection(ws_url, timeout=<span class="number">30</span>)</span><br><span class="line">        <span class="variable language_">self</span>._<span class="built_in">id</span> = <span class="number">0</span></span><br><span class="line">        <span class="comment"># 启用核心域</span></span><br><span class="line">        <span class="variable language_">self</span>._cmd(<span class="string">&#x27;Page.enable&#x27;</span>)</span><br><span class="line">        <span class="variable language_">self</span>._cmd(<span class="string">&#x27;Runtime.enable&#x27;</span>)</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">_cmd</span>(<span class="params">self, method, params=<span class="literal">None</span></span>):</span><br><span class="line">        <span class="keyword">if</span> params <span class="keyword">is</span> <span class="literal">None</span>:</span><br><span class="line">            params = &#123;&#125;</span><br><span class="line">        <span class="variable language_">self</span>._<span class="built_in">id</span> += <span class="number">1</span></span><br><span class="line">        <span class="variable language_">self</span>.ws.send(json.dumps(&#123;<span class="string">&#x27;id&#x27;</span>: <span class="variable language_">self</span>._<span class="built_in">id</span>, <span class="string">&#x27;method&#x27;</span>: method, <span class="string">&#x27;params&#x27;</span>: params&#125;))</span><br><span class="line">        <span class="keyword">while</span> <span class="literal">True</span>:</span><br><span class="line">            r = json.loads(<span class="variable language_">self</span>.ws.recv())</span><br><span class="line">            <span class="keyword">if</span> r.get(<span class="string">&#x27;id&#x27;</span>) == <span class="variable language_">self</span>._<span class="built_in">id</span>:</span><br><span class="line">                <span class="keyword">return</span> r.get(<span class="string">&#x27;result&#x27;</span>, &#123;&#125;)</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">navigate</span>(<span class="params">self, url</span>):</span><br><span class="line">        <span class="string">&quot;&quot;&quot;导航到 URL 并等待页面加载完成&quot;&quot;&quot;</span></span><br><span class="line">        <span class="variable language_">self</span>._cmd(<span class="string">&#x27;Page.navigate&#x27;</span>, &#123;<span class="string">&#x27;url&#x27;</span>: url&#125;)</span><br><span class="line">        <span class="comment"># 等待页面加载（生产环境应监听 Page.loadEventFired 事件）</span></span><br><span class="line">        time.sleep(<span class="number">3</span>)</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">screenshot</span>(<span class="params">self, output_path, width=<span class="number">1920</span>, height=<span class="number">1080</span></span>):</span><br><span class="line">        <span class="string">&quot;&quot;&quot;截取页面截图&quot;&quot;&quot;</span></span><br><span class="line">        <span class="comment"># 设置视口大小</span></span><br><span class="line">        <span class="variable language_">self</span>._cmd(<span class="string">&#x27;Emulation.setDeviceMetricsOverride&#x27;</span>, &#123;</span><br><span class="line">            <span class="string">&#x27;width&#x27;</span>: width,</span><br><span class="line">            <span class="string">&#x27;height&#x27;</span>: height,</span><br><span class="line">            <span class="string">&#x27;deviceScaleFactor&#x27;</span>: <span class="number">1</span>,</span><br><span class="line">            <span class="string">&#x27;mobile&#x27;</span>: <span class="literal">False</span></span><br><span class="line">        &#125;)</span><br><span class="line">        time.sleep(<span class="number">0.5</span>)</span><br><span class="line">        </span><br><span class="line">        <span class="comment"># 截图</span></span><br><span class="line">        result = <span class="variable language_">self</span>._cmd(<span class="string">&#x27;Page.captureScreenshot&#x27;</span>, &#123;</span><br><span class="line">            <span class="string">&#x27;format&#x27;</span>: <span class="string">&#x27;png&#x27;</span>,</span><br><span class="line">            <span class="string">&#x27;fromSurface&#x27;</span>: <span class="literal">True</span></span><br><span class="line">        &#125;)</span><br><span class="line">        </span><br><span class="line">        <span class="keyword">with</span> <span class="built_in">open</span>(output_path, <span class="string">&#x27;wb&#x27;</span>) <span class="keyword">as</span> f:</span><br><span class="line">            f.write(base64.b64decode(result[<span class="string">&#x27;data&#x27;</span>]))</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">f&#x27;✅ 截图已保存: <span class="subst">&#123;output_path&#125;</span> (<span class="subst">&#123;width&#125;</span>x<span class="subst">&#123;height&#125;</span>)&#x27;</span>)</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">close</span>(<span class="params">self</span>):</span><br><span class="line">        <span class="variable language_">self</span>.ws.close()</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">main</span>():</span><br><span class="line">    parser = argparse.ArgumentParser(description=<span class="string">&#x27;CDP 命令行截图工具&#x27;</span>)</span><br><span class="line">    parser.add_argument(<span class="string">&#x27;url&#x27;</span>, <span class="built_in">help</span>=<span class="string">&#x27;目标 URL&#x27;</span>)</span><br><span class="line">    parser.add_argument(<span class="string">&#x27;-o&#x27;</span>, <span class="string">&#x27;--output&#x27;</span>, default=<span class="string">&#x27;screenshot.png&#x27;</span>, <span class="built_in">help</span>=<span class="string">&#x27;输出文件路径&#x27;</span>)</span><br><span class="line">    parser.add_argument(<span class="string">&#x27;-w&#x27;</span>, <span class="string">&#x27;--width&#x27;</span>, <span class="built_in">type</span>=<span class="built_in">int</span>, default=<span class="number">1920</span>, <span class="built_in">help</span>=<span class="string">&#x27;视口宽度&#x27;</span>)</span><br><span class="line">    parser.add_argument(<span class="string">&#x27;-H&#x27;</span>, <span class="string">&#x27;--height&#x27;</span>, <span class="built_in">type</span>=<span class="built_in">int</span>, default=<span class="number">1080</span>, <span class="built_in">help</span>=<span class="string">&#x27;视口高度&#x27;</span>)</span><br><span class="line">    parser.add_argument(<span class="string">&#x27;--cdp&#x27;</span>, default=<span class="string">&#x27;http://localhost:9222&#x27;</span>, <span class="built_in">help</span>=<span class="string">&#x27;CDP HTTP 地址&#x27;</span>)</span><br><span class="line">    parser.add_argument(<span class="string">&#x27;--pattern&#x27;</span>, default=<span class="string">&#x27;&#x27;</span>, <span class="built_in">help</span>=<span class="string">&#x27;匹配特定标签页&#x27;</span>)</span><br><span class="line">    args = parser.parse_args()</span><br><span class="line">    </span><br><span class="line">    <span class="built_in">print</span>(<span class="string">f&#x27;🔍 连接 Chrome: <span class="subst">&#123;args.cdp&#125;</span>&#x27;</span>)</span><br><span class="line">    ws_url = find_page_ws(args.cdp, args.pattern)</span><br><span class="line">    <span class="keyword">if</span> <span class="keyword">not</span> ws_url:</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&#x27;❌ 未找到可用的页面&#x27;</span>)</span><br><span class="line">        <span class="keyword">return</span></span><br><span class="line">    </span><br><span class="line">    <span class="built_in">print</span>(<span class="string">f&#x27;🔗 WebSocket: <span class="subst">&#123;ws_url[:<span class="number">60</span>]&#125;</span>...&#x27;</span>)</span><br><span class="line">    cdp = CDPConnection(ws_url)</span><br><span class="line">    </span><br><span class="line">    <span class="built_in">print</span>(<span class="string">f&#x27;🌐 导航到: <span class="subst">&#123;args.url&#125;</span>&#x27;</span>)</span><br><span class="line">    cdp.navigate(args.url)</span><br><span class="line">    </span><br><span class="line">    cdp.screenshot(args.output, args.width, args.height)</span><br><span class="line">    cdp.close()</span><br><span class="line">    <span class="built_in">print</span>(<span class="string">&#x27;🎉 完成！&#x27;</span>)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> __name__ == <span class="string">&#x27;__main__&#x27;</span>:</span><br><span class="line">    main()</span><br></pre></td></tr></table></figure>
+
+<p>使用方法：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 基础用法</span></span><br><span class="line">python cdp_screenshooter.py https://www.example.com</span><br><span class="line"></span><br><span class="line"><span class="comment"># 指定输出和尺寸</span></span><br><span class="line">python cdp_screenshooter.py https://www.baidu.com -o baidu.png -w 1920 -H 1080</span><br><span class="line"></span><br><span class="line"><span class="comment"># 截取特定标签页</span></span><br><span class="line">python cdp_screenshooter.py https://example.com --pattern <span class="string">&quot;login&quot;</span></span><br></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="踩坑记录与最佳实践"><a href="#踩坑记录与最佳实践" class="headerlink" title="踩坑记录与最佳实践"></a>踩坑记录与最佳实践</h2><h3 id="常见问题"><a href="#常见问题" class="headerlink" title="常见问题"></a>常见问题</h3><h4 id="❌-连接被拒绝（Connection-Refused）"><a href="#❌-连接被拒绝（Connection-Refused）" class="headerlink" title="❌ 连接被拒绝（Connection Refused）"></a>❌ 连接被拒绝（Connection Refused）</h4><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">websocket._exceptions.WebSocketBadStatusException: Handshake status 500</span><br></pre></td></tr></table></figure>
+
+<p><strong>原因</strong>：Chrome 没有以 <code>--remote-debugging-port</code> 参数启动。</p>
+<p><strong>解决</strong>：确保所有 Chrome 进程已关闭，重新用命令行启动 Chrome。</p>
+<h4 id="❌-WebSocket-连接超时"><a href="#❌-WebSocket-连接超时" class="headerlink" title="❌ WebSocket 连接超时"></a>❌ WebSocket 连接超时</h4><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">socket.timeout: timed out</span><br></pre></td></tr></table></figure>
+
+<p><strong>原因</strong>：端口被防火墙拦截，或者启动了多个 Chrome 实例导致端口冲突。</p>
+<p><strong>解决</strong>：</p>
+<ul>
+<li>检查 <code>http://localhost:9222/json</code> 是否能正常访问</li>
+<li>检查防火墙是否放行了 9222 端口</li>
+<li>如果有多个 Chrome 实例，把旧的全部关闭再重试</li>
+</ul>
+<h4 id="❌-找不到页面（get-page-ws-返回-None）"><a href="#❌-找不到页面（get-page-ws-返回-None）" class="headerlink" title="❌ 找不到页面（get_page_ws 返回 None）"></a>❌ 找不到页面（get_page_ws 返回 None）</h4><p><strong>原因</strong>：<code>http://localhost:9222/json</code> 返回空列表，还没有打开任何标签页。</p>
+<p><strong>解决</strong>：确保 Chrome 中至少有一个标签页打开（而不是只有一个”新标签页”）。</p>
+<h4 id="❌-Input-insertText-在-xterm-js-终端中不生效"><a href="#❌-Input-insertText-在-xterm-js-终端中不生效" class="headerlink" title="❌ Input.insertText 在 xterm.js 终端中不生效"></a>❌ <code>Input.insertText</code> 在 xterm.js 终端中不生效</h4><p><strong>原因</strong>：xterm.js 等基于 Canvas 渲染的终端不会触发标准的 DOM 输入事件。</p>
+<p><strong>解决</strong>：改用 JavaScript 直接操作 textarea：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">result = send_cmd(ws, <span class="string">&#x27;Runtime.evaluate&#x27;</span>, &#123;</span><br><span class="line">    <span class="string">&#x27;expression&#x27;</span>: <span class="string">&#x27;&#x27;&#x27;</span></span><br><span class="line"><span class="string">        (() =&gt; &#123;</span></span><br><span class="line"><span class="string">            const ta = document.querySelector(&#x27;.xterm-helper-textarea&#x27;);</span></span><br><span class="line"><span class="string">            if (!ta) return false;</span></span><br><span class="line"><span class="string">            ta.value = &#x27;要输入的命令&#x27;;</span></span><br><span class="line"><span class="string">            ta.dispatchEvent(new Event(&#x27;input&#x27;, &#123;bubbles: true&#125;));</span></span><br><span class="line"><span class="string">            return true;</span></span><br><span class="line"><span class="string">        &#125;)()</span></span><br><span class="line"><span class="string">    &#x27;&#x27;&#x27;</span>,</span><br><span class="line">    <span class="string">&#x27;returnByValue&#x27;</span>: <span class="literal">True</span></span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure>
+
+<h3 id="最佳实践总结"><a href="#最佳实践总结" class="headerlink" title="最佳实践总结"></a>最佳实践总结</h3><ol>
+<li><strong>始终先 <code>enable</code> 再使用</strong>：每个域在使用前必须先调用对应的 <code>enable</code> 方法</li>
+<li><strong>事件监听用独立线程</strong>：CDP 事件通过 WebSocket 主动推送，需要另开线程处理</li>
+<li><strong>合理等待页面加载</strong>：<code>Page.navigate</code> 不会等待页面完全加载，建议监听 <code>Page.loadEventFired</code> 事件</li>
+<li><strong>注意内存泄漏</strong>：每次 <code>Runtime.evaluate</code> 创建的对象引用会占用内存，用完后调用 <code>Runtime.releaseObject</code></li>
+<li><strong>使用独立用户数据目录</strong>：用 <code>--user-data-dir=/path/to/profile</code> 指定独立的浏览器配置目录，避免与日常浏览器冲突</li>
+<li><strong>异常处理</strong>：WebSocket 连接可能因网络问题断开，建议加入重连机制</li>
+<li><strong>日志记录</strong>：CDP 返回的数据可能很大（尤其是截图和响应体），注意控制日志输出</li>
+</ol>
+<hr>
+<h2 id="总结与下一步"><a href="#总结与下一步" class="headerlink" title="总结与下一步"></a>总结与下一步</h2><p>通过本文，你已经掌握了 CDP 的核心概念和实战技能：</p>
+<ul>
+<li>✅ CDP 是什么以及它的通信模型</li>
+<li>✅ CDP 与 Selenium&#x2F;Playwright 的定位差异</li>
+<li>✅ 如何搭建环境并连接 Chrome</li>
+<li>✅ 5 个核心域的使用：Page、Runtime、DOM、Network、Input</li>
+<li>✅ 进阶技巧：反检测、新标签页处理、性能追踪</li>
+<li>✅ 完整项目：命令行截图工具</li>
+</ul>
+<h3 id="接下来可以尝试的方向"><a href="#接下来可以尝试的方向" class="headerlink" title="接下来可以尝试的方向"></a>接下来可以尝试的方向</h3><table>
+<thead>
+<tr>
+<th>方向</th>
+<th>适合场景</th>
+<th>参考资源</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>爬虫</strong></td>
+<td>拦截 SPA 页面的 XHR 请求、绕过反爬</td>
+<td>查看本站的”爬虫实战”系列</td>
+</tr>
+<tr>
+<td><strong>RPA 自动化</strong></td>
+<td>重复性网页操作、跨系统数据迁移</td>
+<td>查看本站的”RPA 实战”系列</td>
+</tr>
+<tr>
+<td><strong>性能测试</strong></td>
+<td>Core Web Vitals 采集、页面加载分析</td>
+<td>查看本站的”性能优化”系列</td>
+</tr>
+<tr>
+<td><strong>安全测试</strong></td>
+<td>XSS 探测、CSRF 验证、信息泄露检测</td>
+<td>Playwright + CDP 结合使用</td>
+</tr>
+<tr>
+<td><strong>工具开发</strong></td>
+<td>构建自己的无头浏览器管理平台</td>
+<td>关注本站的”框架搭建”系列</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>💡 <strong>小提示</strong>：如果你想快速上手生产级应用，建议先掌握本文的 CDP 基础，然后去学习 <a target="_blank" rel="noopener" href="https://playwright.dev/">Playwright</a> 或 <a target="_blank" rel="noopener" href="https://pptr.dev/">Puppeteer</a>。理解了底层协议后，使用高层框架会更加得心应手。</p>
+</blockquote>
+<hr>
+<p><em>本文是「CDP 自动化指南」系列的开篇之作。后续将深入 CDP 爬虫实战、RPA 流程自动化、Playwright 底层原理等话题，敬请关注。</em></p>
+<hr>
+<p><strong>觉得有用？分享给更多人：</strong></p>
+<!-- 分享按钮区域（待添加） -->
+
+<p><strong>遇到问题或有建议？</strong> 欢迎在评论区留言讨论，或提交 <a target="_blank" rel="noopener" href="https://github.com/your-repo/issues">GitHub Issue</a>。</p>
+<hr>
+<p><em>本文由 AI 辅助撰写，经人工审校补充实战经验。</em></p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://cdp.autify.cc"></a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://cdp.autify.cc/cdp-python-automation-guide/">https://cdp.autify.cc/cdp-python-automation-guide/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://cdp.autify.cc" target="_blank">CDP 自动化指南</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/Chrome-DevTools-Protocol/">Chrome DevTools Protocol</a><a class="post-meta__tags" href="/tags/CDP/">CDP</a><a class="post-meta__tags" href="/tags/Python/">Python</a><a class="post-meta__tags" href="/tags/%E6%B5%8F%E8%A7%88%E5%99%A8%E8%87%AA%E5%8A%A8%E5%8C%96/">浏览器自动化</a><a class="post-meta__tags" href="/tags/Selenium/">Selenium</a><a class="post-meta__tags" href="/tags/Playwright/">Playwright</a></div><div class="post-share"><div class="social-share" data-image="/img/avatar.png" data-sites="facebook,x,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"></nav><hr class="custom-hr"/><div id="post-comment"><div class="comment-head"><div class="comment-headline"><i class="fas fa-comments fa-fw"></i><span> 评论</span></div></div><div class="comment-wrap"><div><div class="vcomment" id="vcomment"></div></div></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/avatar.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name"></div><div class="author-info-description">Chrome DevTools Protocol 中文教程</div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">1</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">6</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">2</div></a></div><a id="card-info-btn" target="_blank" rel="noopener" href="https://github.com/你的用户名"><i class="fab fa-github"></i><span>关注我</span></a><div class="card-info-social-icons"><a class="social-icon" href="https://github.com/你的用户名" target="_blank" title="GitHub"><i class="fab fa-github" style="color: #24292e;"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">📢 CDP 自动化指南是一个专注于 Chrome DevTools Protocol 的中文技术博客，提供 Python 控制浏览器的实战教程。</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%9B%AE%E5%BD%95"><span class="toc-number">1.</span> <span class="toc-text">目录</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#CDP-%E6%98%AF%E4%BB%80%E4%B9%88"><span class="toc-number">2.</span> <span class="toc-text">CDP 是什么</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#CDP-%E8%83%BD%E5%81%9A%E4%BB%80%E4%B9%88"><span class="toc-number">2.1.</span> <span class="toc-text">CDP 能做什么</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#CDP-%E7%9A%84%E9%80%9A%E4%BF%A1%E6%A8%A1%E5%9E%8B"><span class="toc-number">2.2.</span> <span class="toc-text">CDP 的通信模型</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#CDP-vs-Selenium-vs-Playwright%EF%BC%9A%E8%AF%A5%E6%80%8E%E4%B9%88%E9%80%89"><span class="toc-number">3.</span> <span class="toc-text">CDP vs Selenium vs Playwright：该怎么选</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%AF%B9%E6%AF%94%E8%A1%A8%E6%A0%BC"><span class="toc-number">3.1.</span> <span class="toc-text">对比表格</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%BB%80%E4%B9%88%E6%97%B6%E5%80%99%E8%AF%A5%E7%94%A8-CDP%EF%BC%9F"><span class="toc-number">3.2.</span> <span class="toc-text">什么时候该用 CDP？</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA"><span class="toc-number">4.</span> <span class="toc-text">环境搭建</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-%E5%AE%89%E8%A3%85-Python-%E4%BE%9D%E8%B5%96"><span class="toc-number">4.1.</span> <span class="toc-text">1. 安装 Python 依赖</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-%E5%AE%89%E8%A3%85-%E7%A1%AE%E8%AE%A4-Chrome-%E6%B5%8F%E8%A7%88%E5%99%A8"><span class="toc-number">4.2.</span> <span class="toc-text">2. 安装 &#x2F; 确认 Chrome 浏览器</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-%E5%90%AF%E5%8A%A8-Chrome-%E7%9A%84%E8%BF%9C%E7%A8%8B%E8%B0%83%E8%AF%95%E6%A8%A1%E5%BC%8F"><span class="toc-number">4.3.</span> <span class="toc-text">3. 启动 Chrome 的远程调试模式</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%AA%8C%E8%AF%81%E8%BF%9E%E6%8E%A5"><span class="toc-number">4.4.</span> <span class="toc-text">验证连接</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%AC%AC%E4%B8%80%E4%B8%AA-CDP-%E7%A8%8B%E5%BA%8F%EF%BC%9A%E8%BF%9E%E6%8E%A5-Chrome"><span class="toc-number">5.</span> <span class="toc-text">第一个 CDP 程序：连接 Chrome</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%9F%BA%E7%A1%80%E6%A1%86%E6%9E%B6"><span class="toc-number">5.1.</span> <span class="toc-text">基础框架</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%BB%A3%E7%A0%81%E8%A7%A3%E6%9E%90"><span class="toc-number">5.2.</span> <span class="toc-text">代码解析</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%A0%B8%E5%BF%83%E5%91%BD%E4%BB%A4%E5%AE%9E%E6%88%98"><span class="toc-number">6.</span> <span class="toc-text">核心命令实战</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-%E9%A1%B5%E9%9D%A2%E6%88%AA%E5%9B%BE"><span class="toc-number">6.1.</span> <span class="toc-text">1. 页面截图</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-%E6%89%A7%E8%A1%8C-JavaScript-%E5%B9%B6%E8%8E%B7%E5%8F%96%E8%BF%94%E5%9B%9E%E5%80%BC"><span class="toc-number">6.2.</span> <span class="toc-text">2. 执行 JavaScript 并获取返回值</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-DOM-%E6%93%8D%E4%BD%9C"><span class="toc-number">6.3.</span> <span class="toc-text">3. DOM 操作</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-%E7%BD%91%E7%BB%9C%E6%8B%A6%E6%88%AA%E4%B8%8E%E7%9B%91%E6%8E%A7"><span class="toc-number">6.4.</span> <span class="toc-text">4. 网络拦截与监控</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-%E9%BC%A0%E6%A0%87%E4%B8%8E%E9%94%AE%E7%9B%98%E6%A8%A1%E6%8B%9F"><span class="toc-number">6.5.</span> <span class="toc-text">5. 鼠标与键盘模拟</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E8%BF%9B%E9%98%B6%E6%8A%80%E5%B7%A7"><span class="toc-number">7.</span> <span class="toc-text">进阶技巧</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-%E7%BB%95%E8%BF%87%E8%87%AA%E5%8A%A8%E5%8C%96%E6%A3%80%E6%B5%8B"><span class="toc-number">7.1.</span> <span class="toc-text">1. 绕过自动化检测</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-%E5%A4%84%E7%90%86%E6%96%B0%E7%AA%97%E5%8F%A3-%E6%96%B0%E6%A0%87%E7%AD%BE%E9%A1%B5"><span class="toc-number">7.2.</span> <span class="toc-text">2. 处理新窗口 &#x2F; 新标签页</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-%E6%80%A7%E8%83%BD%E8%BF%BD%E8%B8%AA"><span class="toc-number">7.3.</span> <span class="toc-text">3. 性能追踪</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-%E7%94%9F%E6%88%90-PDF"><span class="toc-number">7.4.</span> <span class="toc-text">4. 生成 PDF</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%AE%8C%E6%95%B4%E5%AE%9E%E6%88%98%EF%BC%9A%E8%87%AA%E5%8A%A8%E5%8C%96%E6%88%AA%E5%9B%BE%E5%B7%A5%E5%85%B7"><span class="toc-number">8.</span> <span class="toc-text">完整实战：自动化截图工具</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E8%B8%A9%E5%9D%91%E8%AE%B0%E5%BD%95%E4%B8%8E%E6%9C%80%E4%BD%B3%E5%AE%9E%E8%B7%B5"><span class="toc-number">9.</span> <span class="toc-text">踩坑记录与最佳实践</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%B8%B8%E8%A7%81%E9%97%AE%E9%A2%98"><span class="toc-number">9.1.</span> <span class="toc-text">常见问题</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E2%9D%8C-%E8%BF%9E%E6%8E%A5%E8%A2%AB%E6%8B%92%E7%BB%9D%EF%BC%88Connection-Refused%EF%BC%89"><span class="toc-number">9.1.1.</span> <span class="toc-text">❌ 连接被拒绝（Connection Refused）</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E2%9D%8C-WebSocket-%E8%BF%9E%E6%8E%A5%E8%B6%85%E6%97%B6"><span class="toc-number">9.1.2.</span> <span class="toc-text">❌ WebSocket 连接超时</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E2%9D%8C-%E6%89%BE%E4%B8%8D%E5%88%B0%E9%A1%B5%E9%9D%A2%EF%BC%88get-page-ws-%E8%BF%94%E5%9B%9E-None%EF%BC%89"><span class="toc-number">9.1.3.</span> <span class="toc-text">❌ 找不到页面（get_page_ws 返回 None）</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E2%9D%8C-Input-insertText-%E5%9C%A8-xterm-js-%E7%BB%88%E7%AB%AF%E4%B8%AD%E4%B8%8D%E7%94%9F%E6%95%88"><span class="toc-number">9.1.4.</span> <span class="toc-text">❌ Input.insertText 在 xterm.js 终端中不生效</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%9C%80%E4%BD%B3%E5%AE%9E%E8%B7%B5%E6%80%BB%E7%BB%93"><span class="toc-number">9.2.</span> <span class="toc-text">最佳实践总结</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%80%BB%E7%BB%93%E4%B8%8E%E4%B8%8B%E4%B8%80%E6%AD%A5"><span class="toc-number">10.</span> <span class="toc-text">总结与下一步</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%8E%A5%E4%B8%8B%E6%9D%A5%E5%8F%AF%E4%BB%A5%E5%B0%9D%E8%AF%95%E7%9A%84%E6%96%B9%E5%90%91"><span class="toc-number">10.1.</span> <span class="toc-text">接下来可以尝试的方向</span></a></li></ol></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/cdp-python-automation-guide/" title="Chrome DevTools Protocol (CDP) 完全指南：用 Python 控制浏览器的终极方案">Chrome DevTools Protocol (CDP) 完全指南：用 Python 控制浏览器的终极方案</a><time datetime="2026-06-03T06:00:00.000Z" title="发表于 2026-06-03 14:00:00">2026-06-03</time></div></div></div></div></div></div></main><footer id="footer"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2026 By </span><span class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div><div class="footer_custom_text">🚀 CDP 自动化指南</div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><a id="to_comment" href="#post-comment" title="前往评论"><i class="fas fa-comments"></i></a><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.4"></script><script src="/js/main.js?v=5.5.4"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const isShuoshuo = GLOBAL_CONFIG_SITE.pageType === 'shuoshuo'
+  const option = null
+
+  const initValine = (el, path) => {
+    if (isShuoshuo) {
+      window.shuoshuoComment.destroyValine = () => {
+        if (el.children.length) {
+          el.innerHTML = ''
+          el.classList.add('no-comment')
+        }
+      }
+    }
+
+    const valineConfig = {
+      el: '#vcomment',
+      appId: '',
+      appKey: '',
+      avatar: 'monsterid',
+      serverURLs: '',
+      emojiMaps: "",
+      visitor: false,
+      ...option,
+      path: isShuoshuo ? path : (option && option.path) || window.location.pathname
+    }
+
+    new Valine(valineConfig)
+  }
+
+  const loadValine = async (el, path) => {
+    if (typeof Valine === 'function') {
+      initValine(el, path)
+    } else {
+      await btf.getScript('https://cdn.jsdelivr.net/npm/valine@1.5.3/dist/Valine.min.js')
+      initValine(el, path)
+    }
+  }
+
+  if (isShuoshuo) {
+    'Valine' === 'Valine'
+      ? window.shuoshuoComment = { loadComment: loadValine }
+      : window.loadOtherComment = loadValine
+    return
+  }
+
+  if ('Valine' === 'Valine' || !false) {
+    if (false) btf.loadComment(document.getElementById('vcomment'),loadValine)
+    else setTimeout(loadValine, 0)
+  } else {
+    window.loadOtherComment = loadValine
+  }
+})()</script></div><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js" defer="defer"></script><script>document.addEventListener('DOMContentLoaded', () => {
+  const pjaxSelectors = ["head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      false
+        ? pjax.loadUrl('/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})</script><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script></div></body></html>
