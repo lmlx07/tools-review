@@ -7,7 +7,7 @@ tags:
   - CDP
   - Python
   - Network Interception
-  - 爬虫
+  - Web Scraping
 categories:
   - CDP Basics
   - Python Practice

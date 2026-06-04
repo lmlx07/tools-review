@@ -13,6 +13,8 @@ TRANSLATIONS = {
     '反检测': 'Anti-Detection',
     '浏览器指纹': 'Browser Fingerprinting',
     '网络拦截': 'Network Interception',
+    '爬虫': 'Web Scraping',
+    '性能优化': 'Performance Optimization',
     'CDP 基础': 'CDP Basics',
     'Python 实战': 'Python Practice',
 }

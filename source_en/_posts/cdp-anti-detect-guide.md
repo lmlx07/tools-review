@@ -8,7 +8,7 @@ tags:
   - Python
   - Browser Fingerprinting
   - Anti-Detection
-  - 爬虫
+  - Web Scraping
 categories:
   - CDP Basics
   - Python Practice

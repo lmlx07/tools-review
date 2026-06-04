@@ -6,7 +6,7 @@ tags:
   - Chrome DevTools Protocol
   - CDP
   - Python
-  - 性能优化
+  - Performance Optimization
   - Lighthouse
   - Web Vitals
 categories:
