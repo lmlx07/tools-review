@@ -97,6 +97,11 @@ feed:
   path: atom.xml
   limit: 20
 
+# Sitemap
+sitemap:
+  path: sitemap.xml
+  rel: true
+
 # SEO
 seo:
   sitemap:

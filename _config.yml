@@ -95,6 +95,11 @@ feed:
   path: atom.xml
   limit: 20
 
+# Sitemap
+sitemap:
+  path: sitemap.xml
+  rel: true
+
 # Extensions
 ## Plugins: https://hexo.io/plugins/
 ## Themes: https://hexo.io/themes/
