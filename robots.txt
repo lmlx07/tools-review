@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://cdp.autify.cc/sitemap.xml
