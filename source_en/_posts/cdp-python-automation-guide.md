@@ -174,34 +174,34 @@ import json
 import urllib.request
 import websocket
 
-# ========== 第一步：获取页面的 WebSocket URL ==========
+# ========== Step 1: Get the WebSocket URL of the page ==========
 
 CDP_HTTP = 'http://localhost:9222'
 
 def get_page_ws(pattern=''):
-    """获取第一个匹配 pattern 的页面的 WebSocket URL"""
+    """Get the WebSocket URL of the first page matching pattern"""
     data = json.loads(
         urllib.request.urlopen(f'{CDP_HTTP}/json', timeout=5).read()
     )
     for page in data:
         if pattern in page.get('url', ''):
             return page['webSocketDebuggerUrl']
-    # 如果没有匹配，默认取第一个页面
+    # If there is no match, the first page will be taken by default.
     return data[0]['webSocketDebuggerUrl'] if data else None
 
 ws_url = get_page_ws()
 print(f'Connecting to: {ws_url}')
 
-# ========== 第二步：建立 WebSocket 连接 ==========
+# ========== Step 2: Establish WebSocket connection ==========
 
 ws = websocket.create_connection(ws_url, timeout=30)
 
-# ========== 第三步：封装 send/receive ==========
+# ========== Step 3: Encapsulate send/receive ==========
 
 _request_id = 1
 
 def send_cmd(ws, method, params=None):
-    """发送 CDP 命令并等待返回结果"""
+    """Send CDP command and wait for the result to be returned"""
     global _request_id
     if params is None:
         params = {}
@@ -214,26 +214,27 @@ def send_cmd(ws, method, params=None):
         if response.get('id') == _request_id:
             return response.get('result', {})
 
-# ========== 第四步：启用必要域 ==========
+# ========== Step 4: Enable necessary domains ==========
 
 send_cmd(ws, 'Page.enable')       # 启用页面域
 send_cmd(ws, 'Runtime.enable')    # 启用运行时域
 
-# ========== 第五步：开始操控浏览器 ==========
+# ========== Step 5: Start controlling the browser ==========
 
-# 导航到目标页面
+# Navigate to target page
 result = send_cmd(ws, 'Page.navigate', {'url': 'https://www.example.com'})
 print(f'Navigation started, frameId: {result.get("frameId")}')
 
-# 在当前页面执行 JavaScript
+# Execute JavaScript on the current page
 result = send_cmd(ws, 'Runtime.evaluate', {
     'expression': 'document.title',
     'returnByValue': True
 })
 print(f'Page title: {result["result"]["value"]}')
 
-# 关闭连接
+# close connection
 ws.close()
+
 ```
 
 Run this code and you will see the title of the console output page. Congratulations, you now control your browser directly through CDP!
@@ -275,7 +276,7 @@ The screenshot is CDP's "Hello World". It's more flexible than Selenium's screen
 ```python
 import base64
 
-# 全页截图
+# Full page screenshot
 result = send_cmd(ws, 'Page.captureScreenshot', {
     'format': 'png',
     'quality': 80,
@@ -287,12 +288,13 @@ with open('screenshot.png', 'wb') as f:
 print('Screenshot saved as screenshot.png')
 
 
-# 指定区域的截图（裁剪）
+# Screenshot (crop) of specified area
 # clip = x, y, width, height
 result = send_cmd(ws, 'Page.captureScreenshot', {
     'format': 'png',
     'clip': {'x': 0, 'y': 0, 'width': 800, 'height': 600, 'scale': 1}
 })
+
 ```
 
 > **Tips**: `fromSurface: True` will intercept the complete rendering result (including GPU composition layer), set to `False` to only intercept the viewport content.
@@ -302,7 +304,7 @@ result = send_cmd(ws, 'Page.captureScreenshot', {
 This is one of the most powerful capabilities of CDP - execute arbitrary JS in the context of the page and get the return value.
 
 ```python
-# 获取页面信息
+# Get page information
 result = send_cmd(ws, 'Runtime.evaluate', {
     'expression': 'JSON.stringify({title: document.title, url: location.href, cookies: document.cookie})',
     'returnByValue': True
@@ -310,18 +312,19 @@ result = send_cmd(ws, 'Runtime.evaluate', {
 page_info = json.loads(result['result']['value'])
 print(page_info)
 
-# 获取元素的文本内容
+# Get the text content of an element
 result = send_cmd(ws, 'Runtime.evaluate', {
     'expression': 'document.querySelector("h1").innerText',
     'returnByValue': True
 })
 print(f'H1 text: {result["result"]["value"]}')
 
-# 修改页面（可以执行任何 JS 操作）
+# Modify the page (can perform any JS operation)
 send_cmd(ws, 'Runtime.evaluate', {
     'expression': 'document.title = "被 CDP 修改的标题"',
     'returnByValue': True
 })
+
 ```
 
 **Important Parameters**:
@@ -333,29 +336,30 @@ send_cmd(ws, 'Runtime.evaluate', {
 CDP's DOM operations are implemented through `DOM` fields, using "node IDs" to locate elements.
 
 ```python
-# 获取文档根节点
+# Get the document root node
 result = send_cmd(ws, 'DOM.getDocument')
 root_node_id = result['root']['nodeId']
 
-# 通过选择器查找元素
+# Find elements by selector
 result = send_cmd(ws, 'DOM.querySelector', {
     'nodeId': root_node_id,
     'selector': 'div.content'
 })
 content_node_id = result['nodeId']
 
-# 获取元素的 HTML
+# Get the HTML of an element
 result = send_cmd(ws, 'DOM.getOuterHTML', {
     'nodeId': content_node_id
 })
 print(f'Element HTML: {result["outerHTML"][:200]}...')
 
-# 修改元素的属性
+# Modify element attributes
 send_cmd(ws, 'DOM.setAttributeValue', {
     'nodeId': content_node_id,
     'name': 'style',
     'value': 'background-color: yellow;'
 })
+
 ```
 
 > **Features of CDP**: DOM operations are based on the **internal representation** of Chrome's Blink rendering engine, bypassing the page's JavaScript framework. This means that even if the page uses React/Vue, you can directly manipulate the final rendering result.
@@ -365,57 +369,58 @@ send_cmd(ws, 'DOM.setAttributeValue', {
 This is the most commonly used feature in crawlers and penetration testing. CDP can capture every request made by a page.
 
 ```python
-# 启用网络域
+# Enable domain
 send_cmd(ws, 'Network.enable')
 
-# 设置请求拦截的回调
+# Set callback for request interception
 def on_request(event_data):
-    """每次有网络请求时被调用"""
+    """Called every time there is a network request"""
     request = event_data['params']['request']
     url = request['url']
     method = request['method']
     print(f'[{method}] {url}')
     
-    # 可以修改请求头
-    # 返回 {'continue': True} 表示继续请求
+    # Request headers can be modified
+    # Return {'continue': True} to continue the request
 
-# 注册请求事件监听
-# CDP 的事件通过 WebSocket 主动推送，需要单独处理
+# Register request event listener
+# CDP events are actively pushed through WebSocket and need to be processed separately.
 import threading
 
 def event_listener(ws):
-    """后台线程：持续接收 CDP 事件"""
+    """Background thread: Continuously receive CDP events"""
     while True:
         try:
             msg = json.loads(ws.recv())
             if 'method' in msg:
                 if msg['method'] == 'Network.requestWillBeSent':
                     on_request(msg)
-                # 可以添加更多事件处理
+                # More event handling can be added
         except Exception as e:
             print(f'Event listener error: {e}')
             break
 
-# 启动事件监听线程
+# Start event listening thread
 threading.Thread(target=event_listener, args=(ws,), daemon=True).start()
 
-# 导航到页面
+# Navigate to page
 send_cmd(ws, 'Page.navigate', {'url': 'https://example.com'})
 
-# ... 页面加载中，事件监听器会输出所有请求 ...
+# ...The page is loading, the event listener will output all requests...
 import time
 time.sleep(5)  # 等待页面加载
+
 ```
 
 **Advanced usage of Network domain**:
 
 ```python
-# 拦截特定 URL 模式
+# Block specific URL patterns
 send_cmd(ws, 'Network.setBlockedURLs', {
     'urls': ['*.jpg', '*.png', '*.gif']   # 拦截所有图片
 })
 
-# 模拟弱网环境
+# Simulate weak network environment
 send_cmd(ws, 'Network.emulateNetworkConditions', {
     'offline': False,
     'latency': 300,          # 延迟 300ms
@@ -423,14 +428,15 @@ send_cmd(ws, 'Network.emulateNetworkConditions', {
     'uploadThroughput': 100 * 1024      # 上传 100 KB/s
 })
 
-# 获取响应体
-# 首先在 Network.responseReceived 事件中拿到 requestId
-# 然后：
+# Get response body
+# First get the requestId in the Network.responseReceived event
+# Then:
 result = send_cmd(ws, 'Network.getResponseBody', {
     'requestId': request_id
 })
 print(f'Response body: {result["body"][:500]}')
 print(f'Base64 encoded: {result["base64Encoded"]}')
+
 ```
 
 ### 5. Mouse and keyboard simulation
@@ -439,7 +445,7 @@ CDP's `Input` field can simulate mouse clicks and keyboard input, which is key t
 
 ```python
 def click(ws, x, y, button='left'):
-    """在指定坐标点击"""
+    """Click at the specified coordinates"""
     send_cmd(ws, 'Input.dispatchMouseEvent', {
         'type': 'mousePressed',
         'x': x, 'y': y,
@@ -454,11 +460,11 @@ def click(ws, x, y, button='left'):
     })
 
 def type_text(ws, text):
-    """输入文本"""
+    """Enter text"""
     send_cmd(ws, 'Input.insertText', {'text': text})
 
 def press_enter(ws):
-    """按 Enter 键"""
+    """Press Enter"""
     send_cmd(ws, 'Input.dispatchKeyEvent', {
         'type': 'rawKeyDown',
         'windowsVirtualKeyCode': 13,
@@ -470,10 +476,11 @@ def press_enter(ws):
         'key': 'Enter'
     })
 
-# 使用示例：自动填写表单
+# Usage example: Autofill forms
 click(ws, 500, 300)          # 点击输入框
 type_text(ws, 'hello@example.com')  # 输入邮箱
 press_enter(ws)              # 提交
+
 ```
 
 ---
@@ -485,15 +492,15 @@ press_enter(ws)              # 提交
 Selenium and Playwright leave automation traces in the browser (e.g. `navigator.webdriver` property is `true`). CDP can be controlled from a lower level and is harder to detect.
 
 ```python
-# 在页面加载前注入脚本，覆盖自动化特征
+# Inject scripts before page loads to override automation features
 send_cmd(ws, 'Page.addScriptToEvaluateOnNewDocument', {
     'source': '''
-        // 覆盖 webdriver 属性
+        // Override webdriver properties
         Object.defineProperty(navigator, 'webdriver', {
             get: () => undefined
         });
         
-        // 覆盖 chrome 对象
+        // Override chrome object
         window.chrome = {
             runtime: {},
             loadTimes: function() {},
@@ -501,7 +508,7 @@ send_cmd(ws, 'Page.addScriptToEvaluateOnNewDocument', {
             app: {}
         };
         
-        // 覆盖权限查询
+        // Coverage permission query
         const originalQuery = navigator.permissions.query;
         navigator.permissions.query = (params) => (
             params.name === 'notifications' ?
@@ -509,21 +516,22 @@ send_cmd(ws, 'Page.addScriptToEvaluateOnNewDocument', {
                 originalQuery(params)
         );
         
-        // 覆盖 plugins
+        // Override plugins
         Object.defineProperty(navigator, 'plugins', {
             get: () => [1, 2, 3, 4, 5]
         });
         
-        // 覆盖 languages
+        // Override languages
         Object.defineProperty(navigator, 'languages', {
             get: () => ['zh-CN', 'zh', 'en']
         });
     '''
 })
 
-# 以上脚本会在每个新页面上自动执行
-# 然后再导航
+# The above script will be automatically executed on every new page
+# and then navigate
 send_cmd(ws, 'Page.navigate', {'url': 'https://bot.sannysoft.com/'})
+
 ```
 
 > **Note**: Anti-crawling technology is constantly evolving, and what is shown here is only basic protection. In actual use, it needs to be adjusted according to the detection mechanism of the target website.
@@ -531,29 +539,30 @@ send_cmd(ws, 'Page.navigate', {'url': 'https://bot.sannysoft.com/'})
 ### 2. Handling new windows/new tabs
 
 ```python
-# 监听 Target.targetCreated 事件
-# 当新窗口打开时，自动获取它的 WebSocket URL
+# Listen to the Target.targetCreated event
+# When a new window opens, automatically get its WebSocket URL
 
 def on_target_created(event_data):
     target_info = event_data['params']['targetInfo']
     print(f'新标签页: {target_info["url"]}')
-    # 可以通过 CDP_HTTP/json 获取新页面的 WebSocket URL
+    # The WebSocket URL of the new page can be obtained via CDP_HTTP/json
 
-# 也可以用 --remote-debugging-pipe 参数使用管道而非 WebSocket
-# 或者用 Target.attachToTarget 命令
+# You can also use the --remote-debugging-pipe parameter to use a pipe instead of WebSocket
+# Or use the Target.attachToTarget command
+
 ```
 
 ### 3. Performance tracking
 
 ```python
-# 开始性能追踪
+# Start performance tracking
 send_cmd(ws, 'Performance.enable')
 
-# 导航
+# navigation
 send_cmd(ws, 'Page.navigate', {'url': 'https://example.com'})
 time.sleep(3)
 
-# 获取性能指标
+# Get performance metrics
 result = send_cmd(ws, 'Performance.getMetrics')
 metrics = {m['name']: m['value'] for m in result['metrics']}
 
@@ -562,6 +571,7 @@ print(f'首次绘制: {metrics.get("FirstPaint", "N/A")} ms')
 print(f'JS 堆大小: {metrics.get("JSHeapUsedSize", "N/A")} bytes')
 print(f'布局次数: {metrics.get("LayoutCount", "N/A")}')
 print(f'重绘次数: {metrics.get("RecalcStyleCount", "N/A")}')
+
 ```
 
 ### 4. Generate PDF
@@ -605,7 +615,7 @@ import base64
 import argparse
 import time
 
-# ========== 工具函数 ==========
+# ========== Tool functions ==========
 
 def find_page_ws(cdp_url, pattern=''):
     data = json.loads(urllib.request.urlopen(f'{cdp_url}/json', timeout=5).read())
@@ -615,12 +625,12 @@ def find_page_ws(cdp_url, pattern=''):
     return data[0]['webSocketDebuggerUrl'] if data else None
 
 class CDPConnection:
-    """CDP 连接封装"""
+    """CDP connection encapsulation"""
     
     def __init__(self, ws_url):
         self.ws = websocket.create_connection(ws_url, timeout=30)
         self._id = 0
-        # 启用核心域
+        # Enable core domain
         self._cmd('Page.enable')
         self._cmd('Runtime.enable')
     
@@ -635,14 +645,14 @@ class CDPConnection:
                 return r.get('result', {})
     
     def navigate(self, url):
-        """导航到 URL 并等待页面加载完成"""
+        """Navigate to the URL and wait for the page to finish loading"""
         self._cmd('Page.navigate', {'url': url})
-        # 等待页面加载（生产环境应监听 Page.loadEventFired 事件）
+        # Wait for the page to load (production environments should listen to the Page.loadEventFired event)
         time.sleep(3)
     
     def screenshot(self, output_path, width=1920, height=1080):
-        """截取页面截图"""
-        # 设置视口大小
+        """Take a screenshot of the page"""
+        # Set viewport size
         self._cmd('Emulation.setDeviceMetricsOverride', {
             'width': width,
             'height': height,
@@ -651,7 +661,7 @@ class CDPConnection:
         })
         time.sleep(0.5)
         
-        # 截图
+        # screenshot
         result = self._cmd('Page.captureScreenshot', {
             'format': 'png',
             'fromSurface': True
@@ -694,19 +704,21 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 ```
 
 How to use:
 
 ```bash
-# 基础用法
+# Basic usage
 python cdp_screenshooter.py https://www.example.com
 
-# 指定输出和尺寸
+# Specify output and dimensions
 python cdp_screenshooter.py https://www.baidu.com -o baidu.png -w 1920 -H 1080
 
-# 截取特定标签页
+# Capture specific tab page
 python cdp_screenshooter.py https://example.com --pattern "login"
+
 ```
 
 ---
