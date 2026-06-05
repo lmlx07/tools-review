@@ -49,7 +49,7 @@ The traditional method corresponds to the Network panel in DevTools.
 
 ```python
 # The Network domain can monitor all network activity
-cmd(ws, 'Network.enable')
+await cdp(ws, 'Network.enable')
 
 ```
 
@@ -62,7 +62,7 @@ The Fetch domain is a more modern API that allows you to "pause" the request, ma
 
 ```python
 # When a Fetch domain is enabled, every request is "blocked"
-cmd(ws, 'Fetch.enable', {
+await cdp(ws, 'Fetch.enable', {
     'patterns': [{'urlPattern': '*', 'requestStage': 'Request'}]
 })
 
@@ -101,7 +101,7 @@ Let’s start with the basics — connecting to Chrome and listening for network
 ### Basic connection template
 
 ```python
-import json, urllib.request, websocket, time
+import asyncio, json, urllib.request, websockets
 
 # = = = = = = Connect CDP = = = = = =
 CDP_HTTP = 'http://localhost:9222'
@@ -113,20 +113,22 @@ def get_ws():
             return t['webSocketDebuggerUrl']
     return None
 
-def cmd(ws, method, params=None):
-    if params is None: params = {}
-    cmd._id += 1
-    ws.send(json.dumps({'id': cmd._id, 'method': method, 'params': params}))
-    while True:
-        r = json.loads(ws.recv())
-        if r.get('id') == cmd._id: return r.get('result', {})
+async def cdp(ws, method, params=None):
+    """发送 CDP 命令并等待返回结果"""
+    CMD_ID[0] += 1
+    cmd_id = CMD_ID[0]
+    request = {'id': cmd_id, 'method': method, 'params': params or {}}
+    await ws.send(json.dumps(request))
+    async for msg in ws:
+        response = json.loads(msg)
+        if response.get('id') == cmd_id:
+            return response.get('result', {})
 
-cmd._id = 1
+CMD_ID = [0]
 
 ws_url = get_ws()
-ws = websocket.create_connection(ws_url, timeout=30)
-cmd(ws, 'Page.enable')
-cmd(ws, 'Network.enable')
+await cdp(ws, 'Page.enable')
+await cdp(ws, 'Network.enable')
 
 ```
 
@@ -136,24 +138,24 @@ This is a standard CDP connection template, and all subsequent examples are base
 
 ```python
 # Once started, all network events are pushed via WebSockets
-cmd(ws, 'Page.navigate', {'url': 'https://example.com'})
-time.sleep(3)
+await cdp(ws, 'Page.navigate', {'url': 'https://example.com'})
+await asyncio.sleep(3)
 
-# Keep receiving messages (set timeout to avoid getting stuck)
-ws.settimeout(1)
+# Keep receiving messages (with timeout)
 try:
-    while True:
-        msg = json.loads(ws.recv())
-        method = msg.get('method', '')
-        if method == 'Network.requestWillBeSent':
-            req = msg['params']['request']
-            url = req['url']
-            method_http = req['method']
-            print(f'➡ {method_http} {url}')
-        elif method == 'Network.responseReceived':
-            resp = msg['params']['response']
-            print(f'⬅ {resp["status"]} {resp["url"]}')
-except websocket.TimeoutError:
+    async with asyncio.timeout(5):
+        async for msg in ws:
+            data = json.loads(msg)
+            method = data.get('method', '')
+            if method == 'Network.requestWillBeSent':
+                req = data['params']['request']
+                url = req['url']
+                method_http = req['method']
+                print(f'➡ {method_http} {url}')
+            elif method == 'Network.responseReceived':
+                resp = data['params']['response']
+                print(f'⬅ {resp["status"]} {resp["url"]}')
+except (asyncio.TimeoutError, Exception):
     pass
 
 ```
@@ -177,7 +179,7 @@ Some sites check for `Referer` or `User-Agent`, or you need to add custom authen
 
 ```python
 # Enable Fetch Blocking
-cmd(ws, 'Fetch.enable', {
+await cdp(ws, 'Fetch.enable', {
     'patterns': [{
         'urlPattern': '*',
         'requestStage': 'Request'
@@ -186,7 +188,7 @@ cmd(ws, 'Fetch.enable', {
 
 pending_requests = {}
 
-def process_message(msg):
+async def process_message(msg):
     """Process CDP messages, block and modify requests"""
     params = msg.get('params', {})
     method = msg.get('method', '')
@@ -198,7 +200,7 @@ def process_message(msg):
         
         # Skip ws://and data: protocols
         if url.startswith('data:') or url.startswith('blob:'):
-            cmd(ws, 'Fetch.continueRequest', {
+            await cdp(ws, 'Fetch.continueRequest', {
                 'requestId': request_id
             })
             return
@@ -210,24 +212,21 @@ def process_message(msg):
         
         print(f'✏ Modifying: {url[:60]}...')
         
-        cmd(ws, 'Fetch.continueRequest', {
+        await cdp(ws, 'Fetch.continueRequest', {
             'requestId': request_id,
             'headers': [{'name': k, 'value': v} for k, v in headers.items()]
         })
 
 # Navigate to the destination page
-cmd(ws, 'Page.navigate', {'url': 'https://httpbin.org/headers'})
+await cdp(ws, 'Page.navigate', {'url': 'https://httpbin.org/headers'})
 
 # Ongoing message processing
-timeout = 10
-start = time.time()
-while time.time() - start < timeout:
-    try:
-        ws.settimeout(0.5)
-        msg = json.loads(ws.recv())
-        process_message(msg)
-    except websocket.TimeoutError:
-        break
+try:
+    async with asyncio.timeout(10):
+        async for msg in ws:
+            await process_message(json.loads(msg))
+except (asyncio.TimeoutError, Exception):
+    pass
 
 ```
 
@@ -239,7 +238,7 @@ If you want to **modify the request body** (such as a POST request), you can do 
 if request['method'] == 'POST':
     # Modify post request body
     new_body = json.dumps({"modified": True, "original": request.get('postData', '')})
-    cmd(ws, 'Fetch.continueRequest', {
+    await cdp(ws, 'Fetch.continueRequest', {
         'requestId': request_id,
         'postData': base64.b64encode(new_body.encode()).decode()
     })
@@ -260,14 +259,14 @@ This is a more advanced feature - modifying the content of the response before i
 
 ```python
 # Enable Fetch Blocking (Request + Response two phases)
-cmd(ws, 'Fetch.enable', {
+await cdp(ws, 'Fetch.enable', {
     'patterns': [{
         'urlPattern': '*',
         'requestStage': 'Response'
     }]
 })
 
-def process_response(msg):
+async def process_response(msg):
     params = msg.get('params', {})
     if msg.get('method') != 'Fetch.requestPaused':
         return
@@ -278,7 +277,7 @@ def process_response(msg):
     
     # Block API requests only
     if '/api/' not in url:
-        cmd(ws, 'Fetch.continueRequest', {'requestId': request_id})
+        await cdp(ws, 'Fetch.continueRequest', {'requestId': request_id})
         return
     
     # Construct an override response
@@ -291,7 +290,7 @@ def process_response(msg):
     print(f'🔧 Mocking API: {url[:60]}')
     
     # Use Fetch.fulfillRequest to return custom content directly
-    cmd(ws, 'Fetch.fulfillRequest', {
+    await cdp(ws, 'Fetch.fulfillRequest', {
         'requestId': request_id,
         'responseCode': 200,
         'responseHeaders': [
@@ -311,7 +310,7 @@ def process_response(msg):
 ### Replace page JS or CSS
 
 ```python
-def inject_script(msg):
+async def inject_script(msg):
     """Block JavaScript files and inject custom code"""
     params = msg.get('params', {})
     if msg.get('method') != 'Fetch.requestPaused':
@@ -322,7 +321,7 @@ def inject_script(msg):
     
     # Block main.js only
     if 'main.js' not in url:
-        cmd(ws, 'Fetch.continueRequest', {'requestId': request_id})
+        await cdp(ws, 'Fetch.continueRequest', {'requestId': request_id})
         return
     
     # The original JS was replaced with our code
@@ -334,7 +333,7 @@ def inject_script(msg):
     window.__CDP_INJECTED__ = true;
     '''
     
-    cmd(ws, 'Fetch.fulfillRequest', {
+    await cdp(ws, 'Fetch.fulfillRequest', {
         'requestId': request_id,
         'responseCode': 200,
         'responseHeaders': [
@@ -364,7 +363,7 @@ BLOCKED_PATTERNS = [
     '.gif',
 ]
 
-def block_requests(msg):
+async def block_requests(msg):
     params = msg.get('params', {})
     if msg.get('method') != 'Fetch.requestPaused':
         return
@@ -377,15 +376,14 @@ def block_requests(msg):
         if pattern in url:
             print(f'🚫 Blocked: {url[:60]}')
             # Use Fetch.failRequest to fail the request
-            cmd(ws, 'Fetch.failRequest', {
+            await cdp(ws, 'Fetch.failRequest', {
                 'requestId': request_id,
                 'errorReason': 'BlockedByClient'
             })
             return
     
     # Release other requests
-    cmd(ws, 'Fetch.continueRequest', {'requestId': request_id})
-
+    await cdp(ws, 'Fetch.continueRequest', {'requestId': request_id})
 
 ```
 
@@ -406,12 +404,12 @@ Optional abort reason (`errorReason`):
 SPA (Single Page Application) sites are difficult to crawl with traditional `requests` because the content is loaded dynamically via JavaScript. CDP can listen to XHR/Fetch requests and extract data.
 
 ```python
-def crawl_spa():
+async def crawl_spa():
     """Crawl API data for spa pages"""
     
     captured_data = []
     
-    def handle_response(msg):
+    async def handle_response(msg):
         """Process a single network response message"""
         params = msg.get('params', {})
         if msg.get('method') != 'Network.responseReceived':
@@ -427,7 +425,7 @@ def crawl_spa():
         request_id = params['requestId']
         
         # Get Response Body
-        result = cmd(ws, 'Network.getResponseBody', {
+        result = await cdp(ws, 'Network.getResponseBody', {
             'requestId': request_id
         })
         
@@ -440,40 +438,39 @@ def crawl_spa():
                 'body': body[:500] # Only the first 500 characters are saved
             })
     
-    def process_events(duration):
-        """Process WebSocket messages (blocking, up to duration seconds)"""
-        end = time.time() + duration
-        while time.time() < end:
-            try:
-                ws.settimeout(0.3)
-                msg = json.loads(ws.recv())
-                handle_response(msg)
-            except websocket.TimeoutError:
-                continue
+    async def process_events(duration):
+        """Process WebSocket messages (up to duration seconds)"""
+        end = asyncio.get_event_loop().time() + duration
+        try:
+            async with asyncio.timeout(duration):
+                async for msg in ws:
+                    await handle_response(json.loads(msg))
+        except (asyncio.TimeoutError, Exception):
+            pass
     
     # Navigation
-    cmd(ws, 'Network.enable')
-    cmd(ws, 'Page.navigate', {'url': 'https://example-spa.com/list'})
+    await cdp(ws, 'Network.enable')
+    await cdp(ws, 'Page.navigate', {'url': 'https://example-spa.com/list'})
     
     # Wait for page load and capture initial requests
-    process_events(3)
+    await process_events(3)
     
     # Mock Page Turn: Click the "Next" button
-    cmd(ws, 'Runtime.evaluate', {
+    await cdp(ws, 'Runtime.evaluate', {
         'expression': 'document.querySelector(".next-page").click()',
         'returnByValue': True
     })
     
     # Capture API responses after page turn
-    process_events(2)
+    await process_events(2)
     
     # Turn another page
-    cmd(ws, 'Runtime.evaluate', {
+    await cdp(ws, 'Runtime.evaluate', {
         'expression': 'document.querySelector(".next-page").click()',
         'returnByValue': True
     })
     
-    process_events(2)
+    await process_events(2)
     
     return captured_data
 
@@ -487,31 +484,30 @@ This method is more efficient than traditional Selenium + parsing HTML, because 
 Sometimes you need to wait for an API to return before performing the next step. You can use `Network.responseReceived` + conditional judgment:
 
 ```python
-def wait_for_api(ws, url_pattern, timeout=10):
+async def wait_for_api(ws, url_pattern, timeout=10):
     """Wait for a specific API request to complete"""
     import re
     pattern = re.compile(url_pattern)
-    start = time.time()
     
-    while time.time() - start < timeout:
-        try:
-            ws.settimeout(0.3)
-            msg = json.loads(ws.recv())
-            if msg.get('method') == 'Network.responseReceived':
-                url = msg['params']['response']['url']
-                if pattern.search(url):
-                    request_id = msg['params']['requestId']
-                    result = cmd(ws, 'Network.getResponseBody', {
-                        'requestId': request_id
-                    })
-                    return json.loads(result.get('body', '{}'))
-        except websocket.TimeoutError:
-            continue
+    try:
+        async with asyncio.timeout(timeout):
+            async for msg in ws:
+                data = json.loads(msg)
+                if data.get('method') == 'Network.responseReceived':
+                    url = data['params']['response']['url']
+                    if pattern.search(url):
+                        request_id = data['params']['requestId']
+                        result = await cdp(ws, 'Network.getResponseBody', {
+                            'requestId': request_id
+                        })
+                        return json.loads(result.get('body', '{}'))
+    except (asyncio.TimeoutError, Exception):
+        pass
     
     return None
 
 # Usage Example
-data = wait_for_api(ws, r'/api/products\?page=2')
+data = await wait_for_api(ws, r'/api/products\?page=2')
 if data:
     print(f'Got {len(data.get("items", []))} products')
 
@@ -556,7 +552,7 @@ MOCK_ERROR = {
     }
 }
 
-def handle_mock(msg):
+async def handle_mock(msg):
     params = msg.get('params', {})
     if msg.get('method') != 'Fetch.requestPaused':
         return
@@ -569,7 +565,7 @@ def handle_mock(msg):
         if pattern in url:
             print(f'🎭 Mocking: {url[:50]}')
             body = json.dumps(mock_data)
-            cmd(ws, 'Fetch.fulfillRequest', {
+            await cdp(ws, 'Fetch.fulfillRequest', {
                 'requestId': request_id,
                 'responseCode': 200,
                 'responseHeaders': [
@@ -584,7 +580,7 @@ def handle_mock(msg):
         if pattern in url:
             print(f'💥 Simulating error: {url[:50]}')
             body = json.dumps(error_data['body'])
-            cmd(ws, 'Fetch.fulfillRequest', {
+            await cdp(ws, 'Fetch.fulfillRequest', {
                 'requestId': request_id,
                 'responseCode': error_data['status'],
                 'responseHeaders': [
@@ -595,7 +591,7 @@ def handle_mock(msg):
             return
     
     # Release unconfigured requests
-    cmd(ws, 'Fetch.continueRequest', {'requestId': request_id})
+    await cdp(ws, 'Fetch.continueRequest', {'requestId': request_id})
 
 ```
 
@@ -611,11 +607,11 @@ This technique is particularly useful in the following scenarios:
 Many modern websites use lazy loading (loading="lazy"), where images are only loaded when they enter the viewport. If you want to capture all images, you can use CDP to trigger in advance:
 
 ```python
-def trigger_all_images(ws):
+async def trigger_all_images(ws):
     """Trigger all lazy loading images in the page to start loading"""
     
     # Block image loading via Fetch domain
-    cmd(ws, 'Fetch.enable', {
+    await cdp(ws, 'Fetch.enable', {
         'patterns': [
             {'urlPattern': '*.jpg', 'requestStage': 'Request'},
             {'urlPattern': '*.png', 'requestStage': 'Request'},
@@ -625,7 +621,7 @@ def trigger_all_images(ws):
     })
     
     # Scroll to the bottom to trigger lazy loading
-    cmd(ws, 'Runtime.evaluate', {
+    await cdp(ws, 'Runtime.evaluate', {
         'expression': '''
         (async () => {
             const delay = ms => new Promise(r => setTimeout(r, ms));
@@ -647,7 +643,7 @@ def trigger_all_images(ws):
     })
     
     # Collect all image URLs
-    images = cmd(ws, 'Runtime.evaluate', {
+    images = await cdp(ws, 'Runtime.evaluate', {
         'expression': '''
         (() => {
             const imgs = document.querySelectorAll('img');
@@ -680,7 +676,7 @@ When `Fetch.enable` is enabled, every request matching the pattern will be suspe
 # Unhandled requests will stay suspended
 
 # ✅ Correct: All requests are handled accordingly
-def safe_handler(msg):
+async def safe_handler(msg):
     if msg.get('method') != 'Fetch.requestPaused':
         return
     request_id = msg['params']['requestId']
@@ -689,7 +685,7 @@ def safe_handler(msg):
         do_intercept(msg)
     else:
         # Always release unhandled requests
-        cmd(ws, 'Fetch.continueRequest', {'requestId': request_id})
+        await cdp(ws, 'Fetch.continueRequest', {'requestId': request_id})
 
 ```
 
@@ -726,7 +722,7 @@ Intercepting a large number of requests (especially 100+ requests on the initial
 
 ```python
 # Precision Intercept
-cmd(ws, 'Fetch.enable', {
+await cdp(ws, 'Fetch.enable', {
     'patterns': [
         {'urlPattern': '*/api/*', 'requestStage': 'Request'},
         {'urlPattern': '*.json', 'requestStage': 'Response'}
@@ -743,7 +739,7 @@ WebSocket requests (`ws://` and `wss://`) require special handling when intercep
 ```python
 if url.startswith('ws://') or url.startswith('wss://'):
     # WebSocket request must be released, modification is not supported
-    cmd(ws, 'Fetch.continueRequest', {'requestId': request_id})
+    await cdp(ws, 'Fetch.continueRequest', {'requestId': request_id})
     return
 
 ```
@@ -767,115 +763,115 @@ At this time, the request body can be captured through the Network domain:
 Finally, I combined the above techniques into a complete network interceptor tool class:
 
 ```python
-import json, websocket, time, base64, urllib.request
+import asyncio, json, time, base64, urllib.request, websockets
 
 class CDPNetworkInterceptor:
-    """CDP Network Blocker"""
+    """CDP Network Interceptor"""
     
     def __init__(self, host='localhost:9222'):
         self.host = host
         self.ws = None
-        self._id = 1
         self.blocked_count = 0
         self.mock_count = 0
     
-    def connect(self):
-        """Connect CDP"""
+    async def connect(self):
+        """Connect to CDP"""
         data = json.loads(urllib.request.urlopen(
             f'http://{self.host}/json', timeout=5).read())
         ws_url = data[0]['webSocketDebuggerUrl']
-        self.ws = websocket.create_connection(ws_url, timeout=30)
-        self._cmd('Page.enable')
-        self._cmd('Network.enable')
+        self.ws = await websockets.connect(ws_url, max_size=2**24)
+        await self.cdp('Page.enable')
+        await self.cdp('Network.enable')
         return self
     
-    def _cmd(self, method, params=None):
-        if params is None: params = {}
-        self._id += 1
-        self.ws.send(json.dumps({'id': self._id, 'method': method, 'params': params}))
-        while True:
-            r = json.loads(self.ws.recv())
-            if r.get('id') == self._id: return r.get('result', {})
+    async def cdp(self, method, params=None):
+        return await cdp(self.ws, method, params)
     
-    def start_intercept(self, patterns=None):
+    async def start_intercept(self, patterns=None):
         """Start Request Blocking"""
         if patterns is None:
             patterns = [{'urlPattern': '*', 'requestStage': 'Request'}]
-        self._cmd('Fetch.enable', {'patterns': patterns})
-        print(f'🔍 Intercept started with {len(patterns)} pattern(s)')
+        await self.cdp('Fetch.enable', {'patterns': patterns})
+        print(f'Intercept started with {len(patterns)} pattern(s)')
     
-    def stop_intercept(self):
+    async def stop_intercept(self):
         """Stop blocking"""
-        self._cmd('Fetch.disable')
-        print('⏹ Intercept stopped')
+        await self.cdp('Fetch.disable')
+        print('Intercept stopped')
     
-    def run(self, url, handlers=None, timeout=15):
+    async def run(self, url, handlers=None, timeout=15):
         """
         Open page and run intercept handler
         
         Args:
             url: Page to open
-            handlers: Custom handler functions, receives request_id, url, params
+            handlers: Custom async handler functions, receives request_id, url, params
             timeout: Run duration (seconds)
         """
         if handlers is None:
             handlers = {'on_request': None, 'on_response': None}
         
-        self._cmd('Page.navigate', {'url': url})
+        await self.cdp('Page.navigate', {'url': url})
         
-        start = time.time()
-        while time.time() - start < timeout:
-            try:
-                self.ws.settimeout(0.3)
-                msg = json.loads(self.ws.recv())
-                
-                if msg.get('method') == 'Fetch.requestPaused':
-                    params = msg['params']
-                    request_id = params['requestId']
-                    url = params['request']['url']
-                    
-                    # Skip special agreements
-                    if url.startswith('data:') or url.startswith('blob:') or url.startswith('ws'):
-                        self._cmd('Fetch.continueRequest', {'requestId': request_id})
+        try:
+            async with asyncio.timeout(timeout):
+                async for msg in self.ws:
+                    try:
+                        data = json.loads(msg)
+                        if data.get('method') == 'Fetch.requestPaused':
+                            params = data['params']
+                            request_id = params['requestId']
+                            url = params['request']['url']
+                            
+                            # Skip special protocols
+                            if url.startswith('data:') or url.startswith('blob:') or url.startswith('ws'):
+                                await self.cdp('Fetch.continueRequest', {'requestId': request_id})
+                                continue
+                            
+                            # Call custom handler
+                            if handlers.get('on_request'):
+                                handled = await handlers['on_request'](request_id, url, params)
+                                if handled:
+                                    continue
+                            
+                            # Default: release request
+                            await self.cdp('Fetch.continueRequest', {'requestId': request_id})
+                    except Exception:
                         continue
-                    
-                    # Call Custom Processing
-                    if handlers.get('on_request'):
-                        handled = handlers['on_request'](request_id, url, params)
-                        if handled:
-                            continue
-                    
-                    # Default Release
-                    self._cmd('Fetch.continueRequest', {'requestId': request_id})
-                    
-            except websocket.TimeoutError:
-                continue
+        except asyncio.TimeoutError:
+            pass
     
-    def close(self):
+    async def close(self):
         if self.ws:
-            self.ws.close()
+            await self.ws.close()
 
 
-# Usage Sample
-# Create a blocker
-interceptor = CDPNetworkInterceptor().connect()
-interceptor.start_intercept()
-
-# Visit the page to block ads
-interceptor.run('https://example.com', {
-    'on_request': lambda rid, url, params: (
-        # Google Analytics
-        'google-analytics.com' in url and (
-            interceptor._cmd('Fetch.failRequest', {
+# ====== Usage Example ======
+async def demo():
+    # Create an interceptor
+    interceptor = CDPNetworkInterceptor()
+    await interceptor.connect()
+    await interceptor.start_intercept()
+    
+    # Custom request handler
+    async def block_ads(rid, url, params):
+        if 'google-analytics.com' in url:
+            await interceptor.cdp('Fetch.failRequest', {
                 'requestId': rid,
                 'errorReason': 'BlockedByClient'
-            }) or True # Return True to indicate that it has been processed
-        )
-    ) or None
-})
+            })
+            return True
+        return False
+    
+    # Visit page, block ads
+    await interceptor.run('https://example.com', {
+        'on_request': block_ads
+    })
+    
+    await interceptor.stop_intercept()
+    await interceptor.close()
 
-interceptor.stop_intercept()
-interceptor.close()
+asyncio.run(demo())
 
 
 ```
@@ -891,4 +887,6 @@ CDP’s network blocking capabilities make it one of the most powerful solutions
 - **The combination of the two** can realize the complete "request → modify → get response" process
 - **No proxy server required**, native Chrome support
 
-In the next article, I will continue to delve into CDP’s **browser fingerprinting and anti-detection** topic, so stay tuned.
+*Previous: The Complete Guide to Chrome DevTools Protocol (CDP) — the ultimate solution to controlling your browser with Python.*
+
+*Next up: CDP browser fingerprinting and anti-detection practice — using Python to modify fingerprints to bypass automated detection.*

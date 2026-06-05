@@ -118,7 +118,20 @@ CDP 提供了两种修改浏览器指纹的方式：
 在每个新文档执行之前注入一段脚本。这里修改的属性和方法会覆盖原生实现。
 
 ```python
-cmd(ws, 'Page.addScriptToEvaluateOnNewDocument', {
+CMD_ID = [0]
+
+async def cdp(ws, method, params=None):
+    """发送 CDP 命令并等待返回结果"""
+    CMD_ID[0] += 1
+    cmd_id = CMD_ID[0]
+    request = {'id': cmd_id, 'method': method, 'params': params or {}}
+    await ws.send(json.dumps(request))
+    async for msg in ws:
+        response = json.loads(msg)
+        if response.get('id') == cmd_id:
+            return response.get('result', {})
+
+await cdp(ws, 'Page.addScriptToEvaluateOnNewDocument', {
     'source': '''
         // 这段代码在每个页面加载前执行
         Object.defineProperty(navigator, 'webdriver', {
@@ -135,7 +148,7 @@ cmd(ws, 'Page.addScriptToEvaluateOnNewDocument', {
 CDP 的 Emulation 域可以修改浏览器内核层面的参数，比 JS 注入更底层。
 
 ```python
-cmd(ws, 'Emulation.setUserAgentOverride', {
+await cdp(ws, 'Emulation.setUserAgentOverride', {
     'userAgent': 'Mozilla/5.0 ...'
 })
 ```
@@ -153,7 +166,7 @@ cmd(ws, 'Emulation.setUserAgentOverride', {
 ```python
 def override_webdriver(ws):
     """注入脚本覆盖 navigator.webdriver"""
-    cmd(ws, 'Page.addScriptToEvaluateOnNewDocument', {
+    await cdp(ws, 'Page.addScriptToEvaluateOnNewDocument', {
         'source': '''
         // 覆盖 webdriver 属性
         Object.defineProperty(navigator, 'webdriver', {
@@ -173,7 +186,7 @@ override_webdriver(ws)
 验证效果：
 
 ```python
-result = cmd(ws, 'Runtime.evaluate', {
+result = await cdp(ws, 'Runtime.evaluate', {
     'expression': 'navigator.webdriver',
     'returnByValue': True
 })
@@ -196,7 +209,7 @@ const desc = Object.getOwnPropertyDescriptor(navigator, 'webdriver');
 ```python
 def stealth_webdriver(ws):
     """深度隐藏 webdriver 痕迹"""
-    cmd(ws, 'Page.addScriptToEvaluateOnNewDocument', {
+    await cdp(ws, 'Page.addScriptToEvaluateOnNewDocument', {
         'source': '''
         // ⚠️ 注意：window.navigator 是只读属性，无法用 Proxy 替换。
         // 正确的方式是在 Navigator 原型上做手脚：
@@ -242,7 +255,7 @@ def set_user_agent(ws, ua=None, platform=None):
     if platform is None:
         platform = 'Win32'
     
-    cmd(ws, 'Emulation.setUserAgentOverride', {
+    await cdp(ws, 'Emulation.setUserAgentOverride', {
         'userAgent': ua,
         'platform': platform,
         'acceptLanguage': 'zh-CN,zh;q=0.9,en;q=0.8'
@@ -278,7 +291,7 @@ Canvas 指纹的原理：网站用 JavaScript 在画布上绘制文本和图形�
 ```python
 def override_canvas_fingerprint(ws):
     """修改 Canvas 指纹，每次返回略有差异的结果"""
-    cmd(ws, 'Page.addScriptToEvaluateOnNewDocument', {
+    await cdp(ws, 'Page.addScriptToEvaluateOnNewDocument', {
         'source': '''
         // 保存原始方法
         const originalToDataURL = HTMLCanvasElement.prototype.toDataURL;
@@ -321,7 +334,7 @@ def override_canvas_with_variation(ws, seed=None):
     if seed is None:
         seed = random.randint(1, 255)
     
-    cmd(ws, 'Page.addScriptToEvaluateOnNewDocument', {
+    await cdp(ws, 'Page.addScriptToEvaluateOnNewDocument', {
         'source': f'''
         const CANVAS_NOISE = {seed};
         
@@ -352,7 +365,7 @@ WebGL 提供了大量信息：显卡型号、渲染器、供应商、支持的�
 ```python
 def override_webgl_fingerprint(ws):
     """修改 WebGL 参数，隐藏真实显卡信息"""
-    cmd(ws, 'Page.addScriptToEvaluateOnNewDocument', {
+    await cdp(ws, 'Page.addScriptToEvaluateOnNewDocument', {
         'source': '''
         // 修改 WebGLRenderingContext 的 getParameter 方法
         const originalGetParameter = WebGLRenderingContext.prototype.getParameter;
@@ -424,7 +437,7 @@ AudioContext 指纹通过处理音频信号，获取设备音频栈的微小差�
 ```python
 def override_audio_fingerprint(ws):
     """修改 AudioContext 指纹"""
-    cmd(ws, 'Page.addScriptToEvaluateOnNewDocument', {
+    await cdp(ws, 'Page.addScriptToEvaluateOnNewDocument', {
         'source': '''
         // 修改 AudioContext 的方法来改变指纹
         const originalGetChannelData = AudioBuffer.prototype.getChannelData;
@@ -458,7 +471,7 @@ def set_viewport(ws, width=1920, height=1080, device_scale_factor=1.0):
     """设置浏览器视口和屏幕参数"""
     
     # 使用 Emulation 域设置
-    cmd(ws, 'Emulation.setDeviceMetricsOverride', {
+    await cdp(ws, 'Emulation.setDeviceMetricsOverride', {
         'width': width,
         'height': height,
         'deviceScaleFactor': device_scale_factor,
@@ -501,12 +514,12 @@ def set_timezone_and_locale(ws, timezone='Asia/Shanghai', locale='zh-CN'):
     """设置时区和语言环境"""
     
     # 修改时区（Emulation 域）
-    cmd(ws, 'Emulation.setTimezoneOverride', {
+    await cdp(ws, 'Emulation.setTimezoneOverride', {
         'timezoneId': timezone
     })
     
     # 修改语言（通过脚本注入）
-    cmd(ws, 'Page.addScriptToEvaluateOnNewDocument', {
+    await cdp(ws, 'Page.addScriptToEvaluateOnNewDocument', {
         'source': f'''
         Object.defineProperties(navigator, {{
             language: {{ get: () => '{locale}' }},
@@ -533,10 +546,28 @@ def set_timezone_and_locale(ws, timezone='Asia/Shanghai', locale='zh-CN'):
 把以上所有技巧整合成一个完整的工具类：
 
 ```python
-import json, urllib.request, websocket, time, random, base64
+import asyncio
+import json
+import urllib.request
+import websockets
+import base64
+import random
+
+CMD_ID = [0]
+
+async def cdp(ws, method, params=None):
+    """发送 CDP 命令并等待返回结果"""
+    CMD_ID[0] += 1
+    cmd_id = CMD_ID[0]
+    request = {'id': cmd_id, 'method': method, 'params': params or {}}
+    await ws.send(json.dumps(request))
+    async for msg in ws:
+        response = json.loads(msg)
+        if response.get('id') == cmd_id:
+            return response.get('result', {})
 
 class CDPAntiDetect:
-    """CDP 反检测工具类"""
+    """CDP 反检测工具类（异步版）"""
     
     # 常用分辨率
     VIEWPORTS = {
@@ -554,33 +585,28 @@ class CDPAntiDetect:
     def __init__(self, host='localhost:9222'):
         self.host = host
         self.ws = None
-        self._id = 1
         self.script_ids = []
     
-    def connect(self):
+    async def connect(self):
         """连接 Chrome"""
         data = json.loads(urllib.request.urlopen(f'http://{self.host}/json', timeout=5).read())
         ws_url = data[0]['webSocketDebuggerUrl']
-        self.ws = websocket.create_connection(ws_url, timeout=30)
-        self._cmd('Page.enable')
-        self._cmd('Runtime.enable')
+        self.ws = await websockets.connect(ws_url, max_size=2**24)
+        await self.cdp('Page.enable')
+        await self.cdp('Runtime.enable')
         return self
     
-    def _cmd(self, method, params=None):
-        if params is None: params = {}
-        self._id += 1
-        self.ws.send(json.dumps({'id': self._id, 'method': method, 'params': params}))
-        while True:
-            r = json.loads(self.ws.recv())
-            if r.get('id') == self._id: return r.get('result', {})
+    async def cdp(self, method, params=None):
+        """发送 CDP 命令"""
+        return await cdp(self.ws, method, params)
     
-    def _inject_js(self, source):
+    async def _inject_js(self, source):
         """注入页面脚本"""
-        result = self._cmd('Page.addScriptToEvaluateOnNewDocument', {'source': source})
+        result = await self.cdp('Page.addScriptToEvaluateOnNewDocument', {'source': source})
         self.script_ids.append(result.get('identifier'))
         return self
     
-    def apply_preset(self, preset='desktop'):
+    async def apply_preset(self, preset='desktop'):
         """应用完整预设"""
         preset_actions = {
             'desktop': {
@@ -602,14 +628,14 @@ class CDPAntiDetect:
         config = preset_actions.get(preset, preset_actions['desktop'])
         
         # 1. 设置 User-Agent 和平台
-        self._cmd('Emulation.setUserAgentOverride', {
+        await self.cdp('Emulation.setUserAgentOverride', {
             'userAgent': config['ua'],
             'platform': config['platform'],
         })
         
         # 2. 设置视口和分辨率
         vp = config['viewport']
-        self._cmd('Emulation.setDeviceMetricsOverride', {
+        await self.cdp('Emulation.setDeviceMetricsOverride', {
             'width': vp['width'], 'height': vp['height'],
             'deviceScaleFactor': vp['scale'],
             'mobile': False,
@@ -618,11 +644,11 @@ class CDPAntiDetect:
         })
         
         # 3. 设置时区
-        self._cmd('Emulation.setTimezoneOverride', {'timezoneId': config['timezone']})
+        await self.cdp('Emulation.setTimezoneOverride', {'timezoneId': config['timezone']})
         
         # 4. 注入反检测脚本
         seed = random.randint(1, 255)
-        self._inject_js(f'''
+        await self._inject_js(f'''
         // 覆盖 webdriver
         Object.defineProperty(navigator, 'webdriver', {{ get: () => undefined }});
         
@@ -679,36 +705,40 @@ class CDPAntiDetect:
         }}
         ''')
         
-        print(f'✅ Anti-detect preset applied: {preset}')
+        print(f'Anti-detect preset applied: {preset}')
         return self
     
-    def navigate(self, url):
+    async def navigate(self, url):
         """导航到目标页面（已应用反检测）"""
-        self._cmd('Page.navigate', {'url': url})
-        time.sleep(2)
+        await self.cdp('Page.navigate', {'url': url})
+        await asyncio.sleep(2)
         return self
     
-    def close(self):
+    async def close(self):
         if self.ws:
-            self.ws.close()
+            await self.ws.close()
 
 
 # ====== 使用示例 ======
-ad = CDPAntiDetect().connect()
+async def demo():
+    ad = CDPAntiDetect()
+    await ad.connect()
+    
+    # 应用桌面端反检测预设
+    await ad.apply_preset('desktop')
+    
+    # 访问目标网站
+    await ad.navigate('https://bot.sannysoft.com/')  # 一个检测自动化浏览器的页面
+    await asyncio.sleep(3)
+    
+    # 截屏验证
+    screenshot = await ad.cdp('Page.captureScreenshot', {'format': 'png'})
+    with open('anti_detect_result.png', 'wb') as f:
+        f.write(base64.b64decode(screenshot['data']))
+    
+    await ad.close()
 
-# 应用桌面端反检测预设
-ad.apply_preset('desktop')
-
-# 访问目标网站
-ad.navigate('https://bot.sannysoft.com/')  # 一个检测自动化浏览器的页面
-time.sleep(3)
-
-# 截屏验证
-screenshot = ad._cmd('Page.captureScreenshot', {'format': 'png'})
-with open('anti_detect_result.png', 'wb') as f:
-    f.write(base64.b64decode(screenshot['data']))
-
-ad.close()
+asyncio.run(demo())
 ```
 
 访问 [bot.sannysoft.com](https://bot.sannysoft.com/) 或 [pixelscan.net](https://pixelscan.net/) 可以检测你的反伪装效果。
@@ -773,5 +803,7 @@ CDP 提供了丰富的指纹修改能力，足以应对大多数网站的反爬�
 | 中等级别（电商/社交） | Apply desktop preset |
 | 高等级别（银行/风控） | Desktop preset + 行为模拟 |
 | 企业级（Cloudflare/Akamai） | 上述所有 + TLS 指纹处理 |
+
+*上一篇回顾：CDP 网络拦截与请求篡改实战——Python 控制 Chrome 抓包改包完全指南。*
 
 下一篇文章将深入 CDP 的**性能追踪与 Lighthouse 集成**，敬请期待。

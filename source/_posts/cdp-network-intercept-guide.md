@@ -63,7 +63,7 @@ Chrome DevTools Protocol 提供了两个域来控制网络：
 
 ```python
 # Network 域可以监听到所有网络活动
-cmd(ws, 'Network.enable')
+await cdp(ws, 'Network.enable')
 ```
 
 **可以做**：监听请求、获取响应体、屏蔽 Cookie
@@ -75,7 +75,7 @@ Fetch 域是更现代的 API，允许你 "暂停" 请求，在中间做修改，
 
 ```python
 # Fetch 域启用后，每个请求都会被"拦截"
-cmd(ws, 'Fetch.enable', {
+await cdp(ws, 'Fetch.enable', {
     'patterns': [{'urlPattern': '*', 'requestStage': 'Request'}]
 })
 ```
@@ -113,10 +113,26 @@ cmd(ws, 'Fetch.enable', {
 ### 基础连接模板
 
 ```python
-import json, urllib.request, websocket, time
+import asyncio
+import json
+import urllib.request
+import websockets
 
 # ====== 连接 CDP ======
 CDP_HTTP = 'http://localhost:9222'
+
+CMD_ID = [0]
+
+async def cdp(ws, method, params=None):
+    """发送 CDP 命令并等待返回结果"""
+    CMD_ID[0] += 1
+    cmd_id = CMD_ID[0]
+    request = {'id': cmd_id, 'method': method, 'params': params or {}}
+    await ws.send(json.dumps(request))
+    async for msg in ws:
+        response = json.loads(msg)
+        if response.get('id') == cmd_id:
+            return response.get('result', {})
 
 def get_ws():
     data = json.loads(urllib.request.urlopen(f'{CDP_HTTP}/json', timeout=5).read())
@@ -125,20 +141,14 @@ def get_ws():
             return t['webSocketDebuggerUrl']
     return None
 
-def cmd(ws, method, params=None):
-    if params is None: params = {}
-    cmd._id += 1
-    ws.send(json.dumps({'id': cmd._id, 'method': method, 'params': params}))
-    while True:
-        r = json.loads(ws.recv())
-        if r.get('id') == cmd._id: return r.get('result', {})
+async def main():
+    ws_url = get_ws()
+    async with websockets.connect(ws_url, max_size=2**24) as ws:
+        await cdp(ws, 'Page.enable')
+        await cdp(ws, 'Network.enable')
+        # ... 后续操作
 
-cmd._id = 1
-
-ws_url = get_ws()
-ws = websocket.create_connection(ws_url, timeout=30)
-cmd(ws, 'Page.enable')
-cmd(ws, 'Network.enable')
+asyncio.run(main())
 ```
 
 这是一个标准的 CDP 连接模板，后续所有例子都基于它。
@@ -147,25 +157,24 @@ cmd(ws, 'Network.enable')
 
 ```python
 # 启动后，所有网络事件都会通过 WebSocket 推送
-cmd(ws, 'Page.navigate', {'url': 'https://example.com'})
-time.sleep(3)
+await cdp(ws, 'Page.navigate', {'url': 'https://example.com'})
+await asyncio.sleep(3)
 
-# 持续接收消息（设置超时避免卡死）
-ws.settimeout(1)
-try:
-    while True:
-        msg = json.loads(ws.recv())
-        method = msg.get('method', '')
+# 持续接收消息（使用异步迭代）
+async for msg in ws:
+    try:
+        data = json.loads(msg)
+        method = data.get('method', '')
         if method == 'Network.requestWillBeSent':
-            req = msg['params']['request']
+            req = data['params']['request']
             url = req['url']
             method_http = req['method']
             print(f'➡ {method_http} {url}')
         elif method == 'Network.responseReceived':
-            resp = msg['params']['response']
+            resp = data['params']['response']
             print(f'⬅ {resp["status"]} {resp["url"]}')
-except websocket.TimeoutError:
-    pass
+    except Exception:
+        break
 ```
 
 你会看到类似这样的输出：
@@ -187,7 +196,7 @@ except websocket.TimeoutError:
 
 ```python
 # 启用 Fetch 拦截
-cmd(ws, 'Fetch.enable', {
+await cdp(ws, 'Fetch.enable', {
     'patterns': [{
         'urlPattern': '*',
         'requestStage': 'Request'
@@ -196,48 +205,62 @@ cmd(ws, 'Fetch.enable', {
 
 pending_requests = {}
 
-def process_message(msg):
+event_handlers = {}
+
+def on(event_name):
+    """装饰器：注册 CDP 事件处理器"""
+    def decorator(fn):
+        event_handlers[event_name] = fn
+        return fn
+    return decorator
+
+@on('Fetch.requestPaused')
+async def process_message(msg):
     """处理 CDP 消息，拦截并修改请求"""
     params = msg.get('params', {})
-    method = msg.get('method', '')
+    request_id = params['requestId']
+    request = params['request']
+    url = request['url']
     
-    if method == 'Fetch.requestPaused':
-        request_id = params['requestId']
-        request = params['request']
-        url = request['url']
-        
-        # 跳过 ws:// 和 data: 协议
-        if url.startswith('data:') or url.startswith('blob:'):
-            cmd(ws, 'Fetch.continueRequest', {
-                'requestId': request_id
-            })
-            return
-        
-        # 修改请求头：添加自定义 Header
-        headers = request.get('headers', {})
-        headers['X-Custom-Header'] = 'my-value'
-        headers['Referer'] = 'https://my-custom-referer.com/'
-        
-        print(f'✏ Modifying: {url[:60]}...')
-        
-        cmd(ws, 'Fetch.continueRequest', {
-            'requestId': request_id,
-            'headers': [{'name': k, 'value': v} for k, v in headers.items()]
+    # 跳过 data: 和 blob: 协议
+    if url.startswith('data:') or url.startswith('blob:'):
+        await cdp(ws, 'Fetch.continueRequest', {
+            'requestId': request_id
         })
+        return
+    
+    # 修改请求头：添加自定义 Header
+    headers = request.get('headers', {})
+    headers['X-Custom-Header'] = 'my-value'
+    headers['Referer'] = 'https://my-custom-referer.com/'
+    
+    print(f'✏ Modifying: {url[:60]}...')
+    
+    await cdp(ws, 'Fetch.continueRequest', {
+        'requestId': request_id,
+        'headers': [{'name': k, 'value': v} for k, v in headers.items()]
+    })
+
+async def event_listener(ws):
+    """后台任务：持续处理 CDP 事件"""
+    async for msg in ws:
+        try:
+            data = json.loads(msg)
+            if 'method' in data:
+                handler = event_handlers.get(data['method'])
+                if handler:
+                    await handler(data)
+        except Exception:
+            break
+
+# 启动事件监听
+listener_task = asyncio.create_task(event_listener(ws))
 
 # 导航到目标页面
-cmd(ws, 'Page.navigate', {'url': 'https://httpbin.org/headers'})
+await cdp(ws, 'Page.navigate', {'url': 'https://httpbin.org/headers'})
 
-# 持续处理消息
-timeout = 10
-start = time.time()
-while time.time() - start < timeout:
-    try:
-        ws.settimeout(0.5)
-        msg = json.loads(ws.recv())
-        process_message(msg)
-    except websocket.TimeoutError:
-        break
+# 等待页面加载完成
+await asyncio.sleep(5)
 ```
 
 **注意**：`Fetch.continueRequest` 的 `headers` 参数需要传一个 `{name, value}` 对象数组，而不是普通字典。这是 Fetch 域的格式要求。
@@ -248,7 +271,7 @@ while time.time() - start < timeout:
 if request['method'] == 'POST':
     # 修改 POST 请求体
     new_body = json.dumps({"modified": True, "original": request.get('postData', '')})
-    cmd(ws, 'Fetch.continueRequest', {
+    await cdp(ws, 'Fetch.continueRequest', {
         'requestId': request_id,
         'postData': base64.b64encode(new_body.encode()).decode()
     })
@@ -268,14 +291,14 @@ POST 数据需要 Base64 编码后再传回。
 
 ```python
 # 启用 Fetch 拦截（Request + Response 两个阶段）
-cmd(ws, 'Fetch.enable', {
+await cdp(ws, 'Fetch.enable', {
     'patterns': [{
         'urlPattern': '*',
         'requestStage': 'Response'
     }]
 })
 
-def process_response(msg):
+async def process_response(msg):
     params = msg.get('params', {})
     if msg.get('method') != 'Fetch.requestPaused':
         return
@@ -286,7 +309,7 @@ def process_response(msg):
     
     # 只拦截 API 请求
     if '/api/' not in url:
-        cmd(ws, 'Fetch.continueRequest', {'requestId': request_id})
+        await cdp(ws, 'Fetch.continueRequest', {'requestId': request_id})
         return
     
     # 构造替代响应
@@ -299,7 +322,7 @@ def process_response(msg):
     print(f'🔧 Mocking API: {url[:60]}')
     
     # 使用 Fetch.fulfillRequest 直接返回自定义内容
-    cmd(ws, 'Fetch.fulfillRequest', {
+    await cdp(ws, 'Fetch.fulfillRequest', {
         'requestId': request_id,
         'responseCode': 200,
         'responseHeaders': [
@@ -318,7 +341,7 @@ def process_response(msg):
 ### 替换页面 JS 或 CSS
 
 ```python
-def inject_script(msg):
+async def inject_script(msg):
     """拦截 JavaScript 文件，注入自定义代码"""
     params = msg.get('params', {})
     if msg.get('method') != 'Fetch.requestPaused':
@@ -329,7 +352,7 @@ def inject_script(msg):
     
     # 只拦截 main.js
     if 'main.js' not in url:
-        cmd(ws, 'Fetch.continueRequest', {'requestId': request_id})
+        await cdp(ws, 'Fetch.continueRequest', {'requestId': request_id})
         return
     
     # 原本的 JS 被替换成我们的代码
@@ -341,7 +364,7 @@ def inject_script(msg):
     window.__CDP_INJECTED__ = true;
     '''
     
-    cmd(ws, 'Fetch.fulfillRequest', {
+    await cdp(ws, 'Fetch.fulfillRequest', {
         'requestId': request_id,
         'responseCode': 200,
         'responseHeaders': [
@@ -370,7 +393,7 @@ BLOCKED_PATTERNS = [
     '.gif',
 ]
 
-def block_requests(msg):
+async def block_requests(msg):
     params = msg.get('params', {})
     if msg.get('method') != 'Fetch.requestPaused':
         return
@@ -383,14 +406,14 @@ def block_requests(msg):
         if pattern in url:
             print(f'🚫 Blocked: {url[:60]}')
             # 使用 Fetch.failRequest 让请求失败
-            cmd(ws, 'Fetch.failRequest', {
+            await cdp(ws, 'Fetch.failRequest', {
                 'requestId': request_id,
                 'errorReason': 'BlockedByClient'
             })
             return
     
     # 放行其他请求
-    cmd(ws, 'Fetch.continueRequest', {'requestId': request_id})
+    await cdp(ws, 'Fetch.continueRequest', {'requestId': request_id})
 ```
 
 可选的中止原因（`errorReason`）：
@@ -410,18 +433,22 @@ def block_requests(msg):
 SPA（单页应用）站点用传统的 `requests` 很难抓取，因为内容是通过 JavaScript 动态加载的。CDP 可以监听到 XHR/Fetch 请求并提取数据。
 
 ```python
-def crawl_spa():
+async def crawl_spa():
     """抓取 SPA 页面的 API 数据"""
     
     captured_data = []
-    start_time = time.time()
+    event_handlers = {}
     
-    def handle_response(msg):
+    def on(event_name):
+        def decorator(fn):
+            event_handlers[event_name] = fn
+            return fn
+        return decorator
+    
+    @on('Network.responseReceived')
+    async def handle_response(msg):
         """处理单个网络响应消息"""
         params = msg.get('params', {})
-        if msg.get('method') != 'Network.responseReceived':
-            return
-        
         resp = params['response']
         url = resp['url']
         
@@ -432,7 +459,7 @@ def crawl_spa():
         request_id = params['requestId']
         
         # 获取响应体
-        result = cmd(ws, 'Network.getResponseBody', {
+        result = await cdp(ws, 'Network.getResponseBody', {
             'requestId': request_id
         })
         
@@ -445,40 +472,47 @@ def crawl_spa():
                 'body': body[:500]
             })
     
-    def process_events(duration):
-        """持续处理 WebSocket 消息（阻塞，最多 duration 秒）"""
-        end = time.time() + duration
-        while time.time() < end:
+    async def process_events(duration):
+        """持续处理 WebSocket 消息（最大 duration 秒）"""
+        async for msg in ws:
             try:
-                ws.settimeout(0.3)
-                msg = json.loads(ws.recv())
-                handle_response(msg)
-            except websocket.TimeoutError:
-                continue
+                data = json.loads(msg)
+                if 'method' in data:
+                    handler = event_handlers.get(data['method'])
+                    if handler:
+                        await handler(data)
+            except Exception:
+                break
     
     # 导航
-    cmd(ws, 'Network.enable')
-    cmd(ws, 'Page.navigate', {'url': 'https://example-spa.com/list'})
+    await cdp(ws, 'Network.enable')
+    await cdp(ws, 'Page.navigate', {'url': 'https://example-spa.com/list'})
     
-    # 等待页面加载并捕获初始请求
-    process_events(3)
+    # 启动事件监听
+    listener_task = asyncio.create_task(process_events(3))
+    await asyncio.sleep(3)
+    listener_task.cancel()
     
     # 模拟翻页：点击"下一页"按钮
-    cmd(ws, 'Runtime.evaluate', {
+    await cdp(ws, 'Runtime.evaluate', {
         'expression': 'document.querySelector(".next-page").click()',
         'returnByValue': True
     })
     
     # 捕获翻页后的 API 响应
-    process_events(2)
+    listener_task = asyncio.create_task(process_events(2))
+    await asyncio.sleep(2)
+    listener_task.cancel()
     
     # 再翻一页
-    cmd(ws, 'Runtime.evaluate', {
+    await cdp(ws, 'Runtime.evaluate', {
         'expression': 'document.querySelector(".next-page").click()',
         'returnByValue': True
     })
     
-    process_events(2)
+    listener_task = asyncio.create_task(process_events(2))
+    await asyncio.sleep(2)
+    listener_task.cancel()
     
     return captured_data
 ```
@@ -490,25 +524,23 @@ def crawl_spa():
 有时候你需要等某个 API 返回了再执行下一步，可以用 `Network.responseReceived` + 条件判断：
 
 ```python
-def wait_for_api(ws, url_pattern, timeout=10):
+async def wait_for_api(ws, url_pattern, timeout=10):
     """等待特定的 API 请求完成"""
     import re
     pattern = re.compile(url_pattern)
-    start = time.time()
     
-    while time.time() - start < timeout:
+    async for msg in ws:
         try:
-            ws.settimeout(0.3)
-            msg = json.loads(ws.recv())
-            if msg.get('method') == 'Network.responseReceived':
-                url = msg['params']['response']['url']
+            data = json.loads(msg)
+            if data.get('method') == 'Network.responseReceived':
+                url = data['params']['response']['url']
                 if pattern.search(url):
-                    request_id = msg['params']['requestId']
-                    result = cmd(ws, 'Network.getResponseBody', {
+                    request_id = data['params']['requestId']
+                    result = await cdp(ws, 'Network.getResponseBody', {
                         'requestId': request_id
                     })
                     return json.loads(result.get('body', '{}'))
-        except websocket.TimeoutError:
+        except Exception:
             continue
     
     return None
@@ -558,7 +590,7 @@ MOCK_ERROR = {
     }
 }
 
-def handle_mock(msg):
+async def handle_mock(msg):
     params = msg.get('params', {})
     if msg.get('method') != 'Fetch.requestPaused':
         return
@@ -571,7 +603,7 @@ def handle_mock(msg):
         if pattern in url:
             print(f'🎭 Mocking: {url[:50]}')
             body = json.dumps(mock_data)
-            cmd(ws, 'Fetch.fulfillRequest', {
+            await cdp(ws, 'Fetch.fulfillRequest', {
                 'requestId': request_id,
                 'responseCode': 200,
                 'responseHeaders': [
@@ -586,7 +618,7 @@ def handle_mock(msg):
         if pattern in url:
             print(f'💥 Simulating error: {url[:50]}')
             body = json.dumps(error_data['body'])
-            cmd(ws, 'Fetch.fulfillRequest', {
+            await cdp(ws, 'Fetch.fulfillRequest', {
                 'requestId': request_id,
                 'responseCode': error_data['status'],
                 'responseHeaders': [
@@ -597,7 +629,7 @@ def handle_mock(msg):
             return
     
     # 放行未配置的请求
-    cmd(ws, 'Fetch.continueRequest', {'requestId': request_id})
+    await cdp(ws, 'Fetch.continueRequest', {'requestId': request_id})
 ```
 
 这个技巧在以下场景特别有用：
@@ -612,11 +644,11 @@ def handle_mock(msg):
 很多现代网站使用懒加载（loading="lazy"），图片只在进入视口时才加载。如果你想抓取所有图片，可以用 CDP 提前触发：
 
 ```python
-def trigger_all_images(ws):
+async def trigger_all_images(ws):
     """触发页面中所有懒加载图片开始加载"""
     
     # 通过 Fetch 域拦截图片加载
-    cmd(ws, 'Fetch.enable', {
+    await cdp(ws, 'Fetch.enable', {
         'patterns': [
             {'urlPattern': '*.jpg', 'requestStage': 'Request'},
             {'urlPattern': '*.png', 'requestStage': 'Request'},
@@ -626,7 +658,7 @@ def trigger_all_images(ws):
     })
     
     # 滚动页面到底部，触发懒加载
-    cmd(ws, 'Runtime.evaluate', {
+    await cdp(ws, 'Runtime.evaluate', {
         'expression': '''
         (async () => {
             const delay = ms => new Promise(r => setTimeout(r, ms));
@@ -648,7 +680,7 @@ def trigger_all_images(ws):
     })
     
     # 收集所有图片 URL
-    images = cmd(ws, 'Runtime.evaluate', {
+    images = await cdp(ws, 'Runtime.evaluate', {
         'expression': '''
         (() => {
             const imgs = document.querySelectorAll('img');
@@ -679,7 +711,7 @@ def trigger_all_images(ws):
 # 未处理的请求会一直挂起
 
 # ✅ 正确：所有请求都有对应处理
-def safe_handler(msg):
+async def safe_handler(msg):
     if msg.get('method') != 'Fetch.requestPaused':
         return
     request_id = msg['params']['requestId']
@@ -688,7 +720,7 @@ def safe_handler(msg):
         do_intercept(msg)
     else:
         # 一定要放行！
-        cmd(ws, 'Fetch.continueRequest', {'requestId': request_id})
+        await cdp(ws, 'Fetch.continueRequest', {'requestId': request_id})
 ```
 
 ### 2. Base64 编码的坑
@@ -722,7 +754,7 @@ encoded_wrong = base64.urlsafe_b64encode(body.encode()).decode()  # ❌
 
 ```python
 # 精准拦截
-cmd(ws, 'Fetch.enable', {
+await cdp(ws, 'Fetch.enable', {
     'patterns': [
         {'urlPattern': '*/api/*', 'requestStage': 'Request'},
         {'urlPattern': '*.json', 'requestStage': 'Response'}
@@ -738,7 +770,7 @@ WebSocket 请求（`ws://` 和 `wss://`）通过 Fetch 域拦截时需要特殊�
 ```python
 if url.startswith('ws://') or url.startswith('wss://'):
     # WebSocket 请求必须放行，不支持修改
-    cmd(ws, 'Fetch.continueRequest', {'requestId': request_id})
+    await cdp(ws, 'Fetch.continueRequest', {'requestId': request_id})
     return
 ```
 
@@ -760,115 +792,132 @@ if url.startswith('ws://') or url.startswith('wss://'):
 最后，我把以上技巧综合成一个完整的网络拦截器工具类：
 
 ```python
-import json, websocket, time, base64, urllib.request
+import asyncio
+import json
+import websockets
+import base64
+import urllib.request
+
+CMD_ID = [0]
+
+async def cdp(ws, method, params=None):
+    """发送 CDP 命令并等待返回结果"""
+    CMD_ID[0] += 1
+    cmd_id = CMD_ID[0]
+    request = {'id': cmd_id, 'method': method, 'params': params or {}}
+    await ws.send(json.dumps(request))
+    async for msg in ws:
+        response = json.loads(msg)
+        if response.get('id') == cmd_id:
+            return response.get('result', {})
 
 class CDPNetworkInterceptor:
-    """CDP 网络拦截器"""
+    """CDP 网络拦截器（异步版）"""
     
     def __init__(self, host='localhost:9222'):
         self.host = host
         self.ws = None
-        self._id = 1
         self.blocked_count = 0
         self.mock_count = 0
     
-    def connect(self):
+    async def connect(self):
         """连接 CDP"""
         data = json.loads(urllib.request.urlopen(
             f'http://{self.host}/json', timeout=5).read())
         ws_url = data[0]['webSocketDebuggerUrl']
-        self.ws = websocket.create_connection(ws_url, timeout=30)
-        self._cmd('Page.enable')
-        self._cmd('Network.enable')
+        self.ws = await websockets.connect(ws_url, max_size=2**24)
+        await self.cdp('Page.enable')
+        await self.cdp('Network.enable')
         return self
     
-    def _cmd(self, method, params=None):
-        if params is None: params = {}
-        self._id += 1
-        self.ws.send(json.dumps({'id': self._id, 'method': method, 'params': params}))
-        while True:
-            r = json.loads(self.ws.recv())
-            if r.get('id') == self._id: return r.get('result', {})
+    async def cdp(self, method, params=None):
+        return await cdp(self.ws, method, params)
     
-    def start_intercept(self, patterns=None):
+    async def start_intercept(self, patterns=None):
         """启动请求拦截"""
         if patterns is None:
             patterns = [{'urlPattern': '*', 'requestStage': 'Request'}]
-        self._cmd('Fetch.enable', {'patterns': patterns})
-        print(f'🔍 Intercept started with {len(patterns)} pattern(s)')
+        await self.cdp('Fetch.enable', {'patterns': patterns})
+        print(f'Intercept started with {len(patterns)} pattern(s)')
     
-    def stop_intercept(self):
+    async def stop_intercept(self):
         """停止拦截"""
-        self._cmd('Fetch.disable')
-        print('⏹ Intercept stopped')
+        await self.cdp('Fetch.disable')
+        print('Intercept stopped')
     
-    def run(self, url, handlers=None, timeout=15):
+    async def run(self, url, handlers=None, timeout=15):
         """
         打开页面并运行拦截处理
         
         Args:
             url: 要打开的页面
-            handlers: 自定义处理函数，接收 request_id, url, params
+            handlers: 自定义异步处理函数，接收 request_id, url, params
             timeout: 运行时间（秒）
         """
         if handlers is None:
             handlers = {'on_request': None, 'on_response': None}
         
-        self._cmd('Page.navigate', {'url': url})
+        await self.cdp('Page.navigate', {'url': url})
         
-        start = time.time()
-        while time.time() - start < timeout:
-            try:
-                self.ws.settimeout(0.3)
-                msg = json.loads(self.ws.recv())
-                
-                if msg.get('method') == 'Fetch.requestPaused':
-                    params = msg['params']
-                    request_id = params['requestId']
-                    url = params['request']['url']
-                    
-                    # 跳过特殊协议
-                    if url.startswith('data:') or url.startswith('blob:') or url.startswith('ws'):
-                        self._cmd('Fetch.continueRequest', {'requestId': request_id})
+        try:
+            async with asyncio.timeout(timeout):
+                async for msg in self.ws:
+                    try:
+                        data = json.loads(msg)
+                        if data.get('method') == 'Fetch.requestPaused':
+                            params = data['params']
+                            request_id = params['requestId']
+                            url = params['request']['url']
+                            
+                            # 跳过特殊协议
+                            if url.startswith('data:') or url.startswith('blob:') or url.startswith('ws'):
+                                await self.cdp('Fetch.continueRequest', {'requestId': request_id})
+                                continue
+                            
+                            # 调用自定义处理
+                            if handlers.get('on_request'):
+                                handled = await handlers['on_request'](request_id, url, params)
+                                if handled:
+                                    continue
+                            
+                            # 默认放行
+                            await self.cdp('Fetch.continueRequest', {'requestId': request_id})
+                    except Exception:
                         continue
-                    
-                    # 调用自定义处理
-                    if handlers.get('on_request'):
-                        handled = handlers['on_request'](request_id, url, params)
-                        if handled:
-                            continue
-                    
-                    # 默认放行
-                    self._cmd('Fetch.continueRequest', {'requestId': request_id})
-                    
-            except websocket.TimeoutError:
-                continue
+        except asyncio.TimeoutError:
+            pass
     
-    def close(self):
+    async def close(self):
         if self.ws:
-            self.ws.close()
+            await self.ws.close()
 
 
 # ====== 使用示例 ======
-# 创建一个拦截器
-interceptor = CDPNetworkInterceptor().connect()
-interceptor.start_intercept()
-
-# 访问页面，拦截广告
-interceptor.run('https://example.com', {
-    'on_request': lambda rid, url, params: (
-        # 屏蔽 Google Analytics
-        'google-analytics.com' in url and (
-            interceptor._cmd('Fetch.failRequest', {
+async def demo():
+    # 创建一个拦截器
+    interceptor = CDPNetworkInterceptor()
+    await interceptor.connect()
+    await interceptor.start_intercept()
+    
+    # 自定义请求处理函数
+    async def block_ads(rid, url, params):
+        if 'google-analytics.com' in url:
+            await interceptor.cdp('Fetch.failRequest', {
                 'requestId': rid,
                 'errorReason': 'BlockedByClient'
-            }) or True  # 返回 True 表示已处理
-        )
-    ) or None
-})
+            })
+            return True
+        return False
+    
+    # 访问页面，拦截广告
+    await interceptor.run('https://example.com', {
+        'on_request': block_ads
+    })
+    
+    await interceptor.stop_intercept()
+    await interceptor.close()
 
-interceptor.stop_intercept()
-interceptor.close()
+asyncio.run(demo())
 ```
 
 ---
@@ -881,5 +930,7 @@ CDP 的网络拦截能力让它成为浏览器自动化中最强大的方案之�
 - **Network 域**适合监听和获取响应数据
 - **两者配合**可以实现完整的"请求 → 修改 → 获取响应"流程
 - **不需要代理服务器**，Chrome 原生支持
+
+*上一篇回顾：Chrome DevTools Protocol (CDP) 完全指南——用 Python 控制浏览器的终极方案。*
 
 下一篇文章我会继续深入 CDP 的**浏览器指纹与反检测**主题，敬请期待。

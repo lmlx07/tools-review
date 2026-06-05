@@ -55,39 +55,42 @@ description: 详解如何用 Chrome DevTools Protocol（CDP）操作浏览器 Co
 首先用 Python 连接 Chrome 的 CDP 端口：
 
 ```python
-import asyncio
-import websockets
-import json
+import asyncio, json, websockets
 
 # CDP 连接地址（Chrome 需要 --remote-debugging-port=9222 启动）
 CDP_URL = "ws://127.0.0.1:9222/devtools/browser/1a6114ab-..."
 
-async def send_cdp_command(ws, cmd_id, method, params=None):
-    """发送 CDP 命令并等待返回"""
-    if params is None:
-        params = {}
-    await ws.send(json.dumps({"id": cmd_id, "method": method, "params": params}))
-    async for msg in ws:
-        resp = json.loads(msg)
-        if resp.get("id") == cmd_id:
-            return resp.get("result", {})
+CMD_ID = [0]
+async def cdp(ws, method, params=None, session_id=None):
+    """发送 CDP 命令并等待返回结果"""
+    CMD_ID[0] += 1
+    msg = {"id": CMD_ID[0], "method": method, "params": params or {}}
+    if session_id:
+        msg["sessionId"] = session_id
+    await ws.send(json.dumps(msg))
+    async for resp in ws:
+        data = json.loads(resp)
+        if data.get("id") == CMD_ID[0]:
+            return data.get("result", {})
 
-
-async def wait_response(ws, cmd_id):
-    """等待指定 ID 的 CDP 响应"""
-    async for msg in ws:
-        resp = json.loads(msg)
-        if resp.get("id") == cmd_id:
-            return resp.get("result", {})
+async def attach_to_page(ws):
+    """连接到页面目标并返回 session_id"""
+    targets = await cdp(ws, "Target.getTargets")
+    target_id = targets["targetInfos"][0]["targetId"]
+    session = await cdp(ws, "Target.attachToTarget", {
+        "targetId": target_id,
+        "flatten": True
+    })
+    return session["sessionId"]
 
 async def main():
     async with websockets.connect(CDP_URL) as ws:
         # 获取一个页面目标
-        targets = await send_cdp_command(ws, 1, "Target.getTargets")
+        targets = await cdp(ws, "Target.getTargets")
         target_id = targets["targetInfos"][0]["targetId"]
         
         # 附加到该页面
-        session = await send_cdp_command(ws, 2, "Target.attachToTarget", {
+        session = await cdp(ws, "Target.attachToTarget", {
             "targetId": target_id,
             "flatten": True
         })
@@ -97,7 +100,7 @@ async def main():
         print(f"已连接到页面: {target_id}")
         
         # 接下来所有操作都经过这个 session
-        # 格式：在命令参数中加 sessionId
+        # 格式：传 session_id 参数
         await ws.send(json.dumps({
             "sessionId": session_id,
             "id": 3,
@@ -119,13 +122,7 @@ asyncio.run(main())
 ```python
 async def get_all_cookies(ws, session_id):
     """获取当前页面所有 Cookie"""
-    await ws.send(json.dumps({
-        "sessionId": session_id,
-        "id": 10,
-        "method": "Network.getAllCookies",
-        "params": {}
-    }))
-    resp = await wait_response(ws, 10)
+    resp = await cdp(ws, "Network.getAllCookies", session_id=session_id)
     return resp.get("cookies", [])
 ```
 
@@ -156,13 +153,7 @@ async def get_all_cookies(ws, session_id):
 ```python
 async def get_cookies_for_url(ws, session_id, urls):
     """获取指定 URL 的 Cookie（可传多个 URL）"""
-    await ws.send(json.dumps({
-        "sessionId": session_id,
-        "id": 11,
-        "method": "Network.getCookies",
-        "params": {"urls": urls}
-    }))
-    resp = await wait_response(ws, 11)
+    resp = await cdp(ws, "Network.getCookies", {"urls": urls}, session_id)
     return resp.get("cookies", [])
 
 # 使用示例
@@ -178,13 +169,7 @@ cookies = await get_cookies_for_url(ws, session_id,
 ```python
 async def get_cookies_storage(ws, session_id):
     """使用 Storage 域获取 Cookie"""
-    await ws.send(json.dumps({
-        "sessionId": session_id,
-        "id": 12,
-        "method": "Storage.getCookies",
-        "params": {}
-    }))
-    resp = await wait_response(ws, 12)
+    resp = await cdp(ws, "Storage.getCookies", session_id=session_id)
     return resp.get("cookies", [])
 ```
 
@@ -213,13 +198,7 @@ async def set_cookie(ws, session_id, name, value, domain="",
     if expires:
         params["expires"] = expires
     
-    await ws.send(json.dumps({
-        "sessionId": session_id,
-        "id": 20,
-        "method": "Network.setCookie",
-        "params": params
-    }))
-    resp = await wait_response(ws, 20)
+    resp = await cdp(ws, "Network.setCookie", params, session_id)
     return resp.get("success", False)
 
 # 使用示例
@@ -238,13 +217,7 @@ await set_cookie(ws, session_id, "session_id", "abc123",
 ```python
 async def set_cookies_bulk(ws, session_id, cookies):
     """批量设置多个 Cookie"""
-    await ws.send(json.dumps({
-        "sessionId": session_id,
-        "id": 21,
-        "method": "Network.setCookies",
-        "params": {"cookies": cookies}
-    }))
-    resp = await wait_response(ws, 21)
+    resp = await cdp(ws, "Network.setCookies", {"cookies": cookies}, session_id)
     return resp  # 成功返回空对象 {}
 
 # 使用示例
@@ -281,13 +254,7 @@ async def delete_cookie(ws, session_id, name, domain="", path="/"):
     if path:
         params["path"] = path
     
-    await ws.send(json.dumps({
-        "sessionId": session_id,
-        "id": 30,
-        "method": "Network.deleteCookies",
-        "params": params
-    }))
-    return await wait_response(ws, 30)
+    return await cdp(ws, "Network.deleteCookies", params, session_id)
 
 # 删除指定 Cookie
 await delete_cookie(ws, session_id, "session_id", 
@@ -299,13 +266,7 @@ await delete_cookie(ws, session_id, "session_id",
 ```python
 async def clear_all_cookies(ws, session_id):
     """清空浏览器的所有 Cookie"""
-    await ws.send(json.dumps({
-        "sessionId": session_id,
-        "id": 31,
-        "method": "Network.clearBrowserCookies",
-        "params": {}
-    }))
-    return await wait_response(ws, 31)
+    return await cdp(ws, "Network.clearBrowserCookies", session_id=session_id)
 ```
 
 > ⚠️ **注意**：`clearBrowserCookies` 会清空整个浏览器的所有 Cookie，不仅仅是当前标签页！生产脚本慎用。
@@ -327,13 +288,7 @@ async def update_cookie(ws, session_id, old_name, new_name, new_value,
     if path:
         params["path"] = path
     
-    await ws.send(json.dumps({
-        "sessionId": session_id, 
-        "id": 40,
-        "method": "Network.deleteCookies",
-        "params": params
-    }))
-    await wait_response(ws, 40)
+    await cdp(ws, "Network.deleteCookies", params, session_id)
     
     # 2. 创建新的
     set_params = {
@@ -342,13 +297,7 @@ async def update_cookie(ws, session_id, old_name, new_name, new_value,
         "domain": domain or ".example.com",
         "path": path or "/"
     }
-    await ws.send(json.dumps({
-        "sessionId": session_id,
-        "id": 41,
-        "method": "Network.setCookie",
-        "params": set_params
-    }))
-    return await wait_response(ws, 41)
+    return await cdp(ws, "Network.setCookie", set_params, session_id)
 ```
 
 ---
@@ -382,13 +331,7 @@ async def cookie_login_flow():
         session_a = await attach_to_page(ws_a)
         
         # 导航到目标网站
-        await ws_a.send(json.dumps({
-            "sessionId": session_a,
-            "id": 100,
-            "method": "Page.navigate",
-            "params": {"url": "https://example.com/dashboard"}
-        }))
-        await wait_response(ws_a, 100)
+        await cdp(ws_a, "Page.navigate", {"url": "https://example.com/dashboard"}, session_a)
         await asyncio.sleep(2)  # 等页面加载
         
         # 导出 Cookie
@@ -403,13 +346,7 @@ async def cookie_login_flow():
         await import_login_state(ws_b, session_b, cookies)
         
         # 再导航（注入后再导航，Cookie 会自动带上）
-        await ws_b.send(json.dumps({
-            "sessionId": session_b,
-            "id": 200,
-            "method": "Page.navigate",
-            "params": {"url": "https://example.com/dashboard"}
-        }))
-        await wait_response(ws_b, 200)
+        await cdp(ws_b, "Page.navigate", {"url": "https://example.com/dashboard"}, session_b)
         
         # 此时页面已经处于登录状态！
         print("免登录成功！")
@@ -619,5 +556,7 @@ async with websockets.connect(CDP_URL) as ws:
 > **总结**：CDP 的 Cookie API 让你拥有了浏览器级的管理权限——没有同源限制，支持 HttpOnly/Secure/SameSite 等完整属性，可以精确控制每个 Cookie 的生命周期。结合前几篇文章学的网络拦截和页面控制，你已经可以用 CDP 做出非常强大的浏览器自动化工具了。
 
 ---
+
+*上一篇回顾：CDP 性能追踪与 Lighthouse 集成——用 Python 测量 Web Vitals 与自动化性能审计。*
 
 *下一篇预告：CDP 监听 DOM 变化——实时追踪页面元素的新增、删除和修改。*

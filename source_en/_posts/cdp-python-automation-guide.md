@@ -86,7 +86,7 @@ Playwright and Puppeteer are essentially high-level encapsulation of CDP. They w
 | Performance Tracking | Native Support | Supported | Not Supported |
 | Cross-browser | ❌ Chrome/Chromium series | ✅ Chromium + Firefox + WebKit | ✅ Widest |
 | Debug Transparency | **Highest** (can see every command) | Medium | Low |
-| Dependencies | websocket-client only | Browser installation required | WebDriver required |
+| Dependencies | websockets only | Browser installation required | WebDriver required |
 
 ### When should you use CDP?
 
@@ -110,10 +110,10 @@ Scenarios using CDP directly (instead of high-level framework):
 Only one library is needed:
 
 ```bash
-pip install websocket-client
+pip install websockets
 ```
 
-That’s right, you can communicate with Chrome using just `websocket-client`. There is no need to install ChromeDriver or download browser binaries.
+That’s right, you can communicate with Chrome using just `websockets`. There is no need to install ChromeDriver or download browser binaries.
 
 ### 2. Install/Confirm Chrome Browser
 
@@ -170,9 +170,10 @@ This `webSocketDebuggerUrl` is the target we want to connect to next.
 Below is a minimal example of a CDP connection. It does three things: Discover the page → Establish the WebSocket → Send the command.
 
 ```python
+import asyncio
 import json
 import urllib.request
-import websocket
+import websockets
 
 # ========== Step 1: Get the WebSocket URL of the page ==========
 
@@ -189,53 +190,41 @@ def get_page_ws(pattern=''):
     # If there is no match, the first page will be taken by default.
     return data[0]['webSocketDebuggerUrl'] if data else None
 
-ws_url = get_page_ws()
-print(f'Connecting to: {ws_url}')
+CMD_ID = [0]
 
-# ========== Step 2: Establish WebSocket connection ==========
-
-ws = websocket.create_connection(ws_url, timeout=30)
-
-# ========== Step 3: Encapsulate send/receive ==========
-
-_request_id = 1
-
-def send_cmd(ws, method, params=None):
+async def cdp(ws, method, params=None):
     """Send CDP command and wait for the result to be returned"""
-    global _request_id
-    if params is None:
-        params = {}
-    _request_id += 1
-    request = {'id': _request_id, 'method': method, 'params': params}
-    ws.send(json.dumps(request))
-    
-    while True:
-        response = json.loads(ws.recv())
-        if response.get('id') == _request_id:
+    CMD_ID[0] += 1
+    cmd_id = CMD_ID[0]
+    request = {'id': cmd_id, 'method': method, 'params': params or {}}
+    await ws.send(json.dumps(request))
+    async for msg in ws:
+        response = json.loads(msg)
+        if response.get('id') == cmd_id:
             return response.get('result', {})
 
-# ========== Step 4: Enable necessary domains ==========
 
-send_cmd(ws, 'Page.enable') # Enable page domain
-send_cmd(ws, 'Runtime.enable') # Enable runtime domain
+async def main():
+    ws_url = get_page_ws()
+    print(f'Connecting to: {ws_url}')
 
-# ========== Step 5: Start controlling the browser ==========
+    async with websockets.connect(ws_url) as ws:
+        # Enable necessary domains
+        await cdp(ws, 'Page.enable')
+        await cdp(ws, 'Runtime.enable')
 
-# Navigate to target page
-result = send_cmd(ws, 'Page.navigate', {'url': 'https://www.example.com'})
-print(f'Navigation started, frameId: {result.get("frameId")}')
+        # Navigate to target page
+        result = await cdp(ws, 'Page.navigate', {'url': 'https://www.example.com'})
+        print(f'Navigation started, frameId: {result.get("frameId")}')
 
-# Execute JavaScript on the current page
-result = send_cmd(ws, 'Runtime.evaluate', {
-    'expression': 'document.title',
-    'returnByValue': True
-})
-print(f'Page title: {result["result"]["value"]}')
+        # Execute JavaScript on the current page
+        result = await cdp(ws, 'Runtime.evaluate', {
+            'expression': 'document.title',
+            'returnByValue': True
+        })
+        print(f'Page title: {result["result"]["value"]}')
 
-# close connection
-ws.close()
-
-
+asyncio.run(main())
 ```
 
 Run this code and you will see the title of the console output page. Congratulations, you now control your browser directly through CDP!
@@ -278,7 +267,7 @@ The screenshot is CDP's "Hello World". It's more flexible than Selenium's screen
 import base64
 
 # Full page screenshot
-result = send_cmd(ws, 'Page.captureScreenshot', {
+result = await cdp(ws, 'Page.captureScreenshot', {
     'format': 'png'
 })
 
@@ -289,7 +278,7 @@ print('Screenshot saved as screenshot.png')
 
 # Screenshot (crop) of specified area
 # clip = x, y, width, height
-result = send_cmd(ws, 'Page.captureScreenshot', {
+result = await cdp(ws, 'Page.captureScreenshot', {
     'format': 'png',
     'clip': {'x': 0, 'y': 0, 'width': 800, 'height': 600, 'scale': 1}
 })
@@ -304,7 +293,7 @@ This is one of the most powerful capabilities of CDP - execute arbitrary JS in t
 
 ```python
 # Get page information
-result = send_cmd(ws, 'Runtime.evaluate', {
+result = await cdp(ws, 'Runtime.evaluate', {
     'expression': 'JSON.stringify({title: document.title, url: location.href, cookies: document.cookie})',
     'returnByValue': True
 })
@@ -312,14 +301,14 @@ page_info = json.loads(result['result']['value'])
 print(page_info)
 
 # Get the text content of an element
-result = send_cmd(ws, 'Runtime.evaluate', {
+result = await cdp(ws, 'Runtime.evaluate', {
     'expression': 'document.querySelector("h1").innerText',
     'returnByValue': True
 })
 print(f'H1 text: {result["result"]["value"]}')
 
 # Modify the page (can perform any JS operation)
-send_cmd(ws, 'Runtime.evaluate', {
+await cdp(ws, 'Runtime.evaluate', {
     'expression': 'document.title = "Title modified by CDP"',
     'returnByValue': True
 })
@@ -336,24 +325,24 @@ CDP's DOM operations are implemented through `DOM` fields, using "node IDs" to l
 
 ```python
 # Get the document root node
-result = send_cmd(ws, 'DOM.getDocument')
+result = await cdp(ws, 'DOM.getDocument')
 root_node_id = result['root']['nodeId']
 
 # Find elements by selector
-result = send_cmd(ws, 'DOM.querySelector', {
+result = await cdp(ws, 'DOM.querySelector', {
     'nodeId': root_node_id,
     'selector': 'div.content'
 })
 content_node_id = result['nodeId']
 
 # Get the HTML of an element
-result = send_cmd(ws, 'DOM.getOuterHTML', {
+result = await cdp(ws, 'DOM.getOuterHTML', {
     'nodeId': content_node_id
 })
 print(f'Element HTML: {result["outerHTML"][:200]}...')
 
 # Modify element attributes
-send_cmd(ws, 'DOM.setAttributeValue', {
+await cdp(ws, 'DOM.setAttributeValue', {
     'nodeId': content_node_id,
     'name': 'style',
     'value': 'background-color: yellow;'
@@ -368,46 +357,47 @@ send_cmd(ws, 'DOM.setAttributeValue', {
 This is the most commonly used feature in crawlers and penetration testing. CDP can capture every request made by a page.
 
 ```python
-# Enable domain
-send_cmd(ws, 'Network.enable')
+# Enable network domain
+await cdp(ws, 'Network.enable')
 
-# Set callback for request interception
-def on_request(event_data):
+# Store event callbacks
+event_handlers = {}
+
+def on(event_name):
+    """Decorator: register CDP event handler"""
+    def decorator(fn):
+        event_handlers[event_name] = fn
+        return fn
+    return decorator
+
+@on('Network.requestWillBeSent')
+async def on_request(event_data):
     """Called every time there is a network request"""
     request = event_data['params']['request']
     url = request['url']
     method = request['method']
     print(f'[{method}] {url}')
-    
-    # Request headers can be modified
-    # Return {'continue': True} to continue the request
 
-# Register request event listener
-# CDP events are actively pushed through WebSocket and need to be processed separately.
-import threading
-
-def event_listener(ws):
-    """Background thread: Continuously receive CDP events"""
-    while True:
+async def event_listener(ws):
+    """Background task: Continuously receive CDP events"""
+    async for msg in ws:
         try:
-            msg = json.loads(ws.recv())
-            if 'method' in msg:
-                if msg['method'] == 'Network.requestWillBeSent':
-                    on_request(msg)
-                # More event handling can be added
+            data = json.loads(msg)
+            if 'method' in data:
+                handler = event_handlers.get(data['method'])
+                if handler:
+                    await handler(data)
         except Exception as e:
             print(f'Event listener error: {e}')
-            break
 
-# Start event listening thread
-threading.Thread(target=event_listener, args=(ws,), daemon=True).start()
+# Start event listening task
+listener_task = asyncio.create_task(event_listener(ws))
 
 # Navigate to page
-send_cmd(ws, 'Page.navigate', {'url': 'https://example.com'})
+await cdp(ws, 'Page.navigate', {'url': 'https://example.com'})
 
 # ...The page is loading, the event listener will output all requests...
-import time
-time.sleep(5) # Wait for page to load
+await asyncio.sleep(5) # Wait for page to load
 
 
 ```
@@ -416,12 +406,12 @@ time.sleep(5) # Wait for page to load
 
 ```python
 # Block specific URL patterns
-send_cmd(ws, 'Network.setBlockedURLs', {
+await cdp(ws, 'Network.setBlockedURLs', {
     'urls': ['*.jpg', '*.png', '*.gif'] # Block all pictures
 })
 
 # Simulate weak network environment
-send_cmd(ws, 'Network.emulateNetworkConditions', {
+await cdp(ws, 'Network.emulateNetworkConditions', {
     'offline': False,
     'latency': 300, # Delay 300ms
     'downloadThroughput': 500 * 1024, # Download 500 KB/s
@@ -431,7 +421,7 @@ send_cmd(ws, 'Network.emulateNetworkConditions', {
 # Get response body
 # First get the requestId in the Network.responseReceived event
 # Then:
-result = send_cmd(ws, 'Network.getResponseBody', {
+result = await cdp(ws, 'Network.getResponseBody', {
     'requestId': request_id
 })
 print(f'Response body: {result["body"][:500]}')
@@ -445,42 +435,42 @@ print(f'Base64 encoded: {result["base64Encoded"]}')
 CDP's `Input` field can simulate mouse clicks and keyboard input, which is key to implementing RPA (Robotic Process Automation).
 
 ```python
-def click(ws, x, y, button='left'):
+async def click(ws, x, y, button='left'):
     """Click at the specified coordinates"""
-    send_cmd(ws, 'Input.dispatchMouseEvent', {
+    await cdp(ws, 'Input.dispatchMouseEvent', {
         'type': 'mousePressed',
         'x': x, 'y': y,
         'button': button,
         'clickCount': 1
     })
-    send_cmd(ws, 'Input.dispatchMouseEvent', {
+    await cdp(ws, 'Input.dispatchMouseEvent', {
         'type': 'mouseReleased',
         'x': x, 'y': y,
         'button': button,
         'clickCount': 1
     })
 
-def type_text(ws, text):
+async def type_text(ws, text):
     """Enter text"""
-    send_cmd(ws, 'Input.insertText', {'text': text})
+    await cdp(ws, 'Input.insertText', {'text': text})
 
-def press_enter(ws):
+async def press_enter(ws):
     """Press Enter"""
-    send_cmd(ws, 'Input.dispatchKeyEvent', {
+    await cdp(ws, 'Input.dispatchKeyEvent', {
         'type': 'rawKeyDown',
         'windowsVirtualKeyCode': 13,
         'key': 'Enter'
     })
-    send_cmd(ws, 'Input.dispatchKeyEvent', {
+    await cdp(ws, 'Input.dispatchKeyEvent', {
         'type': 'keyUp',
         'windowsVirtualKeyCode': 13,
         'key': 'Enter'
     })
 
 # Usage example: Autofill forms
-click(ws, 500, 300) # Click on the input box
-type_text(ws, 'hello@example.com') # Enter email
-press_enter(ws) # submit
+await click(ws, 500, 300) # Click on the input box
+await type_text(ws, 'hello@example.com') # Enter email
+await press_enter(ws) # submit
 
 
 ```
@@ -495,7 +485,7 @@ Selenium and Playwright leave automation traces in the browser (e.g. `navigator.
 
 ```python
 # Inject scripts before page loads to override automation features
-send_cmd(ws, 'Page.addScriptToEvaluateOnNewDocument', {
+await cdp(ws, 'Page.addScriptToEvaluateOnNewDocument', {
     'source': '''
         // Override webdriver properties
         Object.defineProperty(navigator, 'webdriver', {
@@ -532,7 +522,7 @@ send_cmd(ws, 'Page.addScriptToEvaluateOnNewDocument', {
 
 # The above script will be automatically executed on every new page
 # and then navigate
-send_cmd(ws, 'Page.navigate', {'url': 'https://bot.sannysoft.com/'})
+await cdp(ws, 'Page.navigate', {'url': 'https://bot.sannysoft.com/'})
 
 ```
 
@@ -544,28 +534,32 @@ send_cmd(ws, 'Page.navigate', {'url': 'https://bot.sannysoft.com/'})
 # Listen to the Target.targetCreated event
 # When a new window opens, automatically get its WebSocket URL
 
-def on_target_created(event_data):
+@on('Target.targetCreated')
+async def on_target_created(event_data):
     target_info = event_data['params']['targetInfo']
     print(f'New tab: {target_info["url"]}')
     # The WebSocket URL of the new page can be obtained via CDP_HTTP/json
 
-# You can also use the --remote-debugging-pipe parameter to use a pipe instead of WebSocket
-# Or use the Target.attachToTarget command
-
+# Enable the Target domain to receive events
+await cdp(ws, 'Target.setAutoAttach', {
+    'autoAttach': True,
+    'flatten': True,
+    'waitForDebuggerOnStart': False
+})
 ```
 
 ### 3. Performance tracking
 
 ```python
 # Start performance tracking
-send_cmd(ws, 'Performance.enable')
+await cdp(ws, 'Performance.enable')
 
 # navigation
-send_cmd(ws, 'Page.navigate', {'url': 'https://example.com'})
-time.sleep(3)
+await cdp(ws, 'Page.navigate', {'url': 'https://example.com'})
+await asyncio.sleep(3)
 
 # Get performance metrics
-result = send_cmd(ws, 'Performance.getMetrics')
+result = await cdp(ws, 'Performance.getMetrics')
 metrics = {m['name']: m['value'] for m in result['metrics']}
 
 print(f'DOMContentLoaded: {metrics.get("DomContentLoaded", "N/A")} ms')
@@ -579,7 +573,7 @@ print(f'Style Recalculations: {metrics.get("RecalcStyleCount", "N/A")}')
 ### 4. Generate PDF
 
 ```python
-result = send_cmd(ws, 'Page.printToPDF', {
+result = await cdp(ws, 'Page.printToPDF', {
     'paperWidth': 8.27, # A4 width (inches)
     'paperHeight': 11.69, # A4 height
     'marginTop': 0.4,
@@ -611,12 +605,12 @@ CDP Command Line Screenshot Tool
 Usage:
     python cdp_screenshooter.py https://example.com -o screenshot.png -w 1920 -h 1080
 """
+import asyncio
 import json
 import urllib.request
-import websocket
+import websockets
 import base64
 import argparse
-import time
 
 # ========== Tool functions ==========
 
@@ -627,57 +621,69 @@ def find_page_ws(cdp_url, pattern=''):
             return page['webSocketDebuggerUrl']
     return data[0]['webSocketDebuggerUrl'] if data else None
 
+CMD_ID = [0]
+
+async def cdp(ws, method, params=None):
+    """Send CDP command and wait for the result to be returned"""
+    CMD_ID[0] += 1
+    cmd_id = CMD_ID[0]
+    request = {'id': cmd_id, 'method': method, 'params': params or {}}
+    await ws.send(json.dumps(request))
+    async for msg in ws:
+        response = json.loads(msg)
+        if response.get('id') == cmd_id:
+            return response.get('result', {})
+
 class CDPConnection:
-    """CDP connection encapsulation"""
+    """CDP connection encapsulation (async version)"""
     
     def __init__(self, ws_url):
-        self.ws = websocket.create_connection(ws_url, timeout=30)
-        self._id = 0
-        # Enable core domain
-        self._cmd('Page.enable')
-        self._cmd('Runtime.enable')
+        self.ws = None
+        self._ws_url = ws_url
     
-    def _cmd(self, method, params=None):
-        if params is None:
-            params = {}
-        self._id += 1
-        self.ws.send(json.dumps({'id': self._id, 'method': method, 'params': params}))
-        while True:
-            r = json.loads(self.ws.recv())
-            if r.get('id') == self._id:
-                return r.get('result', {})
+    async def __aenter__(self):
+        self.ws = await websockets.connect(self._ws_url, max_size=2**24)
+        await self.cdp('Page.enable')
+        await self.cdp('Runtime.enable')
+        return self
     
-    def navigate(self, url):
+    async def __aexit__(self, *args):
+        await self.ws.close()
+    
+    async def cdp(self, method, params=None):
+        return await cdp(self.ws, method, params)
+    
+    async def navigate(self, url):
         """Navigate to the URL and wait for the page to finish loading"""
-        self._cmd('Page.navigate', {'url': url})
+        await self.cdp('Page.navigate', {'url': url})
         # Wait for the page to load (production environments should listen to the Page.loadEventFired event)
-        time.sleep(3)
+        await asyncio.sleep(3)
     
-    def screenshot(self, output_path, width=1920, height=1080):
+    async def screenshot(self, output_path, width=1920, height=1080):
         """Take a screenshot of the page"""
         # Set viewport size
-        self._cmd('Emulation.setDeviceMetricsOverride', {
+        await self.cdp('Emulation.setDeviceMetricsOverride', {
             'width': width,
             'height': height,
             'deviceScaleFactor': 1,
             'mobile': False
         })
-        time.sleep(0.5)
+        await asyncio.sleep(0.5)
         
         # screenshot
-        result = self._cmd('Page.captureScreenshot', {
+        result = await self.cdp('Page.captureScreenshot', {
             'format': 'png'
         })
         
         with open(output_path, 'wb') as f:
             f.write(base64.b64decode(result['data']))
-        print(f'✅ Screenshot saved: {output_path} ({width}x{height})')
+        print(f'Screenshot saved: {output_path} ({width}x{height})')
     
-    def close(self):
-        self.ws.close()
+    async def close(self):
+        await self.ws.close()
 
 
-def main():
+async def main():
     parser = argparse.ArgumentParser(description='CDP command line screenshot tool')
     parser.add_argument('url', help='Target URL')
     parser.add_argument('-o', '--output', default='screenshot.png', help='Output file path')
@@ -687,25 +693,24 @@ def main():
     parser.add_argument('--pattern', default='', help='Match specific tab')
     args = parser.parse_args()
     
-    print(f'🔍 Connecting to Chrome: {args.cdp}')
+    print(f'Connecting to Chrome: {args.cdp}')
     ws_url = find_page_ws(args.cdp, args.pattern)
     if not ws_url:
-        print('❌ No available page found')
+        print('No available page found')
         return
     
-    print(f'🔗 WebSocket: {ws_url[:60]}...')
-    cdp = CDPConnection(ws_url)
+    print(f'WebSocket: {ws_url[:60]}...')
     
-    print(f'🌐 Navigating to: {args.url}')
-    cdp.navigate(args.url)
+    async with CDPConnection(ws_url) as cdp_conn:
+        print(f'Navigating to: {args.url}')
+        await cdp_conn.navigate(args.url)
+        await cdp_conn.screenshot(args.output, args.width, args.height)
     
-    cdp.screenshot(args.output, args.width, args.height)
-    cdp.close()
-    print('🎉 Done!')
+    print('Done!')
 
 
 if __name__ == '__main__':
-    main()
+    asyncio.run(main())
 
 ```
 
@@ -732,7 +737,7 @@ python cdp_screenshooter.py https://example.com --pattern "login"
 #### ❌ Connection Refused
 
 ```
-websocket._exceptions.WebSocketBadStatusException: Handshake status 500
+websockets.exceptions.InvalidStatusCode: server rejected WebSocket connection: HTTP 500
 ```
 
 **Cause**: Chrome was not started with the `--remote-debugging-port` parameter.
@@ -764,7 +769,7 @@ socket.timeout: timed out
 
 **Solution**: Use JavaScript to directly operate the textarea:
 ```python
-result = send_cmd(ws, 'Runtime.evaluate', {
+result = await cdp(ws, 'Runtime.evaluate', {
     'expression': '''
         (() => {
             const ta = document.querySelector('.xterm-helper-textarea');
@@ -781,7 +786,7 @@ result = send_cmd(ws, 'Runtime.evaluate', {
 ### Summary of best practices
 
 1. **Always `enable` before using**: Each field must call the corresponding `enable` method before using it.
-2. **Independent threads for event monitoring**: CDP events are actively pushed through WebSocket and require a separate thread for processing.
+2. **Async tasks for event monitoring**: CDP events are actively pushed through WebSocket. Use `asyncio.create_task()` to handle them.
 3. **Wait reasonably for the page to load**: `Page.navigate` will not wait for the page to be fully loaded. It is recommended to listen to the `Page.loadEventFired` event.
 4. **Pay attention to memory leaks**: Each time `Runtime.evaluate` creates an object reference, it will occupy memory. Call `Runtime.releaseObject` after it is used up.
 5. **Use independent user data directory**: Use `--user-data-dir=/path/to/profile` to specify an independent browser configuration directory to avoid conflicts with daily browsers
@@ -816,6 +821,8 @@ Through this article, you have mastered the core concepts and practical skills o
 ---
 
 *This article is the first in the "CDP Automation Guide" series. In the follow-up, we will delve into topics such as CDP crawler practice, RPA process automation, and the underlying principles of Playwright, so stay tuned. *
+
+*Next up: CDP network interception and request tampering practice — a complete guide to controlling Chrome packet capture and modification with Python.*
 
 ---
 

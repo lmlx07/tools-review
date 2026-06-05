@@ -56,39 +56,42 @@ In short: **CDP's Cookie API is the browser's "admin mode"** — no same-origin 
 First, connect to Chrome's CDP port using Python:
 
 ```python
-import asyncio
-import websockets
-import json
+import asyncio, json, websockets
 
 # CDP connection URL (Chrome must start with --remote-debugging-port=9222)
 CDP_URL = "ws://127.0.0.1:9222/devtools/browser/1a6114ab-..."
 
-async def send_cdp_command(ws, cmd_id, method, params=None):
-    """Send a CDP command and wait for the response"""
-    if params is None:
-        params = {}
-    await ws.send(json.dumps({"id": cmd_id, "method": method, "params": params}))
-    async for msg in ws:
-        resp = json.loads(msg)
-        if resp.get("id") == cmd_id:
-            return resp.get("result", {})
+CMD_ID = [0]
+async def cdp(ws, method, params=None, session_id=None):
+    """Send CDP command and wait for result"""
+    CMD_ID[0] += 1
+    msg = {"id": CMD_ID[0], "method": method, "params": params or {}}
+    if session_id:
+        msg["sessionId"] = session_id
+    await ws.send(json.dumps(msg))
+    async for resp in ws:
+        data = json.loads(resp)
+        if data.get("id") == CMD_ID[0]:
+            return data.get("result", {})
 
-
-async def wait_response(ws, cmd_id):
-    """Wait for a CDP response with the given ID"""
-    async for msg in ws:
-        resp = json.loads(msg)
-        if resp.get("id") == cmd_id:
-            return resp.get("result", {})
+async def attach_to_page(ws):
+    """Connect to a page target and return session_id"""
+    targets = await cdp(ws, "Target.getTargets")
+    target_id = targets["targetInfos"][0]["targetId"]
+    session = await cdp(ws, "Target.attachToTarget", {
+        "targetId": target_id,
+        "flatten": True
+    })
+    return session["sessionId"]
 
 async def main():
     async with websockets.connect(CDP_URL) as ws:
         # Get a page target
-        targets = await send_cdp_command(ws, 1, "Target.getTargets")
+        targets = await cdp(ws, "Target.getTargets")
         target_id = targets["targetInfos"][0]["targetId"]
         
         # Attach to the page
-        session = await send_cdp_command(ws, 2, "Target.attachToTarget", {
+        session = await cdp(ws, "Target.attachToTarget", {
             "targetId": target_id,
             "flatten": True
         })
@@ -98,12 +101,8 @@ async def main():
         print(f"Connected to page: {target_id}")
         
         # All subsequent operations go through this session
-        await ws.send(json.dumps({
-            "sessionId": session_id,
-            "id": 3,
-            "method": "Network.getCookies",
-            "params": {}
-        }))
+        cookies = await cdp(ws, "Network.getCookies", session_id=session_id)
+        print(f"Found {len(cookies.get('cookies', []))} cookies")
 
 asyncio.run(main())
 ```
@@ -119,13 +118,7 @@ asyncio.run(main())
 ```python
 async def get_all_cookies(ws, session_id):
     """Get all cookies from the current page"""
-    await ws.send(json.dumps({
-        "sessionId": session_id,
-        "id": 10,
-        "method": "Network.getAllCookies",
-        "params": {}
-    }))
-    resp = await wait_response(ws, 10)
+    resp = await cdp(ws, "Network.getAllCookies", session_id=session_id)
     return resp.get("cookies", [])
 ```
 
@@ -156,13 +149,7 @@ Read cookies specific to certain URLs:
 ```python
 async def get_cookies_for_url(ws, session_id, urls):
     """Get cookies for specific URLs (can pass multiple URLs)"""
-    await ws.send(json.dumps({
-        "sessionId": session_id,
-        "id": 11,
-        "method": "Network.getCookies",
-        "params": {"urls": urls}
-    }))
-    resp = await wait_response(ws, 11)
+    resp = await cdp(ws, "Network.getCookies", {"urls": urls}, session_id)
     return resp.get("cookies", [])
 
 # Usage
@@ -178,13 +165,7 @@ The `Storage` domain also provides cookie access, useful when you need more prec
 ```python
 async def get_cookies_storage(ws, session_id):
     """Get cookies using the Storage domain"""
-    await ws.send(json.dumps({
-        "sessionId": session_id,
-        "id": 12,
-        "method": "Storage.getCookies",
-        "params": {}
-    }))
-    resp = await wait_response(ws, 12)
+    resp = await cdp(ws, "Storage.getCookies", session_id=session_id)
     return resp.get("cookies", [])
 ```
 
@@ -213,13 +194,7 @@ async def set_cookie(ws, session_id, name, value, domain="",
     if expires:
         params["expires"] = expires
     
-    await ws.send(json.dumps({
-        "sessionId": session_id,
-        "id": 20,
-        "method": "Network.setCookie",
-        "params": params
-    }))
-    resp = await wait_response(ws, 20)
+    resp = await cdp(ws, "Network.setCookie", params, session_id)
     return resp.get("success", False)
 
 # Usage examples
@@ -238,13 +213,7 @@ await set_cookie(ws, session_id, "session_id", "abc123",
 ```python
 async def set_cookies_bulk(ws, session_id, cookies):
     """Set multiple cookies in one call"""
-    await ws.send(json.dumps({
-        "sessionId": session_id,
-        "id": 21,
-        "method": "Network.setCookies",
-        "params": {"cookies": cookies}
-    }))
-    resp = await wait_response(ws, 21)
+    resp = await cdp(ws, "Network.setCookies", {"cookies": cookies}, session_id)
     return resp  # Returns empty object {} on success
 
 # Usage
@@ -281,13 +250,7 @@ async def delete_cookie(ws, session_id, name, domain="", path="/"):
     if path:
         params["path"] = path
     
-    await ws.send(json.dumps({
-        "sessionId": session_id,
-        "id": 30,
-        "method": "Network.deleteCookies",
-        "params": params
-    }))
-    return await wait_response(ws, 30)
+    return await cdp(ws, "Network.deleteCookies", params, session_id)
 
 # Delete a specific cookie
 await delete_cookie(ws, session_id, "session_id",
@@ -299,13 +262,7 @@ await delete_cookie(ws, session_id, "session_id",
 ```python
 async def clear_all_cookies(ws, session_id):
     """Clear ALL browser cookies"""
-    await ws.send(json.dumps({
-        "sessionId": session_id,
-        "id": 31,
-        "method": "Network.clearBrowserCookies",
-        "params": {}
-    }))
-    return await wait_response(ws, 31)
+    return await cdp(ws, "Network.clearBrowserCookies", session_id=session_id)
 ```
 
 > ⚠️ **Warning**: `clearBrowserCookies` clears ALL cookies in the entire browser, not just the current tab! Use with caution in production scripts.
@@ -327,13 +284,7 @@ async def update_cookie(ws, session_id, old_name, new_name, new_value,
     if path:
         params["path"] = path
     
-    await ws.send(json.dumps({
-        "sessionId": session_id,
-        "id": 40,
-        "method": "Network.deleteCookies",
-        "params": params
-    }))
-    await wait_response(ws, 40)
+    await cdp(ws, "Network.deleteCookies", params, session_id)
     
     # 2. Create the new one
     set_params = {
@@ -342,13 +293,7 @@ async def update_cookie(ws, session_id, old_name, new_name, new_value,
         "domain": domain or ".example.com",
         "path": path or "/"
     }
-    await ws.send(json.dumps({
-        "sessionId": session_id,
-        "id": 41,
-        "method": "Network.setCookie",
-        "params": set_params
-    }))
-    return await wait_response(ws, 41)
+    return await cdp(ws, "Network.setCookie", set_params, session_id)
 ```
 
 ---
@@ -382,13 +327,7 @@ async def cookie_login_flow():
         session_a = await attach_to_page(ws_a)
         
         # Navigate to target site
-        await ws_a.send(json.dumps({
-            "sessionId": session_a,
-            "id": 100,
-            "method": "Page.navigate",
-            "params": {"url": "https://example.com/dashboard"}
-        }))
-        await wait_response(ws_a, 100)
+        await cdp(ws_a, "Page.navigate", {"url": "https://example.com/dashboard"}, session_a)
         await asyncio.sleep(2)  # Wait for page load
         
         # Export cookies
@@ -403,13 +342,7 @@ async def cookie_login_flow():
         await import_login_state(ws_b, session_b, cookies)
         
         # Then navigate (cookies are automatically sent with the request)
-        await ws_b.send(json.dumps({
-            "sessionId": session_b,
-            "id": 200,
-            "method": "Page.navigate",
-            "params": {"url": "https://example.com/dashboard"}
-        }))
-        await wait_response(ws_b, 200)
+        await cdp(ws_b, "Page.navigate", {"url": "https://example.com/dashboard"}, session_b)
         
         # The page is now logged in!
         print("Auto-login successful!")
@@ -617,5 +550,7 @@ async with websockets.connect(CDP_URL) as ws:
 > **Summary**: CDP's Cookie API gives you browser-level admin privileges — no same-origin restrictions, full support for HttpOnly/Secure/SameSite attributes, and precise control over each cookie's lifecycle. Combined with the network interception and page control techniques from previous articles, you now have the building blocks for extremely powerful browser automation tools.
 
 ---
+
+*Previous: CDP Performance Tracking and Lighthouse Integration — measuring Web Vitals and automating performance auditing with Python.*
 
 *Next up: CDP DOM Mutation Observation — tracking element additions, deletions, and changes in real time.*

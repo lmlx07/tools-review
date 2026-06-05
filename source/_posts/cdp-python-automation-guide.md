@@ -99,7 +99,7 @@ Playwright 和 Puppeteer 本质上就是对 CDP 的高层封装。它们把 CDP 
 | 性能追踪 | 原生支持 | 支持 | 不支持 |
 | 跨浏览器 | ❌ Chrome/Chromium 系 | ✅ Chromium + Firefox + WebKit | ✅ 最广 |
 | 调试透明度 | **最高**（能看到每个命令） | 中等 | 低 |
-| 依赖 | 仅 websocket-client | 需要安装浏览器 | 需要 WebDriver |
+| 依赖 | 仅 websockets | 需要安装浏览器 | 需要 WebDriver |
 
 ### 什么时候该用 CDP？
 
@@ -123,10 +123,10 @@ Playwright 和 Puppeteer 本质上就是对 CDP 的高层封装。它们把 CDP 
 只需要一个库：
 
 ```bash
-pip install websocket-client
+pip install websockets
 ```
 
-没错，只靠 `websocket-client` 就能和 Chrome 通信。不需要安装 ChromeDriver、不需要下载浏览器二进制文件。
+没错，只靠 `websockets` 就能和 Chrome 通信。不需要安装 ChromeDriver、不需要下载浏览器二进制文件。
 
 ### 2. 安装 / 确认 Chrome 浏览器
 
@@ -183,9 +183,10 @@ google-chrome --remote-debugging-port=9222 --remote-allow-origins=* --no-first-r
 下面是一个最精简的 CDP 连接示例。它完成了三件事：发现页面 → 建立 WebSocket → 发送命令。
 
 ```python
+import asyncio
 import json
 import urllib.request
-import websocket
+import websockets
 
 # ========== 第一步：获取页面的 WebSocket URL ==========
 
@@ -202,51 +203,41 @@ def get_page_ws(pattern=''):
     # 如果没有匹配，默认取第一个页面
     return data[0]['webSocketDebuggerUrl'] if data else None
 
-ws_url = get_page_ws()
-print(f'Connecting to: {ws_url}')
+CMD_ID = [0]
 
-# ========== 第二步：建立 WebSocket 连接 ==========
-
-ws = websocket.create_connection(ws_url, timeout=30)
-
-# ========== 第三步：封装 send/receive ==========
-
-_request_id = 1
-
-def send_cmd(ws, method, params=None):
+async def cdp(ws, method, params=None):
     """发送 CDP 命令并等待返回结果"""
-    global _request_id
-    if params is None:
-        params = {}
-    _request_id += 1
-    request = {'id': _request_id, 'method': method, 'params': params}
-    ws.send(json.dumps(request))
-    
-    while True:
-        response = json.loads(ws.recv())
-        if response.get('id') == _request_id:
+    CMD_ID[0] += 1
+    cmd_id = CMD_ID[0]
+    request = {'id': cmd_id, 'method': method, 'params': params or {}}
+    await ws.send(json.dumps(request))
+    async for msg in ws:
+        response = json.loads(msg)
+        if response.get('id') == cmd_id:
             return response.get('result', {})
 
-# ========== 第四步：启用必要域 ==========
 
-send_cmd(ws, 'Page.enable')       # 启用页面域
-send_cmd(ws, 'Runtime.enable')    # 启用运行时域
+async def main():
+    ws_url = get_page_ws()
+    print(f'Connecting to: {ws_url}')
 
-# ========== 第五步：开始操控浏览器 ==========
+    async with websockets.connect(ws_url) as ws:
+        # 启用必要域
+        await cdp(ws, 'Page.enable')
+        await cdp(ws, 'Runtime.enable')
 
-# 导航到目标页面
-result = send_cmd(ws, 'Page.navigate', {'url': 'https://www.example.com'})
-print(f'Navigation started, frameId: {result.get("frameId")}')
+        # 导航到目标页面
+        result = await cdp(ws, 'Page.navigate', {'url': 'https://www.example.com'})
+        print(f'Navigation started, frameId: {result.get("frameId")}')
 
-# 在当前页面执行 JavaScript
-result = send_cmd(ws, 'Runtime.evaluate', {
-    'expression': 'document.title',
-    'returnByValue': True
-})
-print(f'Page title: {result["result"]["value"]}')
+        # 在当前页面执行 JavaScript
+        result = await cdp(ws, 'Runtime.evaluate', {
+            'expression': 'document.title',
+            'returnByValue': True
+        })
+        print(f'Page title: {result["result"]["value"]}')
 
-# 关闭连接
-ws.close()
+asyncio.run(main())
 ```
 
 运行这段代码，你会看到控制台输出页面的标题。恭喜，你已经通过 CDP 直接控制浏览器了！
@@ -289,7 +280,7 @@ ws.close()
 import base64
 
 # 全页截图
-result = send_cmd(ws, 'Page.captureScreenshot', {
+result = await cdp(ws, 'Page.captureScreenshot', {
     'format': 'png'
 })
 
@@ -300,7 +291,7 @@ print('Screenshot saved as screenshot.png')
 
 # 指定区域的截图（裁剪）
 # clip = x, y, width, height
-result = send_cmd(ws, 'Page.captureScreenshot', {
+result = await cdp(ws, 'Page.captureScreenshot', {
     'format': 'png',
     'clip': {'x': 0, 'y': 0, 'width': 800, 'height': 600, 'scale': 1}
 })
@@ -314,7 +305,7 @@ result = send_cmd(ws, 'Page.captureScreenshot', {
 
 ```python
 # 获取页面信息
-result = send_cmd(ws, 'Runtime.evaluate', {
+result = await cdp(ws, 'Runtime.evaluate', {
     'expression': 'JSON.stringify({title: document.title, url: location.href, cookies: document.cookie})',
     'returnByValue': True
 })
@@ -322,14 +313,14 @@ page_info = json.loads(result['result']['value'])
 print(page_info)
 
 # 获取元素的文本内容
-result = send_cmd(ws, 'Runtime.evaluate', {
+result = await cdp(ws, 'Runtime.evaluate', {
     'expression': 'document.querySelector("h1").innerText',
     'returnByValue': True
 })
 print(f'H1 text: {result["result"]["value"]}')
 
 # 修改页面（可以执行任何 JS 操作）
-send_cmd(ws, 'Runtime.evaluate', {
+await cdp(ws, 'Runtime.evaluate', {
     'expression': 'document.title = "被 CDP 修改的标题"',
     'returnByValue': True
 })
@@ -345,24 +336,24 @@ CDP 的 DOM 操作通过 `DOM` 域实现，使用"节点 ID"来定位元素。
 
 ```python
 # 获取文档根节点
-result = send_cmd(ws, 'DOM.getDocument')
+result = await cdp(ws, 'DOM.getDocument')
 root_node_id = result['root']['nodeId']
 
 # 通过选择器查找元素
-result = send_cmd(ws, 'DOM.querySelector', {
+result = await cdp(ws, 'DOM.querySelector', {
     'nodeId': root_node_id,
     'selector': 'div.content'
 })
 content_node_id = result['nodeId']
 
 # 获取元素的 HTML
-result = send_cmd(ws, 'DOM.getOuterHTML', {
+result = await cdp(ws, 'DOM.getOuterHTML', {
     'nodeId': content_node_id
 })
 print(f'Element HTML: {result["outerHTML"][:200]}...')
 
 # 修改元素的属性
-send_cmd(ws, 'DOM.setAttributeValue', {
+await cdp(ws, 'DOM.setAttributeValue', {
     'nodeId': content_node_id,
     'name': 'style',
     'value': 'background-color: yellow;'
@@ -377,57 +368,58 @@ send_cmd(ws, 'DOM.setAttributeValue', {
 
 ```python
 # 启用网络域
-send_cmd(ws, 'Network.enable')
+await cdp(ws, 'Network.enable')
 
-# 设置请求拦截的回调
-def on_request(event_data):
+# 存储事件回调
+event_handlers = {}
+
+def on(event_name):
+    """装饰器：注册 CDP 事件处理器"""
+    def decorator(fn):
+        event_handlers[event_name] = fn
+        return fn
+    return decorator
+
+@on('Network.requestWillBeSent')
+async def on_request(event_data):
     """每次有网络请求时被调用"""
     request = event_data['params']['request']
     url = request['url']
     method = request['method']
     print(f'[{method}] {url}')
-    
-    # 可以修改请求头
-    # 返回 {'continue': True} 表示继续请求
 
-# 注册请求事件监听
-# CDP 的事件通过 WebSocket 主动推送，需要单独处理
-import threading
-
-def event_listener(ws):
-    """后台线程：持续接收 CDP 事件"""
-    while True:
+async def event_listener(ws):
+    """后台任务：持续接收 CDP 事件"""
+    async for msg in ws:
         try:
-            msg = json.loads(ws.recv())
-            if 'method' in msg:
-                if msg['method'] == 'Network.requestWillBeSent':
-                    on_request(msg)
-                # 可以添加更多事件处理
+            data = json.loads(msg)
+            if 'method' in data:
+                handler = event_handlers.get(data['method'])
+                if handler:
+                    await handler(data)
         except Exception as e:
             print(f'Event listener error: {e}')
-            break
 
-# 启动事件监听线程
-threading.Thread(target=event_listener, args=(ws,), daemon=True).start()
+# 启动事件监听任务
+listener_task = asyncio.create_task(event_listener(ws))
 
 # 导航到页面
-send_cmd(ws, 'Page.navigate', {'url': 'https://example.com'})
+await cdp(ws, 'Page.navigate', {'url': 'https://example.com'})
 
 # ... 页面加载中，事件监听器会输出所有请求 ...
-import time
-time.sleep(5)  # 等待页面加载
+await asyncio.sleep(5)  # 等待页面加载
 ```
 
 **Network 域的高级用法**：
 
 ```python
 # 拦截特定 URL 模式
-send_cmd(ws, 'Network.setBlockedURLs', {
+await cdp(ws, 'Network.setBlockedURLs', {
     'urls': ['*.jpg', '*.png', '*.gif']   # 拦截所有图片
 })
 
 # 模拟弱网环境
-send_cmd(ws, 'Network.emulateNetworkConditions', {
+await cdp(ws, 'Network.emulateNetworkConditions', {
     'offline': False,
     'latency': 300,          # 延迟 300ms
     'downloadThroughput': 500 * 1024,   # 下载 500 KB/s
@@ -437,7 +429,7 @@ send_cmd(ws, 'Network.emulateNetworkConditions', {
 # 获取响应体
 # 首先在 Network.responseReceived 事件中拿到 requestId
 # 然后：
-result = send_cmd(ws, 'Network.getResponseBody', {
+result = await cdp(ws, 'Network.getResponseBody', {
     'requestId': request_id
 })
 print(f'Response body: {result["body"][:500]}')
@@ -449,42 +441,42 @@ print(f'Base64 encoded: {result["base64Encoded"]}')
 CDP 的 `Input` 域可以模拟鼠标点击和键盘输入，这是实现 RPA（机器人流程自动化）的关键。
 
 ```python
-def click(ws, x, y, button='left'):
+async def click(ws, x, y, button='left'):
     """在指定坐标点击"""
-    send_cmd(ws, 'Input.dispatchMouseEvent', {
+    await cdp(ws, 'Input.dispatchMouseEvent', {
         'type': 'mousePressed',
         'x': x, 'y': y,
         'button': button,
         'clickCount': 1
     })
-    send_cmd(ws, 'Input.dispatchMouseEvent', {
+    await cdp(ws, 'Input.dispatchMouseEvent', {
         'type': 'mouseReleased',
         'x': x, 'y': y,
         'button': button,
         'clickCount': 1
     })
 
-def type_text(ws, text):
+async def type_text(ws, text):
     """输入文本"""
-    send_cmd(ws, 'Input.insertText', {'text': text})
+    await cdp(ws, 'Input.insertText', {'text': text})
 
-def press_enter(ws):
+async def press_enter(ws):
     """按 Enter 键"""
-    send_cmd(ws, 'Input.dispatchKeyEvent', {
+    await cdp(ws, 'Input.dispatchKeyEvent', {
         'type': 'rawKeyDown',
         'windowsVirtualKeyCode': 13,
         'key': 'Enter'
     })
-    send_cmd(ws, 'Input.dispatchKeyEvent', {
+    await cdp(ws, 'Input.dispatchKeyEvent', {
         'type': 'keyUp',
         'windowsVirtualKeyCode': 13,
         'key': 'Enter'
     })
 
 # 使用示例：自动填写表单
-click(ws, 500, 300)          # 点击输入框
-type_text(ws, 'hello@example.com')  # 输入邮箱
-press_enter(ws)              # 提交
+await click(ws, 500, 300)          # 点击输入框
+await type_text(ws, 'hello@example.com')  # 输入邮箱
+await press_enter(ws)              # 提交
 ```
 
 ---
@@ -497,7 +489,7 @@ Selenium 和 Playwright 会在浏览器中留下自动化痕迹（如 `navigator
 
 ```python
 # 在页面加载前注入脚本，覆盖自动化特征
-send_cmd(ws, 'Page.addScriptToEvaluateOnNewDocument', {
+await cdp(ws, 'Page.addScriptToEvaluateOnNewDocument', {
     'source': '''
         // 覆盖 webdriver 属性
         Object.defineProperty(navigator, 'webdriver', {
@@ -534,7 +526,7 @@ send_cmd(ws, 'Page.addScriptToEvaluateOnNewDocument', {
 
 # 以上脚本会在每个新页面上自动执行
 # 然后再导航
-send_cmd(ws, 'Page.navigate', {'url': 'https://bot.sannysoft.com/'})
+await cdp(ws, 'Page.navigate', {'url': 'https://bot.sannysoft.com/'})
 ```
 
 > **注意**：反爬技术不断进化，这里展示的只是基础防护。实际使用时需要根据目标网站的检测机制针对性调整。
@@ -545,27 +537,33 @@ send_cmd(ws, 'Page.navigate', {'url': 'https://bot.sannysoft.com/'})
 # 监听 Target.targetCreated 事件
 # 当新窗口打开时，自动获取它的 WebSocket URL
 
-def on_target_created(event_data):
+@on('Target.targetCreated')
+async def on_target_created(event_data):
     target_info = event_data['params']['targetInfo']
     print(f'新标签页: {target_info["url"]}')
     # 可以通过 CDP_HTTP/json 获取新页面的 WebSocket URL
+    # 或用 Target.attachToTarget 命令附加到新页面
 
-# 也可以用 --remote-debugging-pipe 参数使用管道而非 WebSocket
-# 或者用 Target.attachToTarget 命令
+# 启用 Target 域以接收事件
+await cdp(ws, 'Target.setAutoAttach', {
+    'autoAttach': True,
+    'flatten': True,
+    'waitForDebuggerOnStart': False
+})
 ```
 
 ### 3. 性能追踪
 
 ```python
 # 开始性能追踪
-send_cmd(ws, 'Performance.enable')
+await cdp(ws, 'Performance.enable')
 
 # 导航
-send_cmd(ws, 'Page.navigate', {'url': 'https://example.com'})
-time.sleep(3)
+await cdp(ws, 'Page.navigate', {'url': 'https://example.com'})
+await asyncio.sleep(3)
 
 # 获取性能指标
-result = send_cmd(ws, 'Performance.getMetrics')
+result = await cdp(ws, 'Performance.getMetrics')
 metrics = {m['name']: m['value'] for m in result['metrics']}
 
 print(f'DOMContentLoaded: {metrics.get("DomContentLoaded", "N/A")} ms')
@@ -578,7 +576,7 @@ print(f'重绘次数: {metrics.get("RecalcStyleCount", "N/A")}')
 ### 4. 生成 PDF
 
 ```python
-result = send_cmd(ws, 'Page.printToPDF', {
+result = await cdp(ws, 'Page.printToPDF', {
     'paperWidth': 8.27,       # A4 宽度（英寸）
     'paperHeight': 11.69,     # A4 高度
     'marginTop': 0.4,
@@ -609,12 +607,12 @@ CDP 命令行截图工具
 用法：
     python cdp_screenshooter.py https://example.com -o screenshot.png -w 1920 -h 1080
 """
+import asyncio
 import json
 import urllib.request
-import websocket
+import websockets
 import base64
 import argparse
-import time
 
 # ========== 工具函数 ==========
 
@@ -625,57 +623,66 @@ def find_page_ws(cdp_url, pattern=''):
             return page['webSocketDebuggerUrl']
     return data[0]['webSocketDebuggerUrl'] if data else None
 
+CMD_ID = [0]
+
+async def cdp(ws, method, params=None):
+    """发送 CDP 命令并等待返回结果"""
+    CMD_ID[0] += 1
+    cmd_id = CMD_ID[0]
+    request = {'id': cmd_id, 'method': method, 'params': params or {}}
+    await ws.send(json.dumps(request))
+    async for msg in ws:
+        response = json.loads(msg)
+        if response.get('id') == cmd_id:
+            return response.get('result', {})
+
 class CDPConnection:
-    """CDP 连接封装"""
+    """CDP 连接封装（异步版）"""
     
     def __init__(self, ws_url):
-        self.ws = websocket.create_connection(ws_url, timeout=30)
-        self._id = 0
-        # 启用核心域
-        self._cmd('Page.enable')
-        self._cmd('Runtime.enable')
+        self.ws = None
+        self._ws_url = ws_url
     
-    def _cmd(self, method, params=None):
-        if params is None:
-            params = {}
-        self._id += 1
-        self.ws.send(json.dumps({'id': self._id, 'method': method, 'params': params}))
-        while True:
-            r = json.loads(self.ws.recv())
-            if r.get('id') == self._id:
-                return r.get('result', {})
+    async def __aenter__(self):
+        self.ws = await websockets.connect(self._ws_url, max_size=2**24)
+        await self.cdp('Page.enable')
+        await self.cdp('Runtime.enable')
+        return self
     
-    def navigate(self, url):
+    async def __aexit__(self, *args):
+        await self.ws.close()
+    
+    async def cdp(self, method, params=None):
+        return await cdp(self.ws, method, params)
+    
+    async def navigate(self, url):
         """导航到 URL 并等待页面加载完成"""
-        self._cmd('Page.navigate', {'url': url})
+        await self.cdp('Page.navigate', {'url': url})
         # 等待页面加载（生产环境应监听 Page.loadEventFired 事件）
-        time.sleep(3)
+        await asyncio.sleep(3)
     
-    def screenshot(self, output_path, width=1920, height=1080):
+    async def screenshot(self, output_path, width=1920, height=1080):
         """截取页面截图"""
         # 设置视口大小
-        self._cmd('Emulation.setDeviceMetricsOverride', {
+        await self.cdp('Emulation.setDeviceMetricsOverride', {
             'width': width,
             'height': height,
             'deviceScaleFactor': 1,
             'mobile': False
         })
-        time.sleep(0.5)
+        await asyncio.sleep(0.5)
         
         # 截图
-        result = self._cmd('Page.captureScreenshot', {
+        result = await self.cdp('Page.captureScreenshot', {
             'format': 'png'
         })
         
         with open(output_path, 'wb') as f:
             f.write(base64.b64decode(result['data']))
         print(f'✅ 截图已保存: {output_path} ({width}x{height})')
-    
-    def close(self):
-        self.ws.close()
 
 
-def main():
+async def main():
     parser = argparse.ArgumentParser(description='CDP 命令行截图工具')
     parser.add_argument('url', help='目标 URL')
     parser.add_argument('-o', '--output', default='screenshot.png', help='输出文件路径')
@@ -692,18 +699,17 @@ def main():
         return
     
     print(f'🔗 WebSocket: {ws_url[:60]}...')
-    cdp = CDPConnection(ws_url)
     
-    print(f'🌐 导航到: {args.url}')
-    cdp.navigate(args.url)
+    async with CDPConnection(ws_url) as cdp_conn:
+        print(f'🌐 导航到: {args.url}')
+        await cdp_conn.navigate(args.url)
+        await cdp_conn.screenshot(args.output, args.width, args.height)
     
-    cdp.screenshot(args.output, args.width, args.height)
-    cdp.close()
     print('🎉 完成！')
 
 
 if __name__ == '__main__':
-    main()
+    asyncio.run(main())
 ```
 
 使用方法：
@@ -728,7 +734,7 @@ python cdp_screenshooter.py https://example.com --pattern "login"
 #### ❌ 连接被拒绝（Connection Refused）
 
 ```
-websocket._exceptions.WebSocketBadStatusException: Handshake status 500
+websockets.exceptions.InvalidStatusCode: server rejected WebSocket connection: HTTP 500
 ```
 
 **原因**：Chrome 没有以 `--remote-debugging-port` 参数启动。
@@ -760,7 +766,7 @@ socket.timeout: timed out
 
 **解决**：改用 JavaScript 直接操作 textarea：
 ```python
-result = send_cmd(ws, 'Runtime.evaluate', {
+result = await cdp(ws, 'Runtime.evaluate', {
     'expression': '''
         (() => {
             const ta = document.querySelector('.xterm-helper-textarea');
@@ -777,7 +783,7 @@ result = send_cmd(ws, 'Runtime.evaluate', {
 ### 最佳实践总结
 
 1. **始终先 `enable` 再使用**：每个域在使用前必须先调用对应的 `enable` 方法
-2. **事件监听用独立线程**：CDP 事件通过 WebSocket 主动推送，需要另开线程处理
+2. **事件监听用异步任务**：CDP 事件通过 WebSocket 主动推送，使用 `asyncio.create_task()` 处理
 3. **合理等待页面加载**：`Page.navigate` 不会等待页面完全加载，建议监听 `Page.loadEventFired` 事件
 4. **注意内存泄漏**：每次 `Runtime.evaluate` 创建的对象引用会占用内存，用完后调用 `Runtime.releaseObject`
 5. **使用独立用户数据目录**：用 `--user-data-dir=/path/to/profile` 指定独立的浏览器配置目录，避免与日常浏览器冲突
@@ -812,6 +818,8 @@ result = send_cmd(ws, 'Runtime.evaluate', {
 ---
 
 *本文是「CDP 自动化指南」系列的开篇之作。后续将深入 CDP 爬虫实战、RPA 流程自动化、Playwright 底层原理等话题，敬请关注。*
+
+*下一篇预告：CDP 网络拦截与请求篡改实战——Python 控制 Chrome 抓包改包完全指南。*
 
 ---
 

@@ -47,18 +47,30 @@ The Performance domain provides the simplest way to obtain performance data. It 
 ### Enable and collect
 
 ```python
-def collect_performance_metrics(ws):
+CMD_ID = [0]
+async def cdp(ws, method, params=None):
+    """Send CDP command and wait for result"""
+    CMD_ID[0] += 1
+    cmd_id = CMD_ID[0]
+    request = {'id': cmd_id, 'method': method, 'params': params or {}}
+    await ws.send(json.dumps(request))
+    async for msg in ws:
+        response = json.loads(msg)
+        if response.get('id') == cmd_id:
+            return response.get('result', {})
+
+async def collect_performance_metrics(ws):
     """Capture page performance metrics"""
     
     # Enable Performance Domain
-    cmd(ws, 'Performance.enable')
+    await cdp(ws, 'Performance.enable')
     
     # Navigate to the destination page
-    cmd(ws, 'Page.navigate', {'url': 'https://example.com'})
-    time.sleep(5) # Wait for the page to fully load
+    await cdp(ws, 'Page.navigate', {'url': 'https://example.com'})
+    await asyncio.sleep(5) # Wait for the page to fully load
     
     # Get performance metrics
-    result = cmd(ws, 'Performance.getMetrics')
+    result = await cdp(ws, 'Performance.getMetrics')
     metrics = result.get('metrics', [])
     
     # Parse into dictionary
@@ -70,7 +82,7 @@ def collect_performance_metrics(ws):
 
 
 # Recall
-metrics = collect_performance_metrics(ws)
+metrics = await collect_performance_metrics(ws)
 for name, value in sorted(metrics.items()):
     print(f'{name}: {value}')
 
@@ -108,10 +120,10 @@ Core Web Vitals are three core user experience indicators defined by Google: LCP
 ### Option 1: Read through Runtime.evaluate
 
 ```python
-def collect_web_vitals_js(ws):
+async def collect_web_vitals_js(ws):
     """Capture Web Vitals via JS"""
     
-    result = cmd(ws, 'Runtime.evaluate', {
+    result = await cdp(ws, 'Runtime.evaluate', {
         'expression': '''
         (() => {
             const entries = performance.getEntriesByType('paint');
@@ -156,11 +168,11 @@ def collect_web_vitals_js(ws):
 For LCP (Largest Contentful Paint) and CLS (Cumulative Layout Shift), PerformanceObserver needs to be used to monitor:
 
 ```python
-def capture_lcp_and_cls(ws, timeout=10):
+async def capture_lcp_and_cls(ws, timeout=10):
     """Capture LCP and CLS via PerformanceObserver"""
     
     # Inject PerformanceObserver Listening Script first
-    cmd(ws, 'Runtime.evaluate', {
+    await cdp(ws, 'Runtime.evaluate', {
         'expression': '''
         window.__webVitals = {};
         
@@ -195,13 +207,13 @@ def capture_lcp_and_cls(ws, timeout=10):
     })
     
     # Navigate to the page
-    cmd(ws, 'Page.navigate', {'url': 'https://example.com'})
+    await cdp(ws, 'Page.navigate', {'url': 'https://example.com'})
     
     # Wait for the page to load
-    time.sleep(timeout)
+    await asyncio.sleep(timeout)
     
     # Collect results
-    result = cmd(ws, 'Runtime.evaluate', {
+    result = await cdp(ws, 'Runtime.evaluate', {
         'expression': 'JSON.stringify(window.__webVitals)',
         'returnByValue': True
     })
@@ -283,7 +295,7 @@ Tracing is CDP’s most powerful performance analysis function. It collects comp
 ### Start and stop Tracing
 
 ```python
-def trace_page(ws, url, categories=None, timeout=10):
+async def trace_page(ws, url, categories=None, timeout=10):
     """
     Trace page performance
     
@@ -314,38 +326,34 @@ def trace_page(ws, url, categories=None, timeout=10):
         ]
     
     # Start Tracing (use default transfer mode so data arrives via Tracing.dataCollected events)
-    cmd(ws, 'Tracing.start', {
+    await cdp(ws, 'Tracing.start', {
         'categories': ','.join(categories),
         'options': 'sampling-frequency=10000', # 10kHz sampling
     })
     
     # Navigate to the destination page
-    cmd(ws, 'Page.navigate', {'url': url})
+    await cdp(ws, 'Page.navigate', {'url': url})
     
     # Wait, then stop tracing
-    time.sleep(timeout)
-    cmd(ws, 'Tracing.end')
+    await asyncio.sleep(timeout)
+    await cdp(ws, 'Tracing.end')
     
     # Collect data from Tracing.dataCollected events
     events = []
-    start = time.time()
-    while time.time() - start < 5: # Wait up to 5 seconds for trailing data
-        try:
-            ws.settimeout(0.5)
-            msg = json.loads(ws.recv())
-            
-            method = msg.get('method', '')
-            
-            if method == 'Tracing.tracingComplete':
-                # Tracing fully completed
-                break
-            
-            if method == 'Tracing.dataCollected':
-                collected = msg['params'].get('value', [])
-                events.extend(collected)
+    try:
+        async with asyncio.timeout(5):
+            async for msg in ws:
+                data = json.loads(msg)
+                method = data.get('method', '')
                 
-        except websocket.TimeoutError:
-            continue
+                if method == 'Tracing.tracingComplete':
+                    break
+                
+                if method == 'Tracing.dataCollected':
+                    collected = data['params'].get('value', [])
+                    events.extend(collected)
+    except (asyncio.TimeoutError, Exception):
+        pass
     
     return events
 
@@ -468,39 +476,11 @@ def extract_lcp_from_trace(events):
 
 Lighthouse is a website quality audit tool officially produced by Google. While it typically runs as a standalone CLI, it can also be integrated into automated processes via CDP.
 
-### Option 1: Call the Lighthouse protocol through CDP
+> **Important**: CDP does **not** have a `Lighthouse` domain, so it is not possible to call Lighthouse directly via CDP commands. `Lighthouse.start` is NOT a standard CDP protocol method.
+>
+> The following are the two verified correct approaches:
 
-Newer versions of Chrome have built-in Lighthouse support, which can be called via CDP:
-
-```python
-def run_lighthouse_audit(ws):
-    """Run Lighthouse Audit via CDP"""
-    
-    # Enable required domains
-    cmd(ws, 'Page.enable')
-    
-    # Launch Lighthouse Audit
-    # Note: This requires Chrome's built-in Lighthouse support
-    result = cmd(ws, 'Lighthouse.start', {
-        'config': {
-            'categories': ['performance', 'accessibility', 'best-practices', 'seo'],
-            'formFactor': 'desktop',
-            'throttling': {
-                'cpuSlowdownMultiplier': 1,
-                'downloadThroughputKbps': 10000,
-                'uploadThroughputKbps': 5000,
-                'rttMs': 40
-            }
-        }
-    })
-    
-    return result
-
-```
-
-> **Note**: The `Lighthouse.start` protocol method may vary depending on Chrome version. If it is not available, you can use option 2.
-
-### Option 2: Call Lighthouse + CDP port through the command line
+### Option 1: Call Lighthouse + CDP port through the command line
 
 A more general approach is to use the Node.js Lighthouse CLI with the CDP port:
 
@@ -573,7 +553,7 @@ if 'scores' in report:
 
 ```
 
-### Option 3: Pure Python Lighthouse analysis
+### Option 2: Pure Python Lighthouse analysis
 
 If you don’t want to rely on Node.js, you can also use CDP data to calculate indicators like Lighthouse yourself:
 
@@ -606,7 +586,7 @@ def compute_performance_score(metrics):
 Integrate the above techniques into a scheduled monitoring system:
 
 ```python
-import json, urllib.request, websocket, time, os
+import asyncio, json, urllib.request, websockets, os
 from datetime import datetime
 
 class CDPPerformanceMonitor:
@@ -624,42 +604,36 @@ class CDPPerformanceMonitor:
         self.host = host
         self.log_dir = log_dir
         self.ws = None
-        self._id = 1
         os.makedirs(log_dir, exist_ok=True)
     
-    def _connect(self):
+    async def _connect(self):
         data = json.loads(
             urllib.request.urlopen(f'http://{self.host}/json', timeout=5).read()
         )
         ws_url = data[0]['webSocketDebuggerUrl']
-        self.ws = websocket.create_connection(ws_url, timeout=30)
-        self._cmd('Page.enable')
-        self._cmd('Performance.enable')
+        self.ws = await websockets.connect(ws_url, max_size=2**24)
+        await self.cdp('Page.enable')
+        await self.cdp('Performance.enable')
     
-    def _cmd(self, method, params=None):
-        if params is None: params = {}
-        self._id += 1
-        self.ws.send(json.dumps({'id': self._id, 'method': method, 'params': params}))
-        while True:
-            r = json.loads(self.ws.recv())
-            if r.get('id') == self._id: return r.get('result', {})
+    async def cdp(self, method, params=None):
+        return await cdp(self.ws, method, params)
     
-    def check_url(self, url, label=''):
+    async def check_url(self, url, label=''):
         """Check the performance of a single URL"""
         
-        self._connect()
+        await self._connect()
         
         # Navigate and wait for loading
         print(f'🔍 Checking {label or url}...')
-        self._cmd('Page.navigate', {'url': url})
-        time.sleep(5)
+        await self.cdp('Page.navigate', {'url': url})
+        await asyncio.sleep(5)
         
         # Get performance metrics
-        result = self._cmd('Performance.getMetrics')
+        result = await self.cdp('Performance.getMetrics')
         metrics = {m['name']: m['value'] for m in result.get('metrics', [])}
         
         # Get Web Vitals
-        vitals_result = self._cmd('Runtime.evaluate', {
+        vitals_result = await self.cdp('Runtime.evaluate', {
             'expression': '''
             (() => {
                 const nav = performance.getEntriesByType('navigation')[0];
@@ -707,10 +681,10 @@ class CDPPerformanceMonitor:
         with open(log_file, 'w') as f:
             json.dump(report, f, indent=2)
         
-        self.ws.close()
+        await self.ws.close()
         return report, alerts
     
-    def check_multiple(self, urls):
+    async def check_multiple(self, urls):
         """Batch check multiple URLs"""
         
         all_reports = []
@@ -718,7 +692,7 @@ class CDPPerformanceMonitor:
         
         for url, label in urls:
             try:
-                report, alerts = self.check_url(url, label)
+                report, alerts = await self.check_url(url, label)
                 all_reports.append(report)
                 if alerts:
                     all_alerts[label or url] = alerts
@@ -740,14 +714,16 @@ class CDPPerformanceMonitor:
         return all_reports
 
 
-# Usage example: Monitor your CDP tutorial station
-monitor = CDPPerformanceMonitor()
+# ====== Usage Example ======
+async def demo():
+    monitor = CDPPerformanceMonitor()
+    await monitor.check_multiple([
+        ('https://cdp.autify.cc', 'Home'),
+        ('https://cdp.autify.cc/cdp-python-automation-guide/', 'CDP Complete Guide'),
+        ('https://cdp.autify.cc/cdp-network-intercept-guide/', 'Network Intercept Guide'),
+    ])
 
-monitor.check_multiple([
-    ('https://cdp.autify.cc', 'Home'),
-    ('https://cdp.autify.cc/cdp-python-automation-guide/', 'CDP Complete Guide'),
-    ('https://cdp.autify.cc/cdp-network-intercept-guide/', 'Network Intercept Guide'),
-])
+asyncio.run(demo())
 
 
 ```
@@ -759,7 +735,7 @@ monitor.check_multiple([
 Integrate performance checks in CI/CD to prevent performance degradation:
 
 ```python
-def performance_regression_check(url, baseline_file='baseline.json'):
+async def performance_regression_check(url, baseline_file='baseline.json'):
     """
     Performance regression test: compare current results with baseline
     
@@ -778,7 +754,7 @@ def performance_regression_check(url, baseline_file='baseline.json'):
     
     # Current Test
     monitor = CDPPerformanceMonitor()
-    report, _ = monitor.check_url(url)
+    report, _ = await monitor.check_url(url)
     
     changes = {}
     passed = True
@@ -826,8 +802,8 @@ def performance_regression_check(url, baseline_file='baseline.json'):
     return passed, changes
 
 
-# Used in CI
-passed, changes = performance_regression_check('https://cdp.autify.cc/')
+# Used in CI (wrap with asyncio.run)
+passed, changes = await performance_regression_check('https://cdp.autify.cc/')
 if not passed:
     print('❌ Performance regression test failed')
     for metric, info in changes.items():
@@ -854,7 +830,7 @@ TRACING_TIMEOUT = 5 # Second
 
 # Using default transfer mode (data arrives via Tracing.dataCollected events in batches)
 # For extremely large data, switch to ReturnAsStream + IO.read
-cmd(ws, 'Tracing.start', {
+await cdp(ws, 'Tracing.start', {
     'categories': 'devtools.timeline',
     # 'transferMode': 'ReturnAsStream' # Optional: use stream mode for very large data
 })
@@ -868,13 +844,13 @@ cmd(ws, 'Tracing.start', {
 
 ```python
 # ❌ Error: Get it immediately after navigating
-cmd(ws, 'Page.navigate', {'url': url})
-metrics = cmd(ws, 'Performance.getMetrics') # Not loaded yet
+await cdp(ws, 'Page.navigate', {'url': url})
+metrics = await cdp(ws, 'Performance.getMetrics') # Not loaded yet
 
 # ✅ Correct: Wait for loading to complete
-cmd(ws, 'Page.navigate', {'url': url})
-wait_for_page_loaded(ws) # Wait for load event
-metrics = cmd(ws, 'Performance.getMetrics')
+await cdp(ws, 'Page.navigate', {'url': url})
+await wait_for_page_loaded(ws) # Wait for load event
+metrics = await cdp(ws, 'Performance.getMetrics')
 
 
 
@@ -883,17 +859,16 @@ metrics = cmd(ws, 'Performance.getMetrics')
 How to determine when the page is loaded:
 
 ```python
-def wait_for_page_loaded(ws, timeout=15):
+async def wait_for_page_loaded(ws, timeout=15):
     """Wait for page load event"""
-    start = time.time()
-    while time.time() - start < timeout:
-        try:
-            ws.settimeout(0.3)
-            msg = json.loads(ws.recv())
-            if msg.get('method') == 'Page.loadEventFired':
-                return True
-        except:
-            continue
+    try:
+        async with asyncio.timeout(timeout):
+            async for msg in ws:
+                data = json.loads(msg)
+                if data.get('method') == 'Page.loadEventFired':
+                    return True
+    except (asyncio.TimeoutError, Exception):
+        pass
     return False
 
 ```
@@ -908,7 +883,7 @@ When testing performance, network conditions need to be controlled to ensure rep
 
 ```python
 # Simulate 3G network
-cmd(ws, 'Network.emulateNetworkConditions', {
+await cdp(ws, 'Network.emulateNetworkConditions', {
     'offline': False,
     'latency': 150, # Delay 150ms
     'downloadThroughput': 750 * 1024 / 8,   # 750kbps
@@ -924,14 +899,14 @@ cmd(ws, 'Network.emulateNetworkConditions', {
 A single performance test fluctuates greatly (affected by CPU, memory, etc.). It is recommended to take the median of multiple tests:
 
 ```python
-def median_performance(url, n=5):
+async def median_performance(url, n=5):
     """Run n performance tests and take the median"""
     
     results = []
     for i in range(n):
         print(f'  Run {i+1}/{n}...')
         monitor = CDPPerformanceMonitor()
-        report, _ = monitor.check_url(url)
+        report, _ = await monitor.check_url(url)
         results.append(report['metrics'].get('ScriptDuration', 0))
     
     # Take the median
@@ -963,4 +938,10 @@ CDP’s performance analysis capabilities cover the complete chain from simple i
 | Generate optimization report | Lighthouse |
 | Continuous monitoring | Scheduled monitoring + regression testing |
 | CI/CD Quality Access Control | Regression Test + Threshold Alarm |
+
+---
+
+*Previous: CDP browser fingerprinting and anti-detection practice — using Python to modify fingerprints to bypass automated detection.*
+
+*Next up: The Complete Guide to CDP Cookie Operations — CRUD with Python & Auto-Login.*
 
