@@ -11,27 +11,18 @@
   </url>
   
   <url>
-    <loc>https://cdp.autify.cc/cdp-network-intercept-guide/</loc>
-    
-    <lastmod>2026-06-04</lastmod>
-    
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  
-  <url>
     <loc>https://cdp.autify.cc/cdp-performance-lighthouse-guide/</loc>
     
-    <lastmod>2026-06-04</lastmod>
+    <lastmod>2026-06-05</lastmod>
     
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   
   <url>
-    <loc>https://cdp.autify.cc/cdp-python-automation-guide/</loc>
+    <loc>https://cdp.autify.cc/cdp-network-intercept-guide/</loc>
     
-    <lastmod>2026-06-04</lastmod>
+    <lastmod>2026-06-05</lastmod>
     
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
@@ -40,7 +31,16 @@
   <url>
     <loc>https://cdp.autify.cc/cdp-anti-detect-guide/</loc>
     
-    <lastmod>2026-06-04</lastmod>
+    <lastmod>2026-06-05</lastmod>
+    
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>https://cdp.autify.cc/cdp-python-automation-guide/</loc>
+    
+    <lastmod>2026-06-05</lastmod>
     
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
@@ -139,7 +139,14 @@
   </url>
   
   <url>
-    <loc>https://cdp.autify.cc/tags/Network-Interception/</loc>
+    <loc>https://cdp.autify.cc/tags/Browser-Fingerprinting/</loc>
+    <lastmod>2026-06-05</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://cdp.autify.cc/tags/Anti-Detection/</loc>
     <lastmod>2026-06-05</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
@@ -147,6 +154,13 @@
   
   <url>
     <loc>https://cdp.autify.cc/tags/Web-Scraping/</loc>
+    <lastmod>2026-06-05</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://cdp.autify.cc/tags/Network-Interception/</loc>
     <lastmod>2026-06-05</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
@@ -161,20 +175,6 @@
   
   <url>
     <loc>https://cdp.autify.cc/tags/Browser-Automation/</loc>
-    <lastmod>2026-06-05</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.2</priority>
-  </url>
-  
-  <url>
-    <loc>https://cdp.autify.cc/tags/Browser-Fingerprinting/</loc>
-    <lastmod>2026-06-05</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.2</priority>
-  </url>
-  
-  <url>
-    <loc>https://cdp.autify.cc/tags/Anti-Detection/</loc>
     <lastmod>2026-06-05</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
