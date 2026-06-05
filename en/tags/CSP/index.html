@@ -1,0 +1,225 @@
+<!DOCTYPE html><html lang="en" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>Tag: CSP | CDP Automation Guide</title><meta name="author" content="John Doe"><meta name="copyright" content="John Doe"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="Chrome DevTools Protocol (CDP) tutorials — control Chrome with Python for browser automation, screenshots, network interception, anti-detection, and performance analysis.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="CDP Automation Guide">
+<meta property="og:url" content="https://cdp.autify.cc/tags/CSP/index.html">
+<meta property="og:site_name" content="CDP Automation Guide">
+<meta property="og:description" content="Chrome DevTools Protocol (CDP) tutorials — control Chrome with Python for browser automation, screenshots, network interception, anti-detection, and performance analysis.">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://cdp.autify.cc/img/avatar.png">
+<meta property="article:author" content="John Doe">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://cdp.autify.cc/img/avatar.png"><script type="application/ld+json"></script><link rel="shortcut icon" href="/en/img/favicon.png"><link rel="canonical" href="https://cdp.autify.cc/tags/CSP/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="stylesheet" href="/en/css/index.css?v=5.5.4"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/en/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":false,"highlightFullpage":true,"highlightMacStyle":true},
+  copy: {
+    success: 'Copy Successful',
+    error: 'Copy Failed',
+    noSupport: 'Browser Not Supported'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: '',
+  dateSuffix: {
+    just: 'Just now',
+    min: 'minutes ago',
+    hour: 'hours ago',
+    day: 'days ago',
+    month: 'months ago'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.13.0/dist/infinitegrid.min.js',
+    buttonText: 'Load More'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: false,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'Tag: CSP',
+  isHighlightShrink: false,
+  isToc: false,
+  pageType: 'tag'
+}</script><style>#lang-switch{display:inline-flex;align-items:center;gap:3px;height:100%;padding:0 6px;cursor:default}#lang-switch .lo{cursor:pointer;padding:2px 6px;border-radius:4px;font-size:.82em;transition:all .2s;color:var(--menu-item-color,#555)}#lang-switch .lo:hover{background:var(--text-bg-hover,rgba(0,0,0,.06))}#lang-switch .lo.on{font-weight:700;color:var(--theme-color,#49b1f5)}#lang-switch .sp{color:var(--menu-item-color,#555);opacity:.3;font-size:.75em;user-select:none}</style><meta name="generator" content="Hexo 8.1.2"><link rel="alternate" href="/en/atom.xml" title="CDP Automation Guide" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/en/img/avatar.png" onerror="this.onerror=null;this.src='/en/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/en/archives/"><div class="headline">Articles</div><div class="length-num">36</div></a><a href="/en/tags/"><div class="headline">Tags</div><div class="length-num">86</div></a><a href="/en/categories/"><div class="headline">Categories</div><div class="length-num">4</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/en/"><i class="fa-fw fas fa-home"></i><span> Home</span></a></div><div class="menus_item"><a class="site-page" href="/en/archives/"><i class="fa-fw fas fa-archive"></i><span> Archives</span></a></div><div class="menus_item"><a class="site-page" href="/en/categories/"><i class="fa-fw fas fa-folder-open"></i><span> Categories</span></a></div><div class="menus_item"><a class="site-page" href="/en/tags/"><i class="fa-fw fas fa-tags"></i><span> Tags</span></a></div><div class="menus_item"><a class="site-page" href="/en/about/"><i class="fa-fw fas fa-info-circle"></i><span> About</span></a></div></div></div></div><div class="page" id="body-wrap"><header class="not-home-page fixed" id="page-header" style="background-image: url(/en/img/default_bg.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/en/"><span class="site-name">CDP Automation Guide</span></a></span><div id="menus"><div class="menus_items"><div class="menus_item"><a class="site-page" href="/en/"><i class="fa-fw fas fa-home"></i><span> Home</span></a></div><div class="menus_item"><a class="site-page" href="/en/archives/"><i class="fa-fw fas fa-archive"></i><span> Archives</span></a></div><div class="menus_item"><a class="site-page" href="/en/categories/"><i class="fa-fw fas fa-folder-open"></i><span> Categories</span></a></div><div class="menus_item"><a class="site-page" href="/en/tags/"><i class="fa-fw fas fa-tags"></i><span> Tags</span></a></div><div class="menus_item"><a class="site-page" href="/en/about/"><i class="fa-fw fas fa-info-circle"></i><span> About</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="page-site-info"><h1 id="site-title">CSP</h1></div></header><main class="layout" id="content-inner"><div id="tag"><div class="article-sort-title">Tag - CSP</div><div class="article-sort"><div class="article-sort-item year">2026</div><div class="article-sort-item no-article-cover"><div class="article-sort-item-info"><div class="article-sort-item-time"><i class="far fa-calendar-alt"></i><time class="post-meta-date-created" datetime="2026-06-05T14:00:00.000Z" title="Created 2026-06-05 22:00:00">2026-06-05</time></div><a class="article-sort-item-title" href="/en/cdp-security-guide/" title="CDP Security &amp; Certificate Handling Guide: Manage Browser Security with Python">CDP Security &amp; Certificate Handling Guide: Manage Browser Security with Python</a></div></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/en/img/avatar.png" onerror="this.onerror=null;this.src='/en/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">John Doe</div><div class="author-info-description">Chrome DevTools Protocol Tutorial</div><div class="site-data"><a href="/en/archives/"><div class="headline">Articles</div><div class="length-num">36</div></a><a href="/en/tags/"><div class="headline">Tags</div><div class="length-num">86</div></a><a href="/en/categories/"><div class="headline">Categories</div><div class="length-num">4</div></a></div><a id="card-info-btn" target="_blank" rel="noopener" href="https://github.com/lmlx07"><i class="fab fa-github"></i><span>Follow me</span></a><div class="card-info-social-icons"><a class="social-icon" href="https://github.com/lmlx07" target="_blank" title="GitHub"><i class="fab fa-github" style="color: #24292e;"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>Announcement</span></div><div class="announcement_content">📢 CDP Automation Guide is a Chinese tech blog focused on Chrome DevTools Protocol, providing hands-on tutorials for controlling browsers with Python.</div></div><div class="sticky_layout"><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>Recent Posts</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/en/cdp-websocket-guide/" title="CDP WebSocket Debugging Guide: Intercept and Inspect WebSocket Frames with Python">CDP WebSocket Debugging Guide: Intercept and Inspect WebSocket Frames with Python</a><time datetime="2026-06-05T15:00:00.000Z" title="Created 2026-06-05 23:00:00">2026-06-05</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/en/cdp-security-guide/" title="CDP Security &amp; Certificate Handling Guide: Manage Browser Security with Python">CDP Security &amp; Certificate Handling Guide: Manage Browser Security with Python</a><time datetime="2026-06-05T14:00:00.000Z" title="Created 2026-06-05 22:00:00">2026-06-05</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/en/cdp-frame-guide/" title="CDP Frame Management Guide: Handle iframes &amp; Cross-Origin Frames with Python">CDP Frame Management Guide: Handle iframes &amp; Cross-Origin Frames with Python</a><time datetime="2026-06-05T13:00:00.000Z" title="Created 2026-06-05 21:00:00">2026-06-05</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/en/cdp-browser-history-guide/" title="CDP Browser History Management: Controlling Page Navigation with Python">CDP Browser History Management: Controlling Page Navigation with Python</a><time datetime="2026-06-05T12:00:00.000Z" title="Created 2026-06-05 20:00:00">2026-06-05</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/en/cdp-ci-cd-guide/" title="CDP CI/CD Integration Guide: Deploying Browser Automation with Docker">CDP CI/CD Integration Guide: Deploying Browser Automation with Docker</a><time datetime="2026-06-05T12:00:00.000Z" title="Created 2026-06-05 20:00:00">2026-06-05</time></div></div></div></div><div class="card-widget card-categories"><div class="item-headline">
+            <i class="fas fa-folder-open"></i>
+            <span>Categories</span>
+            
+          </div>
+          <ul class="card-category-list" id="aside-cat-list">
+            <li class="card-category-list-item "><a class="card-category-list-link" href="/en/categories/CDP-Advanced/"><span class="card-category-list-name">CDP Advanced</span><span class="card-category-list-count">31</span></a><ul class="card-category-list child"><li class="card-category-list-item "><a class="card-category-list-link" href="/en/categories/CDP-Advanced/Python-Practice/"><span class="card-category-list-name">Python Practice</span><span class="card-category-list-count">31</span></a></li></ul></li><li class="card-category-list-item "><a class="card-category-list-link" href="/en/categories/CDP-Basics/"><span class="card-category-list-name">CDP Basics</span><span class="card-category-list-count">5</span></a><ul class="card-category-list child"><li class="card-category-list-item "><a class="card-category-list-link" href="/en/categories/CDP-Basics/Python-Practice/"><span class="card-category-list-name">Python Practice</span><span class="card-category-list-count">5</span></a></li></ul></li>
+          </ul></div><div class="card-widget card-tags"><div class="item-headline"><i class="fas fa-tags"></i><span>Tags</span></div><div class="card-tag-cloud"><a href="/en/tags/Debugging/" style="font-size: 1.1em; color: #999">Debugging</a> <a href="/en/tags/Media-Debugging/" style="font-size: 1.1em; color: #999">Media Debugging</a> <a href="/en/tags/Screenshot/" style="font-size: 1.1em; color: #999">Screenshot</a> <a href="/en/tags/File-Upload/" style="font-size: 1.1em; color: #999">File Upload</a> <a href="/en/tags/WCAG/" style="font-size: 1.1em; color: #999">WCAG</a> <a href="/en/tags/Network-Debugging/" style="font-size: 1.1em; color: #999">Network Debugging</a> <a href="/en/tags/Automation/" style="font-size: 1.1em; color: #999">Automation</a> <a href="/en/tags/Input-Simulation/" style="font-size: 1.1em; color: #999">Input Simulation</a> <a href="/en/tags/WebRTC/" style="font-size: 1.1em; color: #999">WebRTC</a> <a href="/en/tags/Selenium/" style="font-size: 1.1em; color: #999">Selenium</a> <a href="/en/tags/Protocol-Extension/" style="font-size: 1.1em; color: #999">Protocol Extension</a> <a href="/en/tags/LCP/" style="font-size: 1.1em; color: #999">LCP</a> <a href="/en/tags/DOM/" style="font-size: 1.1em; color: #999">DOM</a> <a href="/en/tags/Popup-Handling/" style="font-size: 1.1em; color: #999">Popup Handling</a> <a href="/en/tags/CSP/" style="font-size: 1.1em; color: #999">CSP</a> <a href="/en/tags/Touch-Events/" style="font-size: 1.1em; color: #999">Touch Events</a> <a href="/en/tags/Playwright/" style="font-size: 1.3em; color: #99a1ac">Playwright</a> <a href="/en/tags/Memory/" style="font-size: 1.1em; color: #999">Memory</a> <a href="/en/tags/Chrome-DevTools-Protocol/" style="font-size: 1.5em; color: #99a9bf">Chrome DevTools Protocol</a> <a href="/en/tags/Deployment/" style="font-size: 1.1em; color: #999">Deployment</a> <a href="/en/tags/Multi-Tab/" style="font-size: 1.1em; color: #999">Multi-Tab</a> <a href="/en/tags/Performance-Testing/" style="font-size: 1.1em; color: #999">Performance Testing</a> <a href="/en/tags/File-Download/" style="font-size: 1.1em; color: #999">File Download</a> <a href="/en/tags/Permissions/" style="font-size: 1.1em; color: #999">Permissions</a> <a href="/en/tags/Storage/" style="font-size: 1.1em; color: #999">Storage</a> <a href="/en/tags/WebSocket/" style="font-size: 1.1em; color: #999">WebSocket</a> <a href="/en/tags/a11y/" style="font-size: 1.1em; color: #999">a11y</a> <a href="/en/tags/Anti-Detection/" style="font-size: 1.3em; color: #99a1ac">Anti-Detection</a> <a href="/en/tags/Offline-Capabilities/" style="font-size: 1.1em; color: #999">Offline Capabilities</a> <a href="/en/tags/Security/" style="font-size: 1.1em; color: #999">Security</a> <a href="/en/tags/Profiling/" style="font-size: 1.1em; color: #999">Profiling</a> <a href="/en/tags/LocalStorage/" style="font-size: 1.1em; color: #999">LocalStorage</a> <a href="/en/tags/Leak-Detection/" style="font-size: 1.1em; color: #999">Leak Detection</a> <a href="/en/tags/JavaScript-Debugging/" style="font-size: 1.1em; color: #999">JavaScript Debugging</a> <a href="/en/tags/Dialog/" style="font-size: 1.1em; color: #999">Dialog</a> <a href="/en/tags/Background-Sync/" style="font-size: 1.1em; color: #999">Background Sync</a> <a href="/en/tags/Web-Worker/" style="font-size: 1.1em; color: #999">Web Worker</a> <a href="/en/tags/Distributed/" style="font-size: 1.1em; color: #999">Distributed</a> <a href="/en/tags/CLS/" style="font-size: 1.1em; color: #999">CLS</a> <a href="/en/tags/Offline-Cache/" style="font-size: 1.1em; color: #999">Offline Cache</a></div></div><div class="card-widget card-archives">
+    <div class="item-headline">
+      <i class="fas fa-archive"></i>
+      <span>Archives</span>
+      
+    </div>
+  
+    <ul class="card-archive-list">
+      
+        <li class="card-archive-list-item">
+          <a class="card-archive-list-link" href="/en/archives/2026/06/">
+            <span class="card-archive-list-date">
+              2026年06月
+            </span>
+            <span class="card-archive-list-count">36</span>
+          </a>
+        </li>
+      
+    </ul>
+  </div><div class="card-widget card-webinfo"><div class="item-headline"><i class="fas fa-chart-line"></i><span>Website Info</span></div><div class="webinfo"><div class="webinfo-item"><div class="item-name">Article Count :</div><div class="item-count">36</div></div><div class="webinfo-item"><div class="item-name">Unique Visitors :</div><div class="item-count" id="busuanzi_value_site_uv"><i class="fa-solid fa-spinner fa-spin"></i></div></div><div class="webinfo-item"><div class="item-name">Page Views :</div><div class="item-count" id="busuanzi_value_site_pv"><i class="fa-solid fa-spinner fa-spin"></i></div></div><div class="webinfo-item"><div class="item-name">Last Update :</div><div class="item-count" id="last-push-date" data-lastPushDate="2026-06-05T06:46:32.723Z"><i class="fa-solid fa-spinner fa-spin"></i></div></div></div></div></div></div></main><footer id="footer"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2026 By John Doe</span><span class="framework-info"><span>Framework </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>Theme </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div><div class="footer_custom_text">🚀 CDP Automation Guide</div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="darkmode" type="button" title="Toggle Between Light and Dark Mode"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="Toggle Between Single-column and Double-column"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="Settings"><i class="fas fa-cog fa-spin"></i></button><button id="go-up" type="button" title="Back to Top"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/en/js/utils.js?v=5.5.4"></script><script src="/en/js/main.js?v=5.5.4"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"></div><div id="lang-switch"><span class="lo" data-lang="zh-CN">中文</span><span class="sp">|</span><span class="lo" data-lang="en">EN</span></div><script>!function(){var H='<span class="lo" data-lang="zh-CN">中文</span><span class="sp">|</span><span class="lo" data-lang="en">EN</span>';function E(){var e=document.getElementById("lang-switch")||function(){var e=document.createElement("div");return e.id="lang-switch",e.style.display="inline-flex",e.innerHTML=H,e}();var n=window.location.pathname.startsWith("/en");e.querySelectorAll(".lo").forEach(function(e){e.classList.toggle("on",n?e.dataset.lang==="en":e.dataset.lang==="zh-CN")}),e.removeEventListener("click",e._l),e._l=function(t){var o=(t=t||window.event).target.closest(".lo");if(!o)return;var l=o.dataset.lang;if(l==="en"&&!n){var a=window.location.pathname.replace(/\/$/,"")||"";window.location.href="/en"+a+window.location.search}else if(l==="zh-CN"&&n){var i=window.location.pathname.replace(/^\/en/,"").replace(/\/$/,"")||"/";window.location.href=i+window.location.search}},e.addEventListener("click",e._l)}function I(){var e=document.getElementById("lang-switch")||function(){var e=document.createElement("div");return e.id="lang-switch",e.style.display="inline-flex",e.innerHTML=H,e}();var t=document.querySelector("#nav .menus_items");if(!t||t.contains(e))return;var n=document.createElement("li");n.className="menus_item",n.appendChild(e),t.appendChild(n)}E(),setTimeout(I,300),document.addEventListener("pjax:complete",function(){setTimeout(I,300),setTimeout(E,500)})}();</script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js" defer="defer"></script><script>document.addEventListener('DOMContentLoaded', () => {
+  const pjaxSelectors = ["meta[property=\"og:image\"]","meta[property=\"og:title\"]","meta[property=\"og:url\"]","meta[property=\"og:description\"]","link[rel=\"canonical\"]","head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      false
+        ? pjax.loadUrl('/en/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})</script><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script></div></body></html>
