@@ -411,37 +411,52 @@ def crawl_spa():
     
     captured_data = []
     
-    def handle_network(msg):
+    def handle_response(msg):
+        """Process a single network response message"""
         params = msg.get('params', {})
-        method = msg.get('method', '')
+        if msg.get('method') != 'Network.responseReceived':
+            return
         
-        if method == 'Network.responseReceived':
-            resp = params['response']
-            url = resp['url']
-            
-            # Identify API requests (based on URL characteristics)
-            if '/api/' in url or '/graphql' in url:
-                request_id = params['requestId']
-                
-                # Get Response Body
-                result = cmd(ws, 'Network.getResponseBody', {
-                    'requestId': request_id
-                })
-                
-                if 'body' in result:
-                    body = result['body']
-                    print(f'📦 Captured API: {url[:50]}')
-                    print(f'   Data size: {len(body)} bytes')
-                    captured_data.append({
-                        'url': url,
-                        'body': body[:500] # Only the first 500 characters are saved
-                    })
+        resp = params['response']
+        url = resp['url']
+        
+        # Identify API requests (based on URL characteristics)
+        if '/api/' not in url and '/graphql' not in url:
+            return
+        
+        request_id = params['requestId']
+        
+        # Get Response Body
+        result = cmd(ws, 'Network.getResponseBody', {
+            'requestId': request_id
+        })
+        
+        if 'body' in result:
+            body = result['body']
+            print(f'📦 Captured API: {url[:50]}')
+            print(f'   Data size: {len(body)} bytes')
+            captured_data.append({
+                'url': url,
+                'body': body[:500] # Only the first 500 characters are saved
+            })
+    
+    def process_events(duration):
+        """Process WebSocket messages (blocking, up to duration seconds)"""
+        end = time.time() + duration
+        while time.time() < end:
+            try:
+                ws.settimeout(0.3)
+                msg = json.loads(ws.recv())
+                handle_response(msg)
+            except websocket.TimeoutError:
+                continue
     
     # Navigation
     cmd(ws, 'Network.enable')
     cmd(ws, 'Page.navigate', {'url': 'https://example-spa.com/list'})
     
-    time.sleep(3) # Wait for page to load
+    # Wait for page load and capture initial requests
+    process_events(3)
     
     # Mock Page Turn: Click the "Next" button
     cmd(ws, 'Runtime.evaluate', {
@@ -449,7 +464,8 @@ def crawl_spa():
         'returnByValue': True
     })
     
-    time.sleep(2)
+    # Capture API responses after page turn
+    process_events(2)
     
     # Turn another page
     cmd(ws, 'Runtime.evaluate', {
@@ -457,7 +473,7 @@ def crawl_spa():
         'returnByValue': True
     })
     
-    time.sleep(2)
+    process_events(2)
     
     return captured_data
 

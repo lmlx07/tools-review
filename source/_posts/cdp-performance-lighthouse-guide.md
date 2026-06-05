@@ -320,30 +320,31 @@ def trace_page(ws, url, categories=None, timeout=10):
             'navigation',
         ]
     
-    # 启动 Tracing
+    # 启动 Tracing（使用默认传输模式，让数据通过 Tracing.dataCollected 事件发送）
     cmd(ws, 'Tracing.start', {
         'categories': ','.join(categories),
         'options': 'sampling-frequency=10000',  # 10kHz 采样
-        'transferMode': 'ReturnAsStream'  # 用流返回，避免单次数据过大
     })
     
     # 导航到目标页面
     cmd(ws, 'Page.navigate', {'url': url})
     
-    # 等待并采集追踪数据
+    # 等待一段时间，然后停止 Tracing
+    time.sleep(timeout)
+    cmd(ws, 'Tracing.end')
+    
+    # 采集 Tracing.dataCollected 事件中的数据
     events = []
     start = time.time()
-    stream_handle = None
-    
-    while time.time() - start < timeout:
+    while time.time() - start < 5:  # 最多再等 5 秒收尾数据
         try:
-            ws.settimeout(0.3)
+            ws.settimeout(0.5)
             msg = json.loads(ws.recv())
             
             method = msg.get('method', '')
             
             if method == 'Tracing.tracingComplete':
-                stream_handle = msg['params']['stream']
+                # Tracing 已全部完成
                 break
             
             if method == 'Tracing.dataCollected':
@@ -352,9 +353,6 @@ def trace_page(ws, url, categories=None, timeout=10):
                 
         except websocket.TimeoutError:
             continue
-    
-    # 停止 Tracing
-    cmd(ws, 'Tracing.end')
     
     return events
 ```
@@ -650,7 +648,7 @@ class CDPPerformanceMonitor:
         
         # 导航并等待加载
         print(f'🔍 Checking {label or url}...')
-        cmd(ws, 'Page.navigate', {'url': url})
+        self._cmd('Page.navigate', {'url': url})
         time.sleep(5)
         
         # 获取性能指标
@@ -847,11 +845,11 @@ else:
 # 限制 Tracing 时长
 TRACING_TIMEOUT = 5  # 秒
 
-# 使用流模式传输（transferMode=ReturnAsStream）
-# 而不是默认的逐个事件发送
+# 使用默认传输模式（数据通过 Tracing.dataCollected 事件逐批发送）
+# 如果数据量过大，也可以改用 ReturnAsStream 模式配合 IO.read 读取
 cmd(ws, 'Tracing.start', {
     'categories': 'devtools.timeline',
-    'transferMode': 'ReturnAsStream'  # 推荐
+    # 'transferMode': 'ReturnAsStream'  # 可选：数据量极大时用流模式
 })
 ```
 

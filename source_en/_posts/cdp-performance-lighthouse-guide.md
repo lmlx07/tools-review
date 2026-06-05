@@ -313,30 +313,31 @@ def trace_page(ws, url, categories=None, timeout=10):
             'navigation',
         ]
     
-    # Start Tracing
+    # Start Tracing (use default transfer mode so data arrives via Tracing.dataCollected events)
     cmd(ws, 'Tracing.start', {
         'categories': ','.join(categories),
         'options': 'sampling-frequency=10000', # 10kHz sampling
-        'transferMode': 'ReturnAsStream' # Use streams to return data to avoid too large a single data
     })
     
     # Navigate to the destination page
     cmd(ws, 'Page.navigate', {'url': url})
     
-    # Wait and collect tracking data
+    # Wait, then stop tracing
+    time.sleep(timeout)
+    cmd(ws, 'Tracing.end')
+    
+    # Collect data from Tracing.dataCollected events
     events = []
     start = time.time()
-    stream_handle = None
-    
-    while time.time() - start < timeout:
+    while time.time() - start < 5: # Wait up to 5 seconds for trailing data
         try:
-            ws.settimeout(0.3)
+            ws.settimeout(0.5)
             msg = json.loads(ws.recv())
             
             method = msg.get('method', '')
             
             if method == 'Tracing.tracingComplete':
-                stream_handle = msg['params']['stream']
+                # Tracing fully completed
                 break
             
             if method == 'Tracing.dataCollected':
@@ -345,9 +346,6 @@ def trace_page(ws, url, categories=None, timeout=10):
                 
         except websocket.TimeoutError:
             continue
-    
-    # Stop Tracing
-    cmd(ws, 'Tracing.end')
     
     return events
 
@@ -653,7 +651,7 @@ class CDPPerformanceMonitor:
         
         # Navigate and wait for loading
         print(f'🔍 Checking {label or url}...')
-        cmd(ws, 'Page.navigate', {'url': url})
+        self._cmd('Page.navigate', {'url': url})
         time.sleep(5)
         
         # Get performance metrics
@@ -854,11 +852,11 @@ A 10-second Tracing may generate 100,000+ events, which takes up a lot of memory
 # Limit Tracing Duration
 TRACING_TIMEOUT = 5 # Second
 
-# Use streaming mode transfer (transferMode = ReturnAsStream)
-# instead of the default event-by-event send
+# Using default transfer mode (data arrives via Tracing.dataCollected events in batches)
+# For extremely large data, switch to ReturnAsStream + IO.read
 cmd(ws, 'Tracing.start', {
     'categories': 'devtools.timeline',
-    'transferMode': 'ReturnAsStream' # recommend
+    # 'transferMode': 'ReturnAsStream' # Optional: use stream mode for very large data
 })
 
 

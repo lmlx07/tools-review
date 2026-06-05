@@ -290,9 +290,7 @@ import base64
 
 # 全页截图
 result = send_cmd(ws, 'Page.captureScreenshot', {
-    'format': 'png',
-    'quality': 80,
-    'fromSurface': True
+    'format': 'png'
 })
 
 with open('screenshot.png', 'wb') as f:
@@ -666,8 +664,7 @@ class CDPConnection:
         
         # 截图
         result = self._cmd('Page.captureScreenshot', {
-            'format': 'png',
-            'fromSurface': True
+            'format': 'png'
         })
         
         with open(output_path, 'wb') as f:

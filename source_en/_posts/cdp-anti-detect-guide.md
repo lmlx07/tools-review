@@ -192,28 +192,30 @@ def stealth_webdriver(ws):
     """Hide webdriver traces in depth"""
     cmd(ws, 'Page.addScriptToEvaluateOnNewDocument', {
         'source': '''
-        // Hide webdriver with proxy
-        const originalNavigator = window.navigator;
-        const navigatorProxy = new Proxy(originalNavigator, {
-            get(target, prop) {
-                if (prop === 'webdriver') return undefined;
-                if (prop === 'plugins' && target.plugins.length === 0) {
-                    // Simulate several plugins
-                    return {
-                        ...target.plugins,
-                        length: 3,
-                        0: {name: 'Chrome PDF Plugin'},
-                        1: {name: 'Chrome PDF Viewer'},
-                        2: {name: 'Native Client'}
-                    };
-                }
-                return target[prop];
-            }
+        // ⚠️ Note: window.navigator is read-only and cannot be replaced with a Proxy.
+        // The correct approach is to manipulate the Navigator prototype:
+
+        // 1. Override webdriver (defineProperty creates an own property on navigator
+        //    that shadows the prototype getter)
+        Object.defineProperty(navigator, 'webdriver', {
+            get: () => undefined,
+            configurable: true
         });
-        
-        // Replace navigator with proxy
-        // Note: This method is more aggressive and may be tested
-        // But actually, the simpler way is enough.
+
+        // 2. Manually simulate the plugins array (automated browsers usually have length 0)
+        if (navigator.plugins.length === 0) {
+            const fakePlugins = [
+                {name: 'Chrome PDF Plugin', filename: 'internal-pdf-viewer'},
+                {name: 'Chrome PDF Viewer', filename: 'mhjfbmdgcfjbbpaeojofohoefgiehjai'},
+                {name: 'Native Client', filename: 'internal-nacl-plugin'},
+            ];
+            fakePlugins.item = i => fakePlugins[i];
+            fakePlugins.namedItem = n => fakePlugins.find(p => p.name === n);
+            Object.defineProperty(navigator, 'plugins', {
+                get: () => fakePlugins,
+                configurable: true
+            });
+        }
         '''
     })
 

@@ -73,6 +73,14 @@ async def send_cdp_command(ws, cmd_id, method, params=None):
         if resp.get("id") == cmd_id:
             return resp.get("result", {})
 
+
+async def wait_response(ws, cmd_id):
+    """Wait for a CDP response with the given ID"""
+    async for msg in ws:
+        resp = json.loads(msg)
+        if resp.get("id") == cmd_id:
+            return resp.get("result", {})
+
 async def main():
     async with websockets.connect(CDP_URL) as ws:
         # Get a page target

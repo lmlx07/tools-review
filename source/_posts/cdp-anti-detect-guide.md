@@ -198,28 +198,29 @@ def stealth_webdriver(ws):
     """深度隐藏 webdriver 痕迹"""
     cmd(ws, 'Page.addScriptToEvaluateOnNewDocument', {
         'source': '''
-        // 使用 Proxy 隐藏 webdriver
-        const originalNavigator = window.navigator;
-        const navigatorProxy = new Proxy(originalNavigator, {
-            get(target, prop) {
-                if (prop === 'webdriver') return undefined;
-                if (prop === 'plugins' && target.plugins.length === 0) {
-                    // 模拟几个插件
-                    return {
-                        ...target.plugins,
-                        length: 3,
-                        0: {name: 'Chrome PDF Plugin'},
-                        1: {name: 'Chrome PDF Viewer'},
-                        2: {name: 'Native Client'}
-                    };
-                }
-                return target[prop];
-            }
+        // ⚠️ 注意：window.navigator 是只读属性，无法用 Proxy 替换。
+        // 正确的方式是在 Navigator 原型上做手脚：
+
+        // 1. 覆盖 webdriver 属性（用 defineProperty 在 navigator 上创建自有属性来遮蔽原型链上的 getter）
+        Object.defineProperty(navigator, 'webdriver', {
+            get: () => undefined,
+            configurable: true
         });
-        
-        // 用 Proxy 替换 navigator
-        // 注意：这种方法更激进，可能会被检测
-        // 但实际上，更简单的方式就够用
+
+        // 2. 手动模拟 plugins 数组（自动化浏览器通常长度为 0）
+        if (navigator.plugins.length === 0) {
+            const fakePlugins = [
+                {name: 'Chrome PDF Plugin', filename: 'internal-pdf-viewer'},
+                {name: 'Chrome PDF Viewer', filename: 'mhjfbmdgcfjbbpaeojofohoefgiehjai'},
+                {name: 'Native Client', filename: 'internal-nacl-plugin'},
+            ];
+            fakePlugins.item = i => fakePlugins[i];
+            fakePlugins.namedItem = n => fakePlugins.find(p => p.name === n);
+            Object.defineProperty(navigator, 'plugins', {
+                get: () => fakePlugins,
+                configurable: true
+            });
+        }
         '''
     })
 ```

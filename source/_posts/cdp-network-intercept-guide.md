@@ -414,38 +414,54 @@ def crawl_spa():
     """抓取 SPA 页面的 API 数据"""
     
     captured_data = []
+    start_time = time.time()
     
-    def handle_network(msg):
+    def handle_response(msg):
+        """处理单个网络响应消息"""
         params = msg.get('params', {})
-        method = msg.get('method', '')
+        if msg.get('method') != 'Network.responseReceived':
+            return
         
-        if method == 'Network.responseReceived':
-            resp = params['response']
-            url = resp['url']
-            
-            # 识别 API 请求（根据 URL 特征）
-            if '/api/' in url or '/graphql' in url:
-                request_id = params['requestId']
-                
-                # 获取响应体
-                result = cmd(ws, 'Network.getResponseBody', {
-                    'requestId': request_id
-                })
-                
-                if 'body' in result:
-                    body = result['body']
-                    print(f'📦 Captured API: {url[:50]}')
-                    print(f'   Data size: {len(body)} bytes')
-                    captured_data.append({
-                        'url': url,
-                        'body': body[:500]  # 只保存前 500 字符
-                    })
+        resp = params['response']
+        url = resp['url']
+        
+        # 识别 API 请求（根据 URL 特征）
+        if '/api/' not in url and '/graphql' not in url:
+            return
+        
+        request_id = params['requestId']
+        
+        # 获取响应体
+        result = cmd(ws, 'Network.getResponseBody', {
+            'requestId': request_id
+        })
+        
+        if 'body' in result:
+            body = result['body']
+            print(f'📦 Captured API: {url[:50]}')
+            print(f'   Data size: {len(body)} bytes')
+            captured_data.append({
+                'url': url,
+                'body': body[:500]
+            })
+    
+    def process_events(duration):
+        """持续处理 WebSocket 消息（阻塞，最多 duration 秒）"""
+        end = time.time() + duration
+        while time.time() < end:
+            try:
+                ws.settimeout(0.3)
+                msg = json.loads(ws.recv())
+                handle_response(msg)
+            except websocket.TimeoutError:
+                continue
     
     # 导航
     cmd(ws, 'Network.enable')
     cmd(ws, 'Page.navigate', {'url': 'https://example-spa.com/list'})
     
-    time.sleep(3)  # 等待页面加载
+    # 等待页面加载并捕获初始请求
+    process_events(3)
     
     # 模拟翻页：点击"下一页"按钮
     cmd(ws, 'Runtime.evaluate', {
@@ -453,7 +469,8 @@ def crawl_spa():
         'returnByValue': True
     })
     
-    time.sleep(2)
+    # 捕获翻页后的 API 响应
+    process_events(2)
     
     # 再翻一页
     cmd(ws, 'Runtime.evaluate', {
@@ -461,7 +478,7 @@ def crawl_spa():
         'returnByValue': True
     })
     
-    time.sleep(2)
+    process_events(2)
     
     return captured_data
 ```
