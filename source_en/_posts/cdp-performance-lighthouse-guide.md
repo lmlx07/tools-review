@@ -941,7 +941,11 @@ CDP’s performance analysis capabilities cover the complete chain from simple i
 
 ---
 
-*Previous: CDP browser fingerprinting and anti-detection practice — using Python to modify fingerprints to bypass automated detection.*
 
-*Next up: The Complete Guide to CDP Cookie Operations — CRUD with Python & Auto-Login.*
 
+
+
+
+*Previous: CDP browser fingerprinting and anti-detection practice: using Python to modify fingerprints to bypass automated detection*
+
+*Next up: The Complete Guide to CDP Cookie Operations: CRUD with Python & Auto-Login*

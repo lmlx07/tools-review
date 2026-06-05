@@ -586,6 +586,6 @@ async with websockets.connect(CDP_URL) as ws:
 
 ---
 
-*Previous: CDP Network Condition Emulation Guide — control bandwidth, latency & offline with Python.*
+*Previous: CDP Network Condition Emulation Guide: Control Bandwidth, Latency & Offline with Python*
 
-*Next up: CDP Screenshot & PDF Export — generating precise page screenshots and PDF reports in Python.*
+*Next up: CDP Screenshot & PDF Export Guide: Generate Precise Page Snapshots with Python*

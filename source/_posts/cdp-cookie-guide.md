@@ -557,6 +557,10 @@ async with websockets.connect(CDP_URL) as ws:
 
 ---
 
-*上一篇回顾：CDP 性能追踪与 Lighthouse 集成——用 Python 测量 Web Vitals 与自动化性能审计。*
 
-*下一篇预告：CDP 监听 DOM 变化——实时追踪页面元素的新增、删除和修改。*
+
+
+
+*上一篇回顾：CDP 性能追踪与 Lighthouse 集成：用 Python 测量 Web Vitals 与自动化性能审计。*
+
+*下一篇预告：CDP DOM 操作完全指南：用 Python 实时监听与操纵页面元素。*

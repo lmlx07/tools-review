@@ -766,6 +766,6 @@ async with websockets.connect(CDP_URL) as ws:
 
 ---
 
-*上一篇回顾：CDP 移动设备模拟指南——用 Python 调试移动端页面。*
+*上一篇回顾：CDP 移动设备模拟指南：用 Python 调试移动端页面。*
 
-*下一篇预告：CDP Console 调试与日志——如何捕获页面控制台消息和运行时异常。*
+*下一篇预告：CDP Console 调试指南：用 Python 捕获页面日志与异常。*

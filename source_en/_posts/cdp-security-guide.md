@@ -366,6 +366,6 @@ async with websockets.connect(CDP_URL) as ws:
 
 ---
 
-*Previous: CDP Frame Management Guide — handle iframes & cross-origin frames with Python.*
+*Previous: CDP Frame Management Guide: Handle iframes & Cross-Origin Frames with Python*
 
-*Next up: CDP WebSocket Debugging — intercepting and inspecting WebSocket frames.*
+*Next up: CDP WebSocket Debugging Guide: Intercept and Inspect WebSocket Frames with Python*

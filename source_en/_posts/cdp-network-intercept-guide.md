@@ -887,6 +887,9 @@ CDP’s network blocking capabilities make it one of the most powerful solutions
 - **The combination of the two** can realize the complete "request → modify → get response" process
 - **No proxy server required**, native Chrome support
 
-*Previous: The Complete Guide to Chrome DevTools Protocol (CDP) — the ultimate solution to controlling your browser with Python.*
 
-*Next up: CDP browser fingerprinting and anti-detection practice — using Python to modify fingerprints to bypass automated detection.*
+
+
+*Previous: The Complete Guide to Chrome DevTools Protocol (CDP): The Ultimate Solution to Controlling Your Browser with Python*
+
+*Next up: CDP browser fingerprinting and anti-detection practice: using Python to modify fingerprints to bypass automated detection*

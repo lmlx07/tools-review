@@ -809,6 +809,9 @@ CDP provides rich fingerprint modification capabilities, which are enough to cop
 | Advanced level (banking/risk control) | Desktop preset + behavioral simulation |
 | Enterprise Grade (Cloudflare/Akamai) | All of the above + TLS fingerprinting |
 
-*Previous: CDP network interception and request tampering practice — a complete guide to controlling Chrome packet capture and modification with Python.*
 
-*Next up: CDP Performance Tracking and Lighthouse Integration — measuring Web Vitals and automating performance auditing with Python.*
+
+
+*Previous: CDP network interception and request tampering practice: A complete guide to controlling Chrome packet capture and modification with Python*
+
+*Next up: CDP Performance Tracking and Lighthouse Integration: Measuring Web Vitals and Automating Performance Auditing with Python*

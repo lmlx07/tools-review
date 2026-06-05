@@ -644,6 +644,6 @@ async with websockets.connect(CDP_URL) as ws:
 
 ---
 
-*Previous: CDP Security & Certificate Handling Guide — manage browser security with Python.*
+*Previous: CDP Security & Certificate Handling Guide: Manage Browser Security with Python*
 
-*This is the last article in the CDP tutorial series. Ten articles cover the complete technology stack from basic automation to advanced debugging. Happy coding! 🚀*
+*Next up: CDP Event System Guide: Listening to Browser Events with Python*

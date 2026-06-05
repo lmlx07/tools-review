@@ -688,6 +688,6 @@ async with websockets.connect(CDP_URL) as ws:
 
 ---
 
-*上一篇回顾：CDP 网络条件模拟指南——用 Python 控制带宽、延迟与离线状态。*
+*上一篇回顾：CDP 网络条件模拟指南：用 Python 控制带宽、延迟与离线状态。*
 
-*下一篇预告：CDP 截图与 PDF 导出——如何在 Python 中生成精确的页面截图和 PDF 报告。*
+*下一篇预告：CDP 截图与 PDF 导出指南：用 Python 生成精确页面快照。*

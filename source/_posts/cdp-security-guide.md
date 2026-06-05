@@ -582,6 +582,6 @@ async with websockets.connect(CDP_URL) as ws:
 
 ---
 
-*上一篇回顾：CDP Frame 管理指南——用 Python 处理 iframe 与跨域框架。*
+*上一篇回顾：CDP Frame 管理指南：用 Python 处理 iframe 与跨域框架。*
 
-*下一篇预告：CDP WebSocket 调试——如何拦截和检查 WebSocket 帧。*
+*下一篇预告：CDP WebSocket 调试指南：用 Python 拦截与检查 WebSocket 帧。*

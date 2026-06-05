@@ -571,6 +571,6 @@ async with websockets.connect(CDP_URL) as ws:
 
 ---
 
-*Previous: The Complete Guide to CDP DOM Operations — real-time observation & manipulation with Python.*
+*Previous: The Complete Guide to CDP DOM Operations: Real-Time Observation & Manipulation with Python*
 
-*Next up: CDP Mobile Device Emulation — debugging mobile pages, simulating touch events and geolocation.*
+*Next up: CDP Mobile Device Emulation Guide: Debug Mobile Pages with Python*

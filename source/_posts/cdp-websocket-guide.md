@@ -643,6 +643,6 @@ async with websockets.connect(CDP_URL) as ws:
 
 ---
 
-*上一篇回顾：CDP 安全与证书处理指南——用 Python 管理浏览器安全策略。*
+*上一篇回顾：CDP 安全与证书处理指南：用 Python 管理浏览器安全策略。*
 
-*这是 CDP 系列教程的最后一篇。十篇文章覆盖了从基础自动化到高级调试的完整技术栈。Happy coding! 🚀*
+*下一篇预告：CDP 事件系统指南：用 Python 监听浏览器事件。*

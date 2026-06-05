@@ -653,6 +653,6 @@ async with websockets.connect(CDP_URL) as ws:
 
 ---
 
-*上一篇回顾：CDP 截图与 PDF 导出指南——用 Python 生成精确页面快照。*
+*上一篇回顾：CDP 截图与 PDF 导出指南：用 Python 生成精确页面快照。*
 
-*下一篇预告：CDP 存储操作指南——如何操作 LocalStorage、IndexedDB 和 CacheStorage。*
+*下一篇预告：CDP 存储操作指南：用 Python 管理 LocalStorage、IndexedDB 与缓存。*

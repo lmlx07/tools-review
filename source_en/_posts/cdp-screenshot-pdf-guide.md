@@ -613,6 +613,6 @@ async with websockets.connect(CDP_URL) as ws:
 
 ---
 
-*Previous: CDP Mobile Device Emulation Guide — debug mobile pages with Python.*
+*Previous: CDP Mobile Device Emulation Guide: Debug Mobile Pages with Python*
 
-*Next up: CDP Console Debugging — capturing page console messages and runtime exceptions.*
+*Next up: CDP Console Debugging Guide: Capture Page Logs & Exceptions with Python*

@@ -822,7 +822,7 @@ Through this article, you have mastered the core concepts and practical skills o
 
 *This article is the first in the "CDP Automation Guide" series. In the follow-up, we will delve into topics such as CDP crawler practice, RPA process automation, and the underlying principles of Playwright, so stay tuned. *
 
-*Next up: CDP network interception and request tampering practice — a complete guide to controlling Chrome packet capture and modification with Python.*
+
 
 ---
 
@@ -831,3 +831,5 @@ Through this article, you have mastered the core concepts and practical skills o
 <!-- Share button area (to be added) -->
 
 **Have any questions or suggestions? ** Welcome to leave a message in the comment area for discussion, or submit a [GitHub Issue](https://github.com/your-repo/issues).
+
+*Next up: CDP network interception and request tampering practice: A complete guide to controlling Chrome packet capture and modification with Python*

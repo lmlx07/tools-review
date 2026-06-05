@@ -530,6 +530,6 @@ async with websockets.connect(CDP_URL) as ws:
 
 ---
 
-*上一篇回顾：CDP 存储操作指南——用 Python 管理 LocalStorage、IndexedDB 与缓存。*
+*上一篇回顾：CDP 存储操作指南：用 Python 管理 LocalStorage、IndexedDB 与缓存。*
 
-*下一篇预告：CDP Frame 管理——如何处理 iframe 和跨域框架。*
+*下一篇预告：CDP Frame 管理指南：用 Python 处理 iframe 与跨域框架。*

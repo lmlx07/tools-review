@@ -623,6 +623,6 @@ async with websockets.connect(CDP_URL) as ws:
 
 ---
 
-*上一篇回顾：CDP DOM 操作完全指南——用 Python 实时监听与操纵页面元素。*
+*上一篇回顾：CDP DOM 操作完全指南：用 Python 实时监听与操纵页面元素。*
 
-*下一篇预告：CDP 移动设备模拟——如何调试移动端页面、模拟触摸事件和地理位置。*
+*下一篇预告：CDP 移动设备模拟指南：用 Python 调试移动端页面。*

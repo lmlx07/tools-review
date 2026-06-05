@@ -323,6 +323,6 @@ async with websockets.connect(CDP_URL) as ws:
 
 ---
 
-*Previous: CDP Console Debugging Guide — capture page logs & exceptions with Python.*
+*Previous: CDP Console Debugging Guide: Capture Page Logs & Exceptions with Python*
 
-*Next up: CDP Dialog Handling — auto-dismissing alert/confirm/prompt dialogs.*
+*Next up: CDP Dialog Handling Guide: Auto-Process alert/confirm/prompt with Python*

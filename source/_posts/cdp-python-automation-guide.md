@@ -819,7 +819,7 @@ result = await cdp(ws, 'Runtime.evaluate', {
 
 *本文是「CDP 自动化指南」系列的开篇之作。后续将深入 CDP 爬虫实战、RPA 流程自动化、Playwright 底层原理等话题，敬请关注。*
 
-*下一篇预告：CDP 网络拦截与请求篡改实战——Python 控制 Chrome 抓包改包完全指南。*
+
 
 ---
 
@@ -828,3 +828,5 @@ result = await cdp(ws, 'Runtime.evaluate', {
 <!-- 分享按钮区域（待添加） -->
 
 **遇到问题或有建议？** 欢迎在评论区留言讨论，或提交 [GitHub Issue](https://github.com/your-repo/issues)。
+
+*下一篇预告：CDP 网络拦截与请求篡改实战：Python 控制 Chrome 抓包改包完全指南。*

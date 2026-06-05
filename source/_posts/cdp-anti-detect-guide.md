@@ -804,6 +804,10 @@ CDP 提供了丰富的指纹修改能力，足以应对大多数网站的反爬�
 | 高等级别（银行/风控） | Desktop preset + 行为模拟 |
 | 企业级（Cloudflare/Akamai） | 上述所有 + TLS 指纹处理 |
 
-*上一篇回顾：CDP 网络拦截与请求篡改实战——Python 控制 Chrome 抓包改包完全指南。*
+
 
 下一篇文章将深入 CDP 的**性能追踪与 Lighthouse 集成**，敬请期待。
+
+*上一篇回顾：CDP 网络拦截与请求篡改实战：Python 控制 Chrome 抓包改包完全指南。*
+
+*下一篇预告：CDP 性能追踪与 Lighthouse 集成：用 Python 测量 Web Vitals 与自动化性能审计。*

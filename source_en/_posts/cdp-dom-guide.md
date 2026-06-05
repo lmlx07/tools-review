@@ -770,6 +770,6 @@ async with websockets.connect(CDP_URL) as ws:
 
 ---
 
-*Previous: The Complete Guide to CDP Cookie Operations — CRUD with Python & Auto-Login.*
+*Previous: The Complete Guide to CDP Cookie Operations: CRUD with Python & Auto-Login*
 
-*Next up: CDP Network Condition Emulation — simulating 2G/3G/offline network environments.*
+*Next up: CDP Network Condition Emulation Guide: Control Bandwidth, Latency & Offline with Python*

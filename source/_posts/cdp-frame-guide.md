@@ -586,6 +586,6 @@ async with websockets.connect(CDP_URL) as ws:
 
 ---
 
-*上一篇回顾：CDP 对话框处理指南——用 Python 自动处理 alert/confirm/prompt。*
+*上一篇回顾：CDP 对话框处理指南：用 Python 自动处理 alert/confirm/prompt。*
 
-*下一篇预告：CDP 安全与证书处理——如何管理浏览器安全策略和证书。*
+*下一篇预告：CDP 安全与证书处理指南：用 Python 管理浏览器安全策略。*

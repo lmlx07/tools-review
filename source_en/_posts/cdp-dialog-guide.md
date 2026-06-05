@@ -307,6 +307,6 @@ async with websockets.connect(CDP_URL) as ws:
 
 ---
 
-*Previous: CDP Storage Operations Guide — manage LocalStorage, IndexedDB & Cache with Python.*
+*Previous: CDP Storage Operations Guide: Manage LocalStorage, IndexedDB & Cache with Python*
 
-*Next up: CDP Frame Management — navigating iframes and cross-origin frames.*
+*Next up: CDP Frame Management Guide: Handle iframes & Cross-Origin Frames with Python*

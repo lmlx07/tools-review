@@ -360,6 +360,6 @@ async with websockets.connect(CDP_URL) as ws:
 
 ---
 
-*Previous: CDP Dialog Handling Guide — auto-process alert/confirm/prompt with Python.*
+*Previous: CDP Dialog Handling Guide: Auto-Process alert/confirm/prompt with Python*
 
-*Next up: CDP Security & Certificate Handling — managing browser security policies and certificates.*
+*Next up: CDP Security & Certificate Handling Guide: Manage Browser Security with Python*

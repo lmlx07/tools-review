@@ -572,6 +572,6 @@ async with websockets.connect(CDP_URL) as ws:
 
 ---
 
-*上一篇回顾：CDP Console 调试指南——用 Python 捕获页面日志与异常。*
+*上一篇回顾：CDP Console 调试指南：用 Python 捕获页面日志与异常。*
 
-*下一篇预告：CDP 对话框处理——如何自动处理 alert/confirm/prompt 弹窗。*
+*下一篇预告：CDP 对话框处理指南：用 Python 自动处理 alert/confirm/prompt。*

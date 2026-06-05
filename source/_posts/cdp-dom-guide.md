@@ -787,6 +787,6 @@ async with websockets.connect(CDP_URL) as ws:
 
 ---
 
-*上一篇回顾：CDP 操作 Cookie 完全指南——用 Python 实现增删改查与自动化登录。*
+*上一篇回顾：CDP 操作 Cookie 完全指南：用 Python 实现增删改查与自动化登录。*
 
-*下一篇预告：CDP 网络条件模拟——如何模拟 2G/3G/离线网络环境。*
+*下一篇预告：CDP 网络条件模拟指南：用 Python 控制带宽、延迟与离线状态。*

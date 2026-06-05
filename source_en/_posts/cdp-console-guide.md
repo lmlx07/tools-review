@@ -538,6 +538,6 @@ async with websockets.connect(CDP_URL) as ws:
 
 ---
 
-*Previous: CDP Screenshot & PDF Export Guide — generate precise page snapshots with Python.*
+*Previous: CDP Screenshot & PDF Export Guide: Generate Precise Page Snapshots with Python*
 
-*Next up: CDP Storage Operations — manipulating LocalStorage, IndexedDB, and CacheStorage.*
+*Next up: CDP Storage Operations Guide: Manage LocalStorage, IndexedDB & Cache with Python*

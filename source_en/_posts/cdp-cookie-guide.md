@@ -551,6 +551,10 @@ async with websockets.connect(CDP_URL) as ws:
 
 ---
 
-*Previous: CDP Performance Tracking and Lighthouse Integration — measuring Web Vitals and automating performance auditing with Python.*
 
-*Next up: CDP DOM Mutation Observation — tracking element additions, deletions, and changes in real time.*
+
+
+
+*Previous: CDP Performance Tracking and Lighthouse Integration: Measuring Web Vitals and Automating Performance Auditing with Python*
+
+*Next up: The Complete Guide to CDP DOM Operations: Real-Time Observation & Manipulation with Python*
