@@ -2,7 +2,142 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   
   <url>
-    <loc>https://cdp.autify.cc/cdp-websocket-guide/</loc>
+    <loc>https://cdp.autify.cc/cdp-background-services-guide/</loc>
+    
+    <lastmod>2026-06-05</lastmod>
+    
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>https://cdp.autify.cc/cdp-error-tracking-guide/</loc>
+    
+    <lastmod>2026-06-05</lastmod>
+    
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>https://cdp.autify.cc/cdp-protocol-extensions-guide/</loc>
+    
+    <lastmod>2026-06-05</lastmod>
+    
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>https://cdp.autify.cc/cdp-browser-history-guide/</loc>
+    
+    <lastmod>2026-06-05</lastmod>
+    
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>https://cdp.autify.cc/cdp-clipboard-guide/</loc>
+    
+    <lastmod>2026-06-05</lastmod>
+    
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>https://cdp.autify.cc/cdp-accessibility-guide/</loc>
+    
+    <lastmod>2026-06-05</lastmod>
+    
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>https://cdp.autify.cc/cdp-media-webrtc-guide/</loc>
+    
+    <lastmod>2026-06-05</lastmod>
+    
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>https://cdp.autify.cc/cdp-ci-cd-guide/</loc>
+    
+    <lastmod>2026-06-05</lastmod>
+    
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>https://cdp.autify.cc/cdp-memory-profiling-guide/</loc>
+    
+    <lastmod>2026-06-05</lastmod>
+    
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>https://cdp.autify.cc/cdp-performance-observer-guide/</loc>
+    
+    <lastmod>2026-06-05</lastmod>
+    
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>https://cdp.autify.cc/cdp-service-worker-guide/</loc>
+    
+    <lastmod>2026-06-05</lastmod>
+    
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>https://cdp.autify.cc/cdp-worker-debug-guide/</loc>
+    
+    <lastmod>2026-06-05</lastmod>
+    
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>https://cdp.autify.cc/cdp-file-upload-guide/</loc>
+    
+    <lastmod>2026-06-05</lastmod>
+    
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>https://cdp.autify.cc/cdp-input-automation-guide/</loc>
+    
+    <lastmod>2026-06-05</lastmod>
+    
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>https://cdp.autify.cc/cdp-target-manager-guide/</loc>
+    
+    <lastmod>2026-06-05</lastmod>
+    
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>https://cdp.autify.cc/cdp-event-system-guide/</loc>
     
     <lastmod>2026-06-05</lastmod>
     
@@ -12,6 +147,15 @@
   
   <url>
     <loc>https://cdp.autify.cc/cdp-security-guide/</loc>
+    
+    <lastmod>2026-06-05</lastmod>
+    
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>https://cdp.autify.cc/cdp-websocket-guide/</loc>
     
     <lastmod>2026-06-05</lastmod>
     
@@ -56,7 +200,7 @@
   </url>
   
   <url>
-    <loc>https://cdp.autify.cc/cdp-screenshot-pdf-guide/</loc>
+    <loc>https://cdp.autify.cc/cdp-mobile-emulation-guide/</loc>
     
     <lastmod>2026-06-05</lastmod>
     
@@ -65,7 +209,7 @@
   </url>
   
   <url>
-    <loc>https://cdp.autify.cc/cdp-mobile-emulation-guide/</loc>
+    <loc>https://cdp.autify.cc/cdp-screenshot-pdf-guide/</loc>
     
     <lastmod>2026-06-05</lastmod>
     
@@ -271,6 +415,13 @@
   </url>
   
   <url>
+    <loc>https://cdp.autify.cc/tags/Browser-Automation/</loc>
+    <lastmod>2026-06-05</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
     <loc>https://cdp.autify.cc/tags/%E5%AF%B9%E8%AF%9D%E6%A1%86/</loc>
     <lastmod>2026-06-05</lastmod>
     <changefreq>weekly</changefreq>
@@ -419,6 +570,321 @@
   
   <url>
     <loc>https://cdp.autify.cc/tags/iframe/</loc>
+    <lastmod>2026-06-05</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://cdp.autify.cc/tags/Navigation/</loc>
+    <lastmod>2026-06-05</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://cdp.autify.cc/tags/Page-History/</loc>
+    <lastmod>2026-06-05</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://cdp.autify.cc/tags/%E6%97%A0%E9%9A%9C%E7%A2%8D/</loc>
+    <lastmod>2026-06-05</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://cdp.autify.cc/tags/Accessibility/</loc>
+    <lastmod>2026-06-05</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://cdp.autify.cc/tags/a11y/</loc>
+    <lastmod>2026-06-05</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://cdp.autify.cc/tags/%E5%AA%92%E4%BD%93%E8%B0%83%E8%AF%95/</loc>
+    <lastmod>2026-06-05</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://cdp.autify.cc/tags/WebRTC/</loc>
+    <lastmod>2026-06-05</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://cdp.autify.cc/tags/%E9%9F%B3%E8%A7%86%E9%A2%91/</loc>
+    <lastmod>2026-06-05</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://cdp.autify.cc/tags/Background-Sync/</loc>
+    <lastmod>2026-06-05</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://cdp.autify.cc/tags/Background-Fetch/</loc>
+    <lastmod>2026-06-05</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://cdp.autify.cc/tags/Service-Worker/</loc>
+    <lastmod>2026-06-05</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://cdp.autify.cc/tags/%E7%A6%BB%E7%BA%BF%E8%83%BD%E5%8A%9B/</loc>
+    <lastmod>2026-06-05</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://cdp.autify.cc/tags/CI-CD/</loc>
+    <lastmod>2026-06-05</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://cdp.autify.cc/tags/Docker/</loc>
+    <lastmod>2026-06-05</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://cdp.autify.cc/tags/GitHub-Actions/</loc>
+    <lastmod>2026-06-05</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://cdp.autify.cc/tags/%E8%87%AA%E5%8A%A8%E5%8C%96%E6%B5%8B%E8%AF%95/</loc>
+    <lastmod>2026-06-05</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://cdp.autify.cc/tags/DevOps/</loc>
+    <lastmod>2026-06-05</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://cdp.autify.cc/tags/Clipboard/</loc>
+    <lastmod>2026-06-05</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://cdp.autify.cc/tags/Automation/</loc>
+    <lastmod>2026-06-05</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://cdp.autify.cc/tags/Permissions/</loc>
+    <lastmod>2026-06-05</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://cdp.autify.cc/tags/%E4%BA%8B%E4%BB%B6%E9%A9%B1%E5%8A%A8/</loc>
+    <lastmod>2026-06-05</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://cdp.autify.cc/tags/%E8%BE%93%E5%85%A5%E6%A8%A1%E6%8B%9F/</loc>
+    <lastmod>2026-06-05</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://cdp.autify.cc/tags/%E9%BC%A0%E6%A0%87%E4%BA%8B%E4%BB%B6/</loc>
+    <lastmod>2026-06-05</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://cdp.autify.cc/tags/%E9%94%AE%E7%9B%98%E4%BA%8B%E4%BB%B6/</loc>
+    <lastmod>2026-06-05</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://cdp.autify.cc/tags/Memory/</loc>
+    <lastmod>2026-06-05</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://cdp.autify.cc/tags/HeapProfiler/</loc>
+    <lastmod>2026-06-05</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://cdp.autify.cc/tags/Profiling/</loc>
+    <lastmod>2026-06-05</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://cdp.autify.cc/tags/Leak-Detection/</loc>
+    <lastmod>2026-06-05</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://cdp.autify.cc/tags/%E9%94%99%E8%AF%AF%E8%BF%BD%E8%B8%AA/</loc>
+    <lastmod>2026-06-05</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://cdp.autify.cc/tags/JavaScript-%E8%B0%83%E8%AF%95/</loc>
+    <lastmod>2026-06-05</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://cdp.autify.cc/tags/%E5%BC%82%E5%B8%B8%E7%9B%91%E6%8E%A7/</loc>
+    <lastmod>2026-06-05</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://cdp.autify.cc/tags/%E6%96%87%E4%BB%B6%E4%B8%8A%E4%BC%A0/</loc>
+    <lastmod>2026-06-05</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://cdp.autify.cc/tags/%E6%96%87%E4%BB%B6%E4%B8%8B%E8%BD%BD/</loc>
+    <lastmod>2026-06-05</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://cdp.autify.cc/tags/Chrome-%E6%89%A9%E5%B1%95/</loc>
+    <lastmod>2026-06-05</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://cdp.autify.cc/tags/%E5%8D%8F%E8%AE%AE%E6%89%A9%E5%B1%95/</loc>
+    <lastmod>2026-06-05</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://cdp.autify.cc/tags/Performance/</loc>
+    <lastmod>2026-06-05</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://cdp.autify.cc/tags/Core-Web-Vitals/</loc>
+    <lastmod>2026-06-05</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://cdp.autify.cc/tags/LCP/</loc>
+    <lastmod>2026-06-05</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://cdp.autify.cc/tags/CLS/</loc>
+    <lastmod>2026-06-05</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://cdp.autify.cc/tags/PWA/</loc>
+    <lastmod>2026-06-05</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://cdp.autify.cc/tags/%E7%A6%BB%E7%BA%BF%E7%BC%93%E5%AD%98/</loc>
+    <lastmod>2026-06-05</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://cdp.autify.cc/tags/%E5%A4%9A%E6%A0%87%E7%AD%BE%E9%A1%B5/</loc>
+    <lastmod>2026-06-05</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://cdp.autify.cc/tags/Target/</loc>
+    <lastmod>2026-06-05</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://cdp.autify.cc/tags/Web-Worker/</loc>
+    <lastmod>2026-06-05</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://cdp.autify.cc/tags/%E5%A4%9A%E7%BA%BF%E7%A8%8B%E8%B0%83%E8%AF%95/</loc>
     <lastmod>2026-06-05</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
