@@ -1,0 +1,358 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>现代 UI 组件自动化：Radix UI 下拉菜单的 CDP 操控实战 | CDP 自动化指南</title><meta name="author" content=""><meta name="copyright" content=""><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="在实际项目中遇到 Radix UI 下拉菜单无法用常规 JS click 打开的坑。本文记录如何结合 CDP 鼠标点击与 JavaScript 执行，正确操控 portal 渲染的 Radix UI DropdownMenu 组件。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="现代 UI 组件自动化：Radix UI 下拉菜单的 CDP 操控实战">
+<meta property="og:url" content="https://cdp.autify.cc/cdp-radix-ui-experience/index.html">
+<meta property="og:site_name" content="CDP 自动化指南">
+<meta property="og:description" content="在实际项目中遇到 Radix UI 下拉菜单无法用常规 JS click 打开的坑。本文记录如何结合 CDP 鼠标点击与 JavaScript 执行，正确操控 portal 渲染的 Radix UI DropdownMenu 组件。">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://cdp.autify.cc/img/avatar.png">
+<meta property="article:published_time" content="2026-06-09T02:00:00.000Z">
+<meta property="article:modified_time" content="2026-06-09T03:14:34.885Z">
+<meta property="article:tag" content="CDP">
+<meta property="article:tag" content="Chrome DevTools Protocol">
+<meta property="article:tag" content="Python">
+<meta property="article:tag" content="Radix UI">
+<meta property="article:tag" content="实战踩坑">
+<meta property="article:tag" content="浏览器自动化">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://cdp.autify.cc/img/avatar.png"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "现代 UI 组件自动化：Radix UI 下拉菜单的 CDP 操控实战",
+  "url": "https://cdp.autify.cc/cdp-radix-ui-experience/",
+  "image": "https://cdp.autify.cc/img/avatar.png",
+  "datePublished": "2026-06-09T02:00:00.000Z",
+  "dateModified": "2026-06-09T03:14:34.885Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "",
+      "url": "https://cdp.autify.cc"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon.png"><link rel="canonical" href="https://cdp.autify.cc/cdp-radix-ui-experience/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="stylesheet" href="/css/index.css?v=5.5.4"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":false,"highlightFullpage":true,"highlightMacStyle":true},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: '',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.13.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: false,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: '现代 UI 组件自动化：Radix UI 下拉菜单的 CDP 操控实战',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><style>#lang-switch{display:inline-flex;align-items:center;gap:3px;height:100%;padding:0 6px;cursor:default}#lang-switch .lo{cursor:pointer;padding:2px 6px;border-radius:4px;font-size:.82em;transition:all .2s;color:var(--menu-item-color,#555)}#lang-switch .lo:hover{background:var(--text-bg-hover,rgba(0,0,0,.06))}#lang-switch .lo.on{font-weight:700;color:var(--theme-color,#49b1f5)}#lang-switch .sp{color:var(--menu-item-color,#555);opacity:.3;font-size:.75em;user-select:none}</style><meta name="generator" content="Hexo 8.1.2"><link rel="alternate" href="/atom.xml" title="CDP 自动化指南" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/avatar.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">47</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">110</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">8</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-info-circle"></i><span> 关于</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/default_bg.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">CDP 自动化指南</span></a><a class="nav-page-title" href="/"><span class="site-name">现代 UI 组件自动化：Radix UI 下拉菜单的 CDP 操控实战</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-info-circle"></i><span> 关于</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">现代 UI 组件自动化：Radix UI 下拉菜单的 CDP 操控实战</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">发表于</span><time class="post-meta-date-created" datetime="2026-06-09T02:00:00.000Z" title="发表于 2026-06-09 10:00:00">2026-06-09</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">更新于</span><time class="post-meta-date-updated" datetime="2026-06-09T03:14:34.885Z" title="更新于 2026-06-09 11:14:34">2026-06-09</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/CDP-%E5%AE%9E%E6%88%98/">CDP 实战</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/CDP-%E5%AE%9E%E6%88%98/%E7%BB%8F%E9%AA%8C%E5%88%86%E4%BA%AB/">经验分享</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><div id="post-outdate-notice" data="{&quot;limitDay&quot;:365,&quot;messagePrev&quot;:&quot;本文距离上次更新已过去&quot;,&quot;messageNext&quot;:&quot;天，内容可能已过时。&quot;,&quot;postUpdate&quot;:&quot;2026-06-09 11:14:34&quot;}" hidden></div><blockquote>
+<p><strong>一句话总结</strong>：Radix UI 的 DropdownMenu 通过 portal 渲染到 body 层级，依赖真实 pointer 事件——普通 <code>element.click()</code> 无效，必须用 CDP 的 <code>Input.dispatchMouseEvent</code> 打开菜单，再用 JS 选择选项，最后别忘了用 Escape 关闭。</p>
+</blockquote>
+<hr>
+<h2 id="目录"><a href="#目录" class="headerlink" title="目录"></a>目录</h2><ol>
+<li><a href="#%E9%97%AE%E9%A2%98%E5%9C%BA%E6%99%AF">问题场景</a></li>
+<li><a href="#%E4%B8%BA%E4%BB%80%E4%B9%88-js-click-%E4%B8%8D%E8%A1%8C">为什么 JS click 不行</a></li>
+<li><a href="#%E6%AD%A3%E7%A1%AE%E7%9A%84%E4%B8%89%E6%AD%A5%E9%AA%A4">正确的三步骤</a></li>
+<li><a href="#%E4%B8%8B%E6%8B%89%E8%8F%9C%E5%8D%95%E7%9A%84%E8%AF%86%E5%88%AB%E6%96%B9%E6%B3%95">下拉菜单的识别方法</a></li>
+<li><a href="#%E5%AE%8C%E6%95%B4%E5%B0%81%E8%A3%85">完整封装</a></li>
+<li><a href="#%E6%95%99%E8%AE%AD%E6%80%BB%E7%BB%93">教训总结</a></li>
+</ol>
+<hr>
+<h2 id="问题场景"><a href="#问题场景" class="headerlink" title="问题场景"></a>问题场景</h2><p>在某AI平台的作者后台，有一个”720P·10s”的设置按钮，点击后弹出分辨率参数选择菜单。我需要自动化选择 “9:16” 选项。</p>
+<p>页面结构大致如下：</p>
+<figure class="highlight html"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">button</span> <span class="attr">class</span>=<span class="string">&quot;trigger-btn&quot;</span>&gt;</span>720P·10s<span class="tag">&lt;/<span class="name">button</span>&gt;</span></span><br><span class="line"></span><br><span class="line"><span class="comment">&lt;!-- 菜单通过 portal 渲染到 body 下 --&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">div</span> <span class="attr">data-radix-popper-content</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">div</span> <span class="attr">role</span>=<span class="string">&quot;menu&quot;</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">div</span> <span class="attr">role</span>=<span class="string">&quot;menuitem&quot;</span>&gt;</span>9:16<span class="tag">&lt;/<span class="name">div</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">div</span> <span class="attr">role</span>=<span class="string">&quot;menuitem&quot;</span>&gt;</span>3:4<span class="tag">&lt;/<span class="name">div</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">div</span> <span class="attr">role</span>=<span class="string">&quot;menuitem&quot;</span>&gt;</span>1:1<span class="tag">&lt;/<span class="name">div</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;/<span class="name">div</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">div</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
+<p>起初我尝试最直接的方式：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">js(ws, <span class="string">&quot;document.querySelector(&#x27;.trigger-btn&#x27;).click()&quot;</span>)</span><br></pre></td></tr></table></figure>
+
+<p>按钮没有反应。试了试其它常见选择器，也不行。</p>
+<h2 id="为什么-JS-click-不行"><a href="#为什么-JS-click-不行" class="headerlink" title="为什么 JS click 不行"></a>为什么 JS click 不行</h2><p>Radix UI 使用 <strong>portal</strong> 将下拉菜单内容渲染到 <code>document.body</code> 下（而非在按钮的DOM树中）。它的交互机制依赖真实 pointer 事件链：</p>
+<ul>
+<li><code>pointerdown</code> → <code>pointerup</code> → <code>mousedown</code> → <code>mouseup</code> → <code>click</code></li>
+</ul>
+<p>而 <code>element.click()</code> 是<strong>合成事件</strong>，只会触发 <code>click</code>，不会触发前面的一串 pointer 事件。Radix UI 的内部状态机监听的是 pointer 事件，合成事件无法触发它的状态变更。</p>
+<table>
+<thead>
+<tr>
+<th>交互方式</th>
+<th align="center">触发 pointer 事件</th>
+<th align="center">对 Radix UI 有效？</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>element.click()</code></td>
+<td align="center">❌</td>
+<td align="center">❌</td>
+</tr>
+<tr>
+<td>CDP <code>dispatchMouseEvent</code></td>
+<td align="center">✅</td>
+<td align="center">✅</td>
+</tr>
+<tr>
+<td>真实用户点击</td>
+<td align="center">✅</td>
+<td align="center">✅</td>
+</tr>
+</tbody></table>
+<p>这就是问题的根源。</p>
+<h2 id="正确的三步骤"><a href="#正确的三步骤" class="headerlink" title="正确的三步骤"></a>正确的三步骤</h2><p>经过调试，我发现操作 Radix UI 下拉菜单需要三步：</p>
+<h3 id="步骤-1：CDP-鼠标点击打开菜单"><a href="#步骤-1：CDP-鼠标点击打开菜单" class="headerlink" title="步骤 1：CDP 鼠标点击打开菜单"></a>步骤 1：CDP 鼠标点击打开菜单</h3><p>按钮本身在正常 DOM 中，但需要用 CDP 的真实鼠标事件来点击：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">cdp_click</span>(<span class="params">ws, x, y</span>):</span><br><span class="line">    <span class="string">&quot;&quot;&quot;CDP 真实鼠标点击&quot;&quot;&quot;</span></span><br><span class="line">    cmd(ws, <span class="string">&#x27;Input.dispatchMouseEvent&#x27;</span>, &#123;</span><br><span class="line">        <span class="string">&#x27;type&#x27;</span>: <span class="string">&#x27;mousePressed&#x27;</span>, <span class="string">&#x27;x&#x27;</span>: x, <span class="string">&#x27;y&#x27;</span>: y,</span><br><span class="line">        <span class="string">&#x27;button&#x27;</span>: <span class="string">&#x27;left&#x27;</span>, <span class="string">&#x27;clickCount&#x27;</span>: <span class="number">1</span></span><br><span class="line">    &#125;)</span><br><span class="line">    cmd(ws, <span class="string">&#x27;Input.dispatchMouseEvent&#x27;</span>, &#123;</span><br><span class="line">        <span class="string">&#x27;type&#x27;</span>: <span class="string">&#x27;mouseReleased&#x27;</span>, <span class="string">&#x27;x&#x27;</span>: x, <span class="string">&#x27;y&#x27;</span>: y,</span><br><span class="line">        <span class="string">&#x27;button&#x27;</span>: <span class="string">&#x27;left&#x27;</span>, <span class="string">&#x27;clickCount&#x27;</span>: <span class="number">1</span></span><br><span class="line">    &#125;)</span><br></pre></td></tr></table></figure>
+
+<p>通过 <code>getBoundingClientRect()</code> 获取按钮坐标后调用：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">get_element_center</span>(<span class="params">ws, css_selector</span>):</span><br><span class="line">    <span class="string">&quot;&quot;&quot;获取页面元素的中心坐标&quot;&quot;&quot;</span></span><br><span class="line">    pos = js(ws, <span class="string">f&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">        (() =&gt; &#123;&#123;</span></span><br><span class="line"><span class="string">            const el = document.querySelector(&#x27;<span class="subst">&#123;css_selector&#125;</span>&#x27;);</span></span><br><span class="line"><span class="string">            if (!el) return null;</span></span><br><span class="line"><span class="string">            const r = el.getBoundingClientRect();</span></span><br><span class="line"><span class="string">            return &#123;&#123;x: r.left + r.width / 2, y: r.top + r.height / 2&#125;&#125;;</span></span><br><span class="line"><span class="string">        &#125;&#125;)()</span></span><br><span class="line"><span class="string">    &quot;&quot;&quot;</span>)</span><br><span class="line">    <span class="keyword">return</span> pos[<span class="string">&#x27;x&#x27;</span>], pos[<span class="string">&#x27;y&#x27;</span>]</span><br><span class="line"></span><br><span class="line">btn_x, btn_y = get_element_center(ws, <span class="string">&#x27;.trigger-btn&#x27;</span>)</span><br><span class="line">cdp_click(ws, btn_x, btn_y)</span><br><span class="line">time.sleep(<span class="number">1</span>)  <span class="comment"># 等待菜单渲染</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="步骤-2：JS-click-选择菜单项"><a href="#步骤-2：JS-click-选择菜单项" class="headerlink" title="步骤 2：JS click 选择菜单项"></a>步骤 2：JS click 选择菜单项</h3><p>有意思的是——菜单项虽然通过 portal 渲染，但它在 DOM 中已经存在且正常渲染，<strong>JS click 对它有效</strong>：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">clicked = js(ws, <span class="string">&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">    (() =&gt; &#123;</span></span><br><span class="line"><span class="string">        const dd = document.querySelector(&#x27;[data-radix-popper-content]&#x27;);</span></span><br><span class="line"><span class="string">        if (!dd) return &#x27;NO_MENU&#x27;;</span></span><br><span class="line"><span class="string">        const items = dd.querySelectorAll(&#x27;[role=&quot;menuitem&quot;]&#x27;);</span></span><br><span class="line"><span class="string">        for (const item of items) &#123;</span></span><br><span class="line"><span class="string">            if (item.innerText.trim() === &#x27;9:16&#x27;) &#123;</span></span><br><span class="line"><span class="string">                item.click();</span></span><br><span class="line"><span class="string">                return &#x27;OK&#x27;;</span></span><br><span class="line"><span class="string">            &#125;</span></span><br><span class="line"><span class="string">        &#125;</span></span><br><span class="line"><span class="string">        return &#x27;NOT_FOUND&#x27;;</span></span><br><span class="line"><span class="string">    &#125;)()</span></span><br><span class="line"><span class="string">&quot;&quot;&quot;</span>)</span><br></pre></td></tr></table></figure>
+
+<h3 id="步骤-3：Escape-关闭菜单"><a href="#步骤-3：Escape-关闭菜单" class="headerlink" title="步骤 3：Escape 关闭菜单"></a>步骤 3：Escape 关闭菜单</h3><p><strong>关键发现</strong>：Radix UI 下拉菜单选择选项后<strong>不会自动关闭</strong>。菜单仍然显示在页面上，会遮挡后续操作。必须手动发送 Escape 关闭：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">press_escape</span>(<span class="params">ws</span>):</span><br><span class="line">    <span class="string">&quot;&quot;&quot;发送 Escape 关闭下拉菜单&quot;&quot;&quot;</span></span><br><span class="line">    cmd(ws, <span class="string">&#x27;Input.dispatchKeyEvent&#x27;</span>, &#123;</span><br><span class="line">        <span class="string">&#x27;type&#x27;</span>: <span class="string">&#x27;rawKeyDown&#x27;</span>, <span class="string">&#x27;windowsVirtualKeyCode&#x27;</span>: <span class="number">27</span>, <span class="string">&#x27;key&#x27;</span>: <span class="string">&#x27;Escape&#x27;</span></span><br><span class="line">    &#125;)</span><br><span class="line">    cmd(ws, <span class="string">&#x27;Input.dispatchKeyEvent&#x27;</span>, &#123;</span><br><span class="line">        <span class="string">&#x27;type&#x27;</span>: <span class="string">&#x27;keyUp&#x27;</span>, <span class="string">&#x27;windowsVirtualKeyCode&#x27;</span>: <span class="number">27</span>, <span class="string">&#x27;key&#x27;</span>: <span class="string">&#x27;Escape&#x27;</span></span><br><span class="line">    &#125;)</span><br></pre></td></tr></table></figure>
+
+<h3 id="完整流程"><a href="#完整流程" class="headerlink" title="完整流程"></a>完整流程</h3><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 1. CDP 鼠标点击打开菜单</span></span><br><span class="line">btn_x, btn_y = get_element_center(ws, <span class="string">&#x27;.trigger-btn&#x27;</span>)</span><br><span class="line">cdp_click(ws, btn_x, btn_y)</span><br><span class="line">time.sleep(<span class="number">1</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 2. 选择选项</span></span><br><span class="line">result = js(ws, <span class="string">&quot;&quot;&quot;...&quot;&quot;&quot;</span>)  <span class="comment"># 找到并点击目标选项</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 3. 关闭菜单</span></span><br><span class="line">press_escape(ws)</span><br></pre></td></tr></table></figure>
+
+<h2 id="下拉菜单的识别方法"><a href="#下拉菜单的识别方法" class="headerlink" title="下拉菜单的识别方法"></a>下拉菜单的识别方法</h2><p>不同组件库的下拉菜单有不同的特征，以下是几种常见的识别方式：</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 方法1: Radix UI portal content（最可靠）</span></span><br><span class="line"><span class="variable language_">document</span>.<span class="title function_">querySelector</span>(<span class="string">&#x27;[data-radix-popper-content]&#x27;</span>);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 方法2: 标准 role 属性</span></span><br><span class="line"><span class="variable language_">document</span>.<span class="title function_">querySelector</span>(<span class="string">&#x27;[role=&quot;menu&quot;], [role=&quot;listbox&quot;]&#x27;</span>);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 方法3: body 下 id 含 radix 的元素</span></span><br><span class="line"><span class="variable language_">document</span>.<span class="title function_">querySelector</span>(<span class="string">&#x27;body &gt; [id*=&quot;radix&quot;]&#x27;</span>);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 方法4: Arco Design / Ant Design 的 dropdown</span></span><br><span class="line"><span class="variable language_">document</span>.<span class="title function_">querySelector</span>(<span class="string">&#x27;.arco-dropdown, .ant-dropdown&#x27;</span>);</span><br></pre></td></tr></table></figure>
+
+<p>对于非 Radix UI 的组件库（如 Arco Design、Ant Design），虽然 portal 实现不同，但交互规律类似——<strong>触发器需要真实事件</strong>，<strong>菜单内容 JS click 通常有效</strong>。</p>
+<h2 id="完整封装"><a href="#完整封装" class="headerlink" title="完整封装"></a>完整封装</h2><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">RadixDropdownHandler</span>:</span><br><span class="line">    <span class="string">&quot;&quot;&quot;处理 Radix UI 下拉菜单的自动化交互&quot;&quot;&quot;</span></span><br><span class="line">    </span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">__init__</span>(<span class="params">self, ws</span>):</span><br><span class="line">        <span class="variable language_">self</span>.ws = ws</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">open_menu</span>(<span class="params">self, trigger_selector</span>):</span><br><span class="line">        <span class="string">&quot;&quot;&quot;用 CDP 鼠标点击打开菜单&quot;&quot;&quot;</span></span><br><span class="line">        x, y = <span class="variable language_">self</span>._get_center(trigger_selector)</span><br><span class="line">        <span class="variable language_">self</span>._cdp_click(x, y)</span><br><span class="line">        time.sleep(<span class="number">1</span>)</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">select_item</span>(<span class="params">self, item_text</span>):</span><br><span class="line">        <span class="string">&quot;&quot;&quot;选择菜单项&quot;&quot;&quot;</span></span><br><span class="line">        <span class="keyword">return</span> js(<span class="variable language_">self</span>.ws, <span class="string">f&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">            (() =&gt; &#123;&#123;</span></span><br><span class="line"><span class="string">                const dd = document.querySelector(</span></span><br><span class="line"><span class="string">                    &#x27;[data-radix-popper-content], [role=&quot;menu&quot;]&#x27;</span></span><br><span class="line"><span class="string">                );</span></span><br><span class="line"><span class="string">                if (!dd) return &#x27;NO_MENU&#x27;;</span></span><br><span class="line"><span class="string">                const items = dd.querySelectorAll(&#x27;[role=&quot;menuitem&quot;], [role=&quot;option&quot;]&#x27;);</span></span><br><span class="line"><span class="string">                for (const item of items) &#123;&#123;</span></span><br><span class="line"><span class="string">                    if (item.innerText.trim() === &#x27;<span class="subst">&#123;item_text&#125;</span>&#x27;) &#123;&#123;</span></span><br><span class="line"><span class="string">                        item.click();</span></span><br><span class="line"><span class="string">                        return &#x27;OK&#x27;;</span></span><br><span class="line"><span class="string">                    &#125;&#125;</span></span><br><span class="line"><span class="string">                &#125;&#125;</span></span><br><span class="line"><span class="string">                return &#x27;NOT_FOUND&#x27;;</span></span><br><span class="line"><span class="string">            &#125;&#125;)()</span></span><br><span class="line"><span class="string">        &quot;&quot;&quot;</span>)</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">close_menu</span>(<span class="params">self</span>):</span><br><span class="line">        <span class="string">&quot;&quot;&quot;Escape 关闭菜单&quot;&quot;&quot;</span></span><br><span class="line">        press_escape(<span class="variable language_">self</span>.ws)</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">select_and_close</span>(<span class="params">self, trigger_selector, item_text</span>):</span><br><span class="line">        <span class="string">&quot;&quot;&quot;完整的打开→选择→关闭流程&quot;&quot;&quot;</span></span><br><span class="line">        <span class="variable language_">self</span>.open_menu(trigger_selector)</span><br><span class="line">        result = <span class="variable language_">self</span>.select_item(item_text)</span><br><span class="line">        <span class="variable language_">self</span>.close_menu()</span><br><span class="line">        <span class="keyword">return</span> result</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">_get_center</span>(<span class="params">self, css_selector</span>):</span><br><span class="line">        pos = js(<span class="variable language_">self</span>.ws, <span class="string">f&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">            (() =&gt; &#123;&#123;</span></span><br><span class="line"><span class="string">                const el = document.querySelector(&#x27;<span class="subst">&#123;css_selector&#125;</span>&#x27;);</span></span><br><span class="line"><span class="string">                if (!el) return null;</span></span><br><span class="line"><span class="string">                const r = el.getBoundingClientRect();</span></span><br><span class="line"><span class="string">                return &#123;&#123;x: r.left + r.width/2, y: r.top + r.height/2&#125;&#125;;</span></span><br><span class="line"><span class="string">            &#125;&#125;)()</span></span><br><span class="line"><span class="string">        &quot;&quot;&quot;</span>)</span><br><span class="line">        <span class="keyword">return</span> pos[<span class="string">&#x27;x&#x27;</span>], pos[<span class="string">&#x27;y&#x27;</span>]</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">_cdp_click</span>(<span class="params">self, x, y</span>):</span><br><span class="line">        cmd(<span class="variable language_">self</span>.ws, <span class="string">&#x27;Input.dispatchMouseEvent&#x27;</span>, &#123;</span><br><span class="line">            <span class="string">&#x27;type&#x27;</span>: <span class="string">&#x27;mousePressed&#x27;</span>, <span class="string">&#x27;x&#x27;</span>: x, <span class="string">&#x27;y&#x27;</span>: y,</span><br><span class="line">            <span class="string">&#x27;button&#x27;</span>: <span class="string">&#x27;left&#x27;</span>, <span class="string">&#x27;clickCount&#x27;</span>: <span class="number">1</span></span><br><span class="line">        &#125;)</span><br><span class="line">        cmd(<span class="variable language_">self</span>.ws, <span class="string">&#x27;Input.dispatchMouseEvent&#x27;</span>, &#123;</span><br><span class="line">            <span class="string">&#x27;type&#x27;</span>: <span class="string">&#x27;mouseReleased&#x27;</span>, <span class="string">&#x27;x&#x27;</span>: x, <span class="string">&#x27;y&#x27;</span>: y,</span><br><span class="line">            <span class="string">&#x27;button&#x27;</span>: <span class="string">&#x27;left&#x27;</span>, <span class="string">&#x27;clickCount&#x27;</span>: <span class="number">1</span></span><br><span class="line">        &#125;)</span><br></pre></td></tr></table></figure>
+
+<h2 id="教训总结"><a href="#教训总结" class="headerlink" title="教训总结"></a>教训总结</h2><ol>
+<li><strong>不要只用 JS click</strong>：现代 UI 组件库（Radix UI、React Aria、MUI）依赖真实 pointer 事件，合成事件不触发状态变更</li>
+<li><strong>CDP 鼠标点击 + JS click 混合使用</strong>：打开菜单用 CDP 鼠标，选择选项用 JS click——各取所长</li>
+<li><strong>Escape 关闭是必要步骤</strong>：portal 菜单不会自动消失，不关闭会遮挡后续操作</li>
+<li><strong>先检查再操作</strong>：用 <code>document.querySelector(&#39;[data-radix-popper-content]&#39;)</code> 确认菜单已渲染，不要盲目等待</li>
+</ol>
+<blockquote>
+<p><strong>总结</strong>：现代前端组件库的 portal 渲染给自动化带来了新挑战。理解底层事件机制（pointer 事件 vs 合成事件），结合 CDP 的真实事件注入能力，才能可靠地操控这些组件。关键原则——触发器用真实事件，菜单项用 JS click，完事后 Escape 收尾。</p>
+</blockquote>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://cdp.autify.cc"></a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://cdp.autify.cc/cdp-radix-ui-experience/">https://cdp.autify.cc/cdp-radix-ui-experience/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://cdp.autify.cc" target="_blank">CDP 自动化指南</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/Chrome-DevTools-Protocol/">Chrome DevTools Protocol</a><a class="post-meta__tags" href="/tags/CDP/">CDP</a><a class="post-meta__tags" href="/tags/Python/">Python</a><a class="post-meta__tags" href="/tags/%E6%B5%8F%E8%A7%88%E5%99%A8%E8%87%AA%E5%8A%A8%E5%8C%96/">浏览器自动化</a><a class="post-meta__tags" href="/tags/%E5%AE%9E%E6%88%98%E8%B8%A9%E5%9D%91/">实战踩坑</a><a class="post-meta__tags" href="/tags/Radix-UI/">Radix UI</a></div><div class="post-share"><div class="social-share" data-image="/img/avatar.png" data-sites="facebook,x,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/cdp-react-controlled-input-experience/" title="React 受控组件的自动化填值：绕过虚拟 DOM 的实战技巧"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">React 受控组件的自动化填值：绕过虚拟 DOM 的实战技巧</div></div><div class="info-2"><div class="info-item-1">自动化填表时遇到 React 受控组件，直接设置 value 不生效。本文记录如何通过 CDP 获取原生 value setter、绕过 React 虚拟 DOM、触发状态更新的完整方法。</div></div></div></a><a class="pagination-related" href="/cdp-cloak-browser-guide/" title="CloakBrowser 指南：开源指纹保护浏览器与 CDP 自动化集成"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">CloakBrowser 指南：开源指纹保护浏览器与 CDP 自动化集成</div></div><div class="info-2"><div class="info-item-1">详解 CloakBrowser——一个开源指纹保护浏览器，以及如何通过 CDP 协议与其集成实现自动化测试。</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/cdp-ui-component-pitfalls-experience/" title="组件库 UI 自动化的三个常见陷阱：以某组件库为例"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-06-09</div><div class="info-item-2">组件库 UI 自动化的三个常见陷阱：以某组件库为例</div></div><div class="info-2"><div class="info-item-1">组件库（如 Arco Design、Ant Design）对标准 HTML 元素做了封装，导致常规的自动化点击方式失效。本文记录 radio button、checkbox、select 等组件的正确操控方式。</div></div></div></a><a class="pagination-related" href="/cdp-dialog-layering-experience/" title="弹窗叠加层的正确应对策略：自动化中的逐层关闭实战"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-06-09</div><div class="info-item-2">弹窗叠加层的正确应对策略：自动化中的逐层关闭实战</div></div><div class="info-2"><div class="info-item-1">自动化操作中遇到多层弹窗叠加时，不能依赖固定等待，也不能跳过顺序。本文记录如何用轮询检测 + 逐层关闭的方式，可靠地处理发布流程中的多级弹窗。</div></div></div></a><a class="pagination-related" href="/cdp-service-worker-guide/" title="CDP Service Worker 管理：用 Python 调试离线缓存"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-06-05</div><div class="info-item-2">CDP Service Worker 管理：用 Python 调试离线缓存</div></div><div class="info-2"><div class="info-item-1">详解如何用 Chrome DevTools Protocol（CDP）管理 Service Worker。涵盖注册/注销事件监听、生命周期状态追踪、推送通知模拟、CacheStorage 缓存操作以及离线调试技巧。</div></div></div></a><a class="pagination-related" href="/cdp-websocket-guide/" title="CDP WebSocket 调试指南：用 Python 拦截与检查 WebSocket 帧"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-06-05</div><div class="info-item-2">CDP WebSocket 调试指南：用 Python 拦截与检查 WebSocket 帧</div></div><div class="info-2"><div class="info-item-1">详解如何用 Chrome DevTools Protocol（CDP）调试 WebSocket 连接。涵盖监听 WebSocket 帧、拦截和修改帧内容、分析 WebSocket 流量、以及自动化 WebSocket 协议测试。</div></div></div></a><a class="pagination-related" href="/cdp-protocol-extensions-guide/" title="CDP 协议扩展指南：自定义 CDP 域与 Chrome 扩展"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-06-05</div><div class="info-item-2">CDP 协议扩展指南：自定义 CDP 域与 Chrome 扩展</div></div><div class="info-2"><div class="info-item-1">深入探讨 CDP 的可扩展性架构——如何通过 Chrome 扩展集成 CDP、注入自定义命令、构建中间件模式以及设计自定义事件分发系统。</div></div></div></a><a class="pagination-related" href="/cdp-vs-playwright-guide/" title="CDP vs Playwright：浏览器自动化方案选型指南"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-06-05</div><div class="info-item-2">CDP vs Playwright：浏览器自动化方案选型指南</div></div><div class="info-2"><div class="info-item-1">深入对比 CDP 直连与 Playwright 封装两种浏览器自动化方案，帮助你在不同场景下做出正确的技术选型。</div></div></div></a></div></div><hr class="custom-hr"/><div id="post-comment"><div class="comment-head"><div class="comment-headline"><i class="fas fa-comments fa-fw"></i><span> 评论</span></div></div><div class="comment-wrap"><div><div id="utterances-wrap"></div></div></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/avatar.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name"></div><div class="author-info-description">Chrome DevTools Protocol 中文教程</div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">47</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">110</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">8</div></a></div><a id="card-info-btn" target="_blank" rel="noopener" href="https://github.com/lmlx07"><i class="fab fa-github"></i><span>关注我</span></a><div class="card-info-social-icons"><a class="social-icon" href="https://github.com/lmlx07" target="_blank" title="GitHub"><i class="fab fa-github" style="color: #24292e;"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">📢 CDP 自动化指南是一个专注于 Chrome DevTools Protocol 的中文技术博客，提供 Python 控制浏览器的实战教程。</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%9B%AE%E5%BD%95"><span class="toc-number">1.</span> <span class="toc-text">目录</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E9%97%AE%E9%A2%98%E5%9C%BA%E6%99%AF"><span class="toc-number">2.</span> <span class="toc-text">问题场景</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%BA%E4%BB%80%E4%B9%88-JS-click-%E4%B8%8D%E8%A1%8C"><span class="toc-number">3.</span> <span class="toc-text">为什么 JS click 不行</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%AD%A3%E7%A1%AE%E7%9A%84%E4%B8%89%E6%AD%A5%E9%AA%A4"><span class="toc-number">4.</span> <span class="toc-text">正确的三步骤</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%AD%A5%E9%AA%A4-1%EF%BC%9ACDP-%E9%BC%A0%E6%A0%87%E7%82%B9%E5%87%BB%E6%89%93%E5%BC%80%E8%8F%9C%E5%8D%95"><span class="toc-number">4.1.</span> <span class="toc-text">步骤 1：CDP 鼠标点击打开菜单</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%AD%A5%E9%AA%A4-2%EF%BC%9AJS-click-%E9%80%89%E6%8B%A9%E8%8F%9C%E5%8D%95%E9%A1%B9"><span class="toc-number">4.2.</span> <span class="toc-text">步骤 2：JS click 选择菜单项</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%AD%A5%E9%AA%A4-3%EF%BC%9AEscape-%E5%85%B3%E9%97%AD%E8%8F%9C%E5%8D%95"><span class="toc-number">4.3.</span> <span class="toc-text">步骤 3：Escape 关闭菜单</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%AE%8C%E6%95%B4%E6%B5%81%E7%A8%8B"><span class="toc-number">4.4.</span> <span class="toc-text">完整流程</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%8B%E6%8B%89%E8%8F%9C%E5%8D%95%E7%9A%84%E8%AF%86%E5%88%AB%E6%96%B9%E6%B3%95"><span class="toc-number">5.</span> <span class="toc-text">下拉菜单的识别方法</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%AE%8C%E6%95%B4%E5%B0%81%E8%A3%85"><span class="toc-number">6.</span> <span class="toc-text">完整封装</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%95%99%E8%AE%AD%E6%80%BB%E7%BB%93"><span class="toc-number">7.</span> <span class="toc-text">教训总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/cdp-seo-timeline-experience/" title="新站 SEO：从提交到收录的预期管理">新站 SEO：从提交到收录的预期管理</a><time datetime="2026-06-09T07:30:00.000Z" title="发表于 2026-06-09 15:30:00">2026-06-09</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/cdp-seo-webmaster-experience/" title="静态站站长平台使用手册：在受限条件下的最优收录策略">静态站站长平台使用手册：在受限条件下的最优收录策略</a><time datetime="2026-06-09T07:00:00.000Z" title="发表于 2026-06-09 15:00:00">2026-06-09</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/cdp-seo-api-submit-experience/" title="收录 API 提交脚本开发实战：从 sitemap 到百度收录">收录 API 提交脚本开发实战：从 sitemap 到百度收录</a><time datetime="2026-06-09T06:30:00.000Z" title="发表于 2026-06-09 14:30:00">2026-06-09</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/cdp-seo-github-pages-experience/" title="无备案 GitHub Pages 站的搜索 SEO 完整指南">无备案 GitHub Pages 站的搜索 SEO 完整指南</a><time datetime="2026-06-09T06:00:00.000Z" title="发表于 2026-06-09 14:00:00">2026-06-09</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/cdp-debug-inspect-experience/" title="CDP 调试脚本合集：快速检查页面状态与元素信息">CDP 调试脚本合集：快速检查页面状态与元素信息</a><time datetime="2026-06-09T05:00:00.000Z" title="发表于 2026-06-09 13:00:00">2026-06-09</time></div></div></div></div></div></div></main><footer id="footer"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2026 By </span><span class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div><div class="footer_custom_text">🚀 CDP 自动化指南</div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><a id="to_comment" href="#post-comment" title="前往评论"><i class="fas fa-comments"></i></a><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.4"></script><script src="/js/main.js?v=5.5.4"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const isShuoshuo = GLOBAL_CONFIG_SITE.pageType === 'shuoshuo'
+  const option = null
+  const getUtterancesTheme = theme => theme === 'dark' ? 'github-dark' : 'github-light'
+
+  const loadUtterances = (el = document, key) => {
+    if (isShuoshuo) {
+      window.shuoshuoComment.destroyUtterances = () => {
+        if (el.children.length) {
+          el.innerHTML = ''
+          el.classList.add('no-comment')
+        }
+      }
+    }
+
+    const config = {
+      src: 'https://utteranc.es/client.js',
+      repo: 'lmlx07/tools-review',
+      theme: getUtterancesTheme(document.documentElement.getAttribute('data-theme')),
+      crossorigin: 'anonymous',
+      async: true,
+      ...option,
+      'issue-term': isShuoshuo ? key : (option && option['issue-term']) || 'pathname'
+    }
+
+    const ele = document.createElement('script')
+    Object.entries(config).forEach(([key, value]) => ele.setAttribute(key, value))
+    el.querySelector('#utterances-wrap').appendChild(ele)
+  }
+
+  const changeUtterancesTheme = theme => {
+    const iframe = document.querySelector('#utterances-wrap iframe')
+    if (iframe) {
+      const message = {
+        type: 'set-theme',
+        theme: getUtterancesTheme(theme)
+      };
+      iframe.contentWindow.postMessage(message, 'https://utteranc.es')
+    }
+  }
+
+  btf.addGlobalFn('themeChange', changeUtterancesTheme, 'utterances')
+
+  if (isShuoshuo) {
+    'Utterances' === 'Utterances'
+      ? window.shuoshuoComment = { loadComment: loadUtterances }
+      : window.loadOtherComment = loadUtterances
+    return
+  }
+  
+  if ('Utterances' === 'Utterances' || !false) {
+    if (false) btf.loadComment(document.getElementById('utterances-wrap'), loadUtterances)
+    else loadUtterances()
+  } else {
+    window.loadOtherComment = loadUtterances
+  }
+})()</script></div><div id="lang-switch"><span class="lo" data-lang="zh-CN">中文</span><span class="sp">|</span><span class="lo" data-lang="en">EN</span></div><script>!function(){var H='<span class="lo" data-lang="zh-CN">中文</span><span class="sp">|</span><span class="lo" data-lang="en">EN</span>';function E(){var e=document.getElementById("lang-switch")||function(){var e=document.createElement("div");return e.id="lang-switch",e.style.display="inline-flex",e.innerHTML=H,e}();var n=window.location.pathname.startsWith("/en");e.querySelectorAll(".lo").forEach(function(e){e.classList.toggle("on",n?e.dataset.lang==="en":e.dataset.lang==="zh-CN")}),e.removeEventListener("click",e._l),e._l=function(t){var o=(t=t||window.event).target.closest(".lo");if(!o)return;var l=o.dataset.lang;if(l==="en"&&!n){var a=window.location.pathname.replace(/\/$/,"")||"";window.location.href="/en"+a+window.location.search}else if(l==="zh-CN"&&n){var i=window.location.pathname.replace(/^\/en/,"").replace(/\/$/,"")||"/";window.location.href=i+window.location.search}},e.addEventListener("click",e._l)}function I(){var e=document.getElementById("lang-switch")||function(){var e=document.createElement("div");return e.id="lang-switch",e.style.display="inline-flex",e.innerHTML=H,e}();var t=document.querySelector("#nav .menus_items");if(!t||t.contains(e))return;var n=document.createElement("li");n.className="menus_item",n.appendChild(e),t.appendChild(n)}E(),setTimeout(I,300),document.addEventListener("pjax:complete",function(){setTimeout(I,300),setTimeout(E,500)})}();</script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js" defer="defer"></script><script>document.addEventListener('DOMContentLoaded', () => {
+  const pjaxSelectors = ["meta[property=\"og:image\"]","meta[property=\"og:title\"]","meta[property=\"og:url\"]","meta[property=\"og:description\"]","link[rel=\"canonical\"]","head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      false
+        ? pjax.loadUrl('/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})</script><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script></div></body></html>

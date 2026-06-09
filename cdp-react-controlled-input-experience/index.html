@@ -1,0 +1,383 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>React 受控组件的自动化填值：绕过虚拟 DOM 的实战技巧 | CDP 自动化指南</title><meta name="author" content=""><meta name="copyright" content=""><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="自动化填表时遇到 React 受控组件，直接设置 value 不生效。本文记录如何通过 CDP 获取原生 value setter、绕过 React 虚拟 DOM、触发状态更新的完整方法。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="React 受控组件的自动化填值：绕过虚拟 DOM 的实战技巧">
+<meta property="og:url" content="https://cdp.autify.cc/cdp-react-controlled-input-experience/index.html">
+<meta property="og:site_name" content="CDP 自动化指南">
+<meta property="og:description" content="自动化填表时遇到 React 受控组件，直接设置 value 不生效。本文记录如何通过 CDP 获取原生 value setter、绕过 React 虚拟 DOM、触发状态更新的完整方法。">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://cdp.autify.cc/img/avatar.png">
+<meta property="article:published_time" content="2026-06-09T02:30:00.000Z">
+<meta property="article:modified_time" content="2026-06-09T03:14:56.980Z">
+<meta property="article:tag" content="CDP">
+<meta property="article:tag" content="Chrome DevTools Protocol">
+<meta property="article:tag" content="Python">
+<meta property="article:tag" content="React">
+<meta property="article:tag" content="受控组件">
+<meta property="article:tag" content="浏览器自动化">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://cdp.autify.cc/img/avatar.png"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "React 受控组件的自动化填值：绕过虚拟 DOM 的实战技巧",
+  "url": "https://cdp.autify.cc/cdp-react-controlled-input-experience/",
+  "image": "https://cdp.autify.cc/img/avatar.png",
+  "datePublished": "2026-06-09T02:30:00.000Z",
+  "dateModified": "2026-06-09T03:14:56.980Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "",
+      "url": "https://cdp.autify.cc"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon.png"><link rel="canonical" href="https://cdp.autify.cc/cdp-react-controlled-input-experience/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="stylesheet" href="/css/index.css?v=5.5.4"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":false,"highlightFullpage":true,"highlightMacStyle":true},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: '',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.13.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: false,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'React 受控组件的自动化填值：绕过虚拟 DOM 的实战技巧',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><style>#lang-switch{display:inline-flex;align-items:center;gap:3px;height:100%;padding:0 6px;cursor:default}#lang-switch .lo{cursor:pointer;padding:2px 6px;border-radius:4px;font-size:.82em;transition:all .2s;color:var(--menu-item-color,#555)}#lang-switch .lo:hover{background:var(--text-bg-hover,rgba(0,0,0,.06))}#lang-switch .lo.on{font-weight:700;color:var(--theme-color,#49b1f5)}#lang-switch .sp{color:var(--menu-item-color,#555);opacity:.3;font-size:.75em;user-select:none}</style><meta name="generator" content="Hexo 8.1.2"><link rel="alternate" href="/atom.xml" title="CDP 自动化指南" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/avatar.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">47</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">110</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">8</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-info-circle"></i><span> 关于</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/img/default_bg.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">CDP 自动化指南</span></a><a class="nav-page-title" href="/"><span class="site-name">React 受控组件的自动化填值：绕过虚拟 DOM 的实战技巧</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-info-circle"></i><span> 关于</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">React 受控组件的自动化填值：绕过虚拟 DOM 的实战技巧</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">发表于</span><time class="post-meta-date-created" datetime="2026-06-09T02:30:00.000Z" title="发表于 2026-06-09 10:30:00">2026-06-09</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">更新于</span><time class="post-meta-date-updated" datetime="2026-06-09T03:14:56.980Z" title="更新于 2026-06-09 11:14:56">2026-06-09</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/CDP-%E5%AE%9E%E6%88%98/">CDP 实战</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/CDP-%E5%AE%9E%E6%88%98/%E7%BB%8F%E9%AA%8C%E5%88%86%E4%BA%AB/">经验分享</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><div id="post-outdate-notice" data="{&quot;limitDay&quot;:365,&quot;messagePrev&quot;:&quot;本文距离上次更新已过去&quot;,&quot;messageNext&quot;:&quot;天，内容可能已过时。&quot;,&quot;postUpdate&quot;:&quot;2026-06-09 11:14:56&quot;}" hidden></div><blockquote>
+<p><strong>一句话总结</strong>：React 受控组件劫持了 input 的 value 属性，直接用 <code>el.value = x</code> 赋值不会更新 React 状态。正确做法是通过 <code>Object.getOwnPropertyDescriptor</code> 拿到原生 setter 绕过 React 的拦截，再派发 <code>input</code>&#x2F;<code>change</code> 事件通知 React 同步。</p>
+</blockquote>
+<hr>
+<h2 id="目录"><a href="#目录" class="headerlink" title="目录"></a>目录</h2><ol>
+<li><a href="#%E9%97%AE%E9%A2%98%E5%9C%BA%E6%99%AF">问题场景</a></li>
+<li><a href="#react-%E5%8F%97%E6%8E%A7%E7%BB%84%E4%BB%B6%E5%8E%9F%E7%90%86">React 受控组件原理</a></li>
+<li><a href="#%E9%94%99%E8%AF%AF%E7%9A%84%E5%B0%9D%E8%AF%95">错误的尝试</a></li>
+<li><a href="#%E6%AD%A3%E7%A1%AE%E7%9A%84%E5%81%9A%E6%B3%95%E5%8E%9F%E7%94%9F-setter-%E7%BB%95%E8%BF%87">正确的做法：原生 setter 绕过</a></li>
+<li><a href="#%E5%AE%8C%E6%95%B4%E5%B0%81%E8%A3%85%E4%B8%8E%E4%BD%BF%E7%94%A8">完整封装与使用</a></li>
+<li><a href="#%E5%85%B6%E4%BB%96%E6%A1%86%E6%9E%B6%E7%9A%84%E7%B1%BB%E4%BC%BC%E9%97%AE%E9%A2%98">其他框架的类似问题</a></li>
+<li><a href="#%E6%80%BB%E7%BB%93">总结</a></li>
+</ol>
+<hr>
+<h2 id="问题场景"><a href="#问题场景" class="headerlink" title="问题场景"></a>问题场景</h2><p>在某小说平台的作者后台，需要自动填写章节标题和内容的 input 框。最直观的想法——找到元素，设 value：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">js(ws, <span class="string">&quot;document.querySelector(&#x27;#chapter-title&#x27;).value = &#x27;第97章 突破&#x27;&quot;</span>)</span><br></pre></td></tr></table></figure>
+
+<p>运行后，页面上的输入框确实显示了文字，但<strong>点击”保存”时，React 拿到的值是空的</strong>。</p>
+<p>仔细检查发现：输入框有值（视觉上），但 React state 中没有。</p>
+<h2 id="React-受控组件原理"><a href="#React-受控组件原理" class="headerlink" title="React 受控组件原理"></a>React 受控组件原理</h2><p>React 的受控组件工作方式是这样的：</p>
+<figure class="highlight jsx"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// React 内部管理 value，而非 DOM</span></span><br><span class="line">&lt;input value=&#123;<span class="variable language_">this</span>.<span class="property">state</span>.<span class="property">title</span>&#125; onChange=&#123;<span class="variable language_">this</span>.<span class="property">handleChange</span>&#125; /&gt;</span><br></pre></td></tr></table></figure>
+
+<p>React 在 input 元素上覆写了 value 属性的 <code>getter</code> 和 <code>setter</code>：</p>
+<ol>
+<li><strong>直接设 <code>el.value = x</code></strong> → 调用了 React 覆写的 setter → React 忽略了这个修改</li>
+<li><strong>用户输入</strong> → 触发 <code>input</code> 事件 → React 捕获事件 → 调用 <code>setState</code> → 更新 value</li>
+</ol>
+<p>所以关键在于：<strong>React 监听的是事件，不是属性变化</strong>。单纯改属性不触发事件，React 不知道 value 变了。</p>
+<h2 id="错误的尝试"><a href="#错误的尝试" class="headerlink" title="错误的尝试"></a>错误的尝试</h2><figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// ❌ 直接赋值——UI 变了但 React 不知道</span></span><br><span class="line">el.<span class="property">value</span> = <span class="string">&#x27;新标题&#x27;</span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">// ❌ 派发 input 事件——但 value 仍然是 React 控制的旧值</span></span><br><span class="line">el.<span class="title function_">dispatchEvent</span>(<span class="keyword">new</span> <span class="title class_">Event</span>(<span class="string">&#x27;input&#x27;</span>, &#123;<span class="attr">bubbles</span>: <span class="literal">true</span>&#125;));</span><br><span class="line"><span class="comment">// React 读取 el.value 时，getter 返回的是 React state 值，不是刚设的值</span></span><br></pre></td></tr></table></figure>
+
+<p>为什么派发 input 事件也不行？因为 React 覆写了 input 的 value getter——<code>el.value</code> 返回的是 React state 中的值，而不是实际 DOM 属性。所以派发事件时，React 读取到的 value 仍然是旧值。</p>
+<h2 id="正确的做法：原生-setter-绕过"><a href="#正确的做法：原生-setter-绕过" class="headerlink" title="正确的做法：原生 setter 绕过"></a>正确的做法：原生 setter 绕过</h2><p>解决方案的核心：<strong>拿到被 React 覆写之前的原始 value setter</strong>，用它设置值，再派发事件让 React 同步。</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">set_react_input</span>(<span class="params">ws, css_selector, value</span>):</span><br><span class="line">    <span class="string">&quot;&quot;&quot;设置 React 受控输入框的值&quot;&quot;&quot;</span></span><br><span class="line">    <span class="keyword">return</span> js(ws, <span class="string">f&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">        (() =&gt; &#123;&#123;</span></span><br><span class="line"><span class="string">            const el = document.querySelector(&#x27;<span class="subst">&#123;css_selector&#125;</span>&#x27;);</span></span><br><span class="line"><span class="string">            if (!el) return &#x27;NOT_FOUND&#x27;;</span></span><br><span class="line"><span class="string">            </span></span><br><span class="line"><span class="string">            // 聚焦输入框</span></span><br><span class="line"><span class="string">            el.focus();</span></span><br><span class="line"><span class="string">            </span></span><br><span class="line"><span class="string">            // 获取 HTMLInputElement 原型上的原始 value setter</span></span><br><span class="line"><span class="string">            const nativeSetter = Object.getOwnPropertyDescriptor(</span></span><br><span class="line"><span class="string">                window.HTMLInputElement.prototype, &#x27;value&#x27;</span></span><br><span class="line"><span class="string">            ).set;</span></span><br><span class="line"><span class="string">            </span></span><br><span class="line"><span class="string">            // 用原始 setter 设置值（绕过 React 的覆写）</span></span><br><span class="line"><span class="string">            nativeSetter.call(el, &#x27;<span class="subst">&#123;value&#125;</span>&#x27;);</span></span><br><span class="line"><span class="string">            </span></span><br><span class="line"><span class="string">            // 派发 input 事件通知 React 更新状态</span></span><br><span class="line"><span class="string">            el.dispatchEvent(new Event(&#x27;input&#x27;, &#123;&#123;bubbles: true&#125;&#125;));</span></span><br><span class="line"><span class="string">            </span></span><br><span class="line"><span class="string">            // 派发 change 事件（部分框架需要）</span></span><br><span class="line"><span class="string">            el.dispatchEvent(new Event(&#x27;change&#x27;, &#123;&#123;bubbles: true&#125;&#125;));</span></span><br><span class="line"><span class="string">            </span></span><br><span class="line"><span class="string">            return &#x27;OK&#x27;;</span></span><br><span class="line"><span class="string">        &#125;&#125;)()</span></span><br><span class="line"><span class="string">    &quot;&quot;&quot;</span>)</span><br></pre></td></tr></table></figure>
+
+<h3 id="分步解析"><a href="#分步解析" class="headerlink" title="分步解析"></a>分步解析</h3><ol>
+<li><p><strong><code>Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, &#39;value&#39;).set</code></strong></p>
+<ul>
+<li>获取 <code>HTMLInputElement</code> 类原型上的 value setter</li>
+<li>这是浏览器原生提供的，尚未被 React 覆写</li>
+<li>React 实际上覆写的是<strong>每个实例</strong>上的 value 属性，而不是原型上的</li>
+</ul>
+</li>
+<li><p><strong><code>nativeSetter.call(el, value)</code></strong></p>
+<ul>
+<li>用 <code>call</code> 将原生 setter 应用到具体元素上</li>
+<li>绕过 React 实例上的 getter&#x2F;setter，直接修改 DOM 属性</li>
+</ul>
+</li>
+<li><p><strong><code>el.dispatchEvent(new Event(&#39;input&#39;, {bubbles: true}))</code></strong></p>
+<ul>
+<li>React 监听 <code>input</code> 事件来同步状态</li>
+<li>派发事件后 React 的 onChange 被触发，调用 setState 更新</li>
+</ul>
+</li>
+</ol>
+<h3 id="完整示例"><a href="#完整示例" class="headerlink" title="完整示例"></a>完整示例</h3><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 设置章节标题</span></span><br><span class="line">result = set_react_input(ws, <span class="string">&#x27;#chapter-title&#x27;</span>, <span class="string">&#x27;第97章 突破&#x27;</span>)</span><br><span class="line"><span class="built_in">print</span>(result)  <span class="comment"># &#x27;OK&#x27;</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 设置章节内容（textarea 同样适用）</span></span><br><span class="line">result = set_react_input(ws, <span class="string">&#x27;.editor-content&#x27;</span>, <span class="string">&#x27;章节正文内容...&#x27;</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 验证是否设置成功</span></span><br><span class="line">value = js(ws, <span class="string">&quot;document.querySelector(&#x27;#chapter-title&#x27;).value&quot;</span>)</span><br><span class="line"><span class="built_in">print</span>(<span class="string">f&#x27;当前值: <span class="subst">&#123;value&#125;</span>&#x27;</span>)  <span class="comment"># 应该输出：第97章 突破</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="完整封装与使用"><a href="#完整封装与使用" class="headerlink" title="完整封装与使用"></a>完整封装与使用</h2><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">ReactInputHandler</span>:</span><br><span class="line">    <span class="string">&quot;&quot;&quot;处理 React 受控组件的输入&quot;&quot;&quot;</span></span><br><span class="line">    </span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">__init__</span>(<span class="params">self, ws</span>):</span><br><span class="line">        <span class="variable language_">self</span>.ws = ws</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">set_value</span>(<span class="params">self, css_selector, value</span>):</span><br><span class="line">        <span class="string">&quot;&quot;&quot;设置输入框值（React 受控组件安全）&quot;&quot;&quot;</span></span><br><span class="line">        v = value.replace(<span class="string">&quot;&#x27;&quot;</span>, <span class="string">&quot;\\&#x27;&quot;</span>)  <span class="comment"># 防止引号冲突</span></span><br><span class="line">        <span class="keyword">return</span> js(<span class="variable language_">self</span>.ws, <span class="string">f&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">            (() =&gt; &#123;&#123;</span></span><br><span class="line"><span class="string">                const el = document.querySelector(&#x27;<span class="subst">&#123;css_selector&#125;</span>&#x27;);</span></span><br><span class="line"><span class="string">                if (!el) return &#x27;NOT_FOUND&#x27;;</span></span><br><span class="line"><span class="string">                el.focus();</span></span><br><span class="line"><span class="string">                const ns = Object.getOwnPropertyDescriptor(</span></span><br><span class="line"><span class="string">                    window.HTMLInputElement.prototype, &#x27;value&#x27;</span></span><br><span class="line"><span class="string">                ).set;</span></span><br><span class="line"><span class="string">                ns.call(el, &#x27;<span class="subst">&#123;v&#125;</span>&#x27;);</span></span><br><span class="line"><span class="string">                el.dispatchEvent(new Event(&#x27;input&#x27;, &#123;&#123;bubbles: true&#125;&#125;));</span></span><br><span class="line"><span class="string">                el.dispatchEvent(new Event(&#x27;change&#x27;, &#123;&#123;bubbles: true&#125;&#125;));</span></span><br><span class="line"><span class="string">                return &#x27;OK&#x27;;</span></span><br><span class="line"><span class="string">            &#125;&#125;)()</span></span><br><span class="line"><span class="string">        &quot;&quot;&quot;</span>)</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">set_textarea</span>(<span class="params">self, css_selector, value</span>):</span><br><span class="line">        <span class="string">&quot;&quot;&quot;textarea 同样适用（HTMLTextAreaElement）&quot;&quot;&quot;</span></span><br><span class="line">        v = value.replace(<span class="string">&quot;&#x27;&quot;</span>, <span class="string">&quot;\\&#x27;&quot;</span>)</span><br><span class="line">        <span class="keyword">return</span> js(<span class="variable language_">self</span>.ws, <span class="string">f&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">            (() =&gt; &#123;&#123;</span></span><br><span class="line"><span class="string">                const el = document.querySelector(&#x27;<span class="subst">&#123;css_selector&#125;</span>&#x27;);</span></span><br><span class="line"><span class="string">                if (!el) return &#x27;NOT_FOUND&#x27;;</span></span><br><span class="line"><span class="string">                el.focus();</span></span><br><span class="line"><span class="string">                const ns = Object.getOwnPropertyDescriptor(</span></span><br><span class="line"><span class="string">                    window.HTMLTextAreaElement.prototype, &#x27;value&#x27;</span></span><br><span class="line"><span class="string">                ).set;</span></span><br><span class="line"><span class="string">                ns.call(el, &#x27;<span class="subst">&#123;v&#125;</span>&#x27;);</span></span><br><span class="line"><span class="string">                el.dispatchEvent(new Event(&#x27;input&#x27;, &#123;&#123;bubbles: true&#125;&#125;));</span></span><br><span class="line"><span class="string">                el.dispatchEvent(new Event(&#x27;change&#x27;, &#123;&#123;bubbles: true&#125;&#125;));</span></span><br><span class="line"><span class="string">                return &#x27;OK&#x27;;</span></span><br><span class="line"><span class="string">            &#125;&#125;)()</span></span><br><span class="line"><span class="string">        &quot;&quot;&quot;</span>)</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">clear_and_set</span>(<span class="params">self, css_selector, value</span>):</span><br><span class="line">        <span class="string">&quot;&quot;&quot;清空后设置新值&quot;&quot;&quot;</span></span><br><span class="line">        js(<span class="variable language_">self</span>.ws, <span class="string">f&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">            (() =&gt; &#123;&#123;</span></span><br><span class="line"><span class="string">                const el = document.querySelector(&#x27;<span class="subst">&#123;css_selector&#125;</span>&#x27;);</span></span><br><span class="line"><span class="string">                if (!el) return;</span></span><br><span class="line"><span class="string">                el.focus();</span></span><br><span class="line"><span class="string">                const ns = Object.getOwnPropertyDescriptor(</span></span><br><span class="line"><span class="string">                    window.HTMLInputElement.prototype, &#x27;value&#x27;</span></span><br><span class="line"><span class="string">                ).set;</span></span><br><span class="line"><span class="string">                ns.call(el, &#x27;&#x27;);</span></span><br><span class="line"><span class="string">                el.dispatchEvent(new Event(&#x27;input&#x27;, &#123;&#123;bubbles: true&#125;&#125;));</span></span><br><span class="line"><span class="string">            &#125;&#125;)()</span></span><br><span class="line"><span class="string">        &quot;&quot;&quot;</span>)</span><br><span class="line">        <span class="keyword">return</span> <span class="variable language_">self</span>.set_value(css_selector, value)</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">get_react_value</span>(<span class="params">self, css_selector</span>):</span><br><span class="line">        <span class="string">&quot;&quot;&quot;获取 React 管理的实际值（而非 DOM 属性值）&quot;&quot;&quot;</span></span><br><span class="line">        <span class="keyword">return</span> js(<span class="variable language_">self</span>.ws, <span class="string">f&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">            document.querySelector(&#x27;<span class="subst">&#123;css_selector&#125;</span>&#x27;).value</span></span><br><span class="line"><span class="string">        &quot;&quot;&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 使用</span></span><br><span class="line">handler = ReactInputHandler(ws)</span><br><span class="line">handler.set_value(<span class="string">&#x27;#title&#x27;</span>, <span class="string">&#x27;新标题&#x27;</span>)</span><br><span class="line">handler.set_textarea(<span class="string">&#x27;.content-area&#x27;</span>, <span class="string">&#x27;正文内容...&#x27;</span>)</span><br></pre></td></tr></table></figure>
+
+<h2 id="其他框架的类似问题"><a href="#其他框架的类似问题" class="headerlink" title="其他框架的类似问题"></a>其他框架的类似问题</h2><p>不只是 React 有这个问题，其他框架也有类似的”受控组件”行为：</p>
+<table>
+<thead>
+<tr>
+<th>框架</th>
+<th>问题</th>
+<th>解决方案</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>React</strong></td>
+<td>覆写 value getter&#x2F;setter</td>
+<td>原生 setter + input 事件</td>
+</tr>
+<tr>
+<td><strong>Vue</strong></td>
+<td>v-model 绑定</td>
+<td>同上（Vue 也监听 input 事件）</td>
+</tr>
+<tr>
+<td><strong>Angular</strong></td>
+<td>ngModel 绑定</td>
+<td>同上</td>
+</tr>
+<tr>
+<td><strong>Arco Design</strong></td>
+<td>自定义 input 组件</td>
+<td>可能需要额外触发自定义事件</td>
+</tr>
+<tr>
+<td><strong>Ant Design</strong></td>
+<td>Form.Item + getFieldDecorator</td>
+<td>原生 setter + input 事件通常有效</td>
+</tr>
+</tbody></table>
+<p><strong>通用原则</strong>：先尝试原生 setter + input 事件，如果不行，查看组件库源码看它监听什么事件。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><ol>
+<li><strong>React 受控组件不能直接用 <code>el.value = x</code> 赋值</strong>，因为 React 覆写了 value 属性</li>
+<li><strong>正确方法</strong>：通过 <code>Object.getOwnPropertyDescriptor</code> 拿到原型上的原生 setter，绕过 React 的拦截</li>
+<li><strong>必须派发事件</strong>：设值后要 dispatch <code>input</code> + <code>change</code> 事件通知 React 更新状态</li>
+<li><strong>textarea 同样适用</strong>：<code>HTMLTextAreaElement.prototype.value</code> 的 setter 同理</li>
+<li><strong>先聚焦再操作</strong>：部分组件库要求输入框处于 focus 状态才能写入</li>
+<li><strong>注意特殊字符</strong>：值中包含引号或反斜杠时需要转义</li>
+</ol>
+<blockquote>
+<p><strong>总结</strong>：理解 React 受控组件的底层原理——value 的 getter&#x2F;setter 被覆写——是解决这类问题的关键。原生 setter 绕过 + 事件通知的模式不仅适用于 React，也适用于 Vue、Angular 等使用类似机制的框架。</p>
+</blockquote>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://cdp.autify.cc"></a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://cdp.autify.cc/cdp-react-controlled-input-experience/">https://cdp.autify.cc/cdp-react-controlled-input-experience/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://cdp.autify.cc" target="_blank">CDP 自动化指南</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/Chrome-DevTools-Protocol/">Chrome DevTools Protocol</a><a class="post-meta__tags" href="/tags/CDP/">CDP</a><a class="post-meta__tags" href="/tags/Python/">Python</a><a class="post-meta__tags" href="/tags/%E6%B5%8F%E8%A7%88%E5%99%A8%E8%87%AA%E5%8A%A8%E5%8C%96/">浏览器自动化</a><a class="post-meta__tags" href="/tags/React/">React</a><a class="post-meta__tags" href="/tags/%E5%8F%97%E6%8E%A7%E7%BB%84%E4%BB%B6/">受控组件</a></div><div class="post-share"><div class="social-share" data-image="/img/avatar.png" data-sites="facebook,x,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/cdp-ui-component-pitfalls-experience/" title="组件库 UI 自动化的三个常见陷阱：以某组件库为例"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">组件库 UI 自动化的三个常见陷阱：以某组件库为例</div></div><div class="info-2"><div class="info-item-1">组件库（如 Arco Design、Ant Design）对标准 HTML 元素做了封装，导致常规的自动化点击方式失效。本文记录 radio button、checkbox、select 等组件的正确操控方式。</div></div></div></a><a class="pagination-related" href="/cdp-radix-ui-experience/" title="现代 UI 组件自动化：Radix UI 下拉菜单的 CDP 操控实战"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">现代 UI 组件自动化：Radix UI 下拉菜单的 CDP 操控实战</div></div><div class="info-2"><div class="info-item-1">在实际项目中遇到 Radix UI 下拉菜单无法用常规 JS click 打开的坑。本文记录如何结合 CDP 鼠标点击与 JavaScript 执行，正确操控 portal 渲染的 Radix UI DropdownMenu 组件。</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/cdp-service-worker-guide/" title="CDP Service Worker 管理：用 Python 调试离线缓存"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-06-05</div><div class="info-item-2">CDP Service Worker 管理：用 Python 调试离线缓存</div></div><div class="info-2"><div class="info-item-1">详解如何用 Chrome DevTools Protocol（CDP）管理 Service Worker。涵盖注册/注销事件监听、生命周期状态追踪、推送通知模拟、CacheStorage 缓存操作以及离线调试技巧。</div></div></div></a><a class="pagination-related" href="/cdp-vs-playwright-guide/" title="CDP vs Playwright：浏览器自动化方案选型指南"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-06-05</div><div class="info-item-2">CDP vs Playwright：浏览器自动化方案选型指南</div></div><div class="info-2"><div class="info-item-1">深入对比 CDP 直连与 Playwright 封装两种浏览器自动化方案，帮助你在不同场景下做出正确的技术选型。</div></div></div></a><a class="pagination-related" href="/cdp-multi-instance-guide/" title="CDP 多实例编排：用 Python 控制分布式浏览器集群"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-06-05</div><div class="info-item-2">CDP 多实例编排：用 Python 控制分布式浏览器集群</div></div><div class="info-2"><div class="info-item-1">学习如何同时启动和协调多个 Chrome 实例，构建分布式浏览器集群进行大规模自动化任务。</div></div></div></a><a class="pagination-related" href="/cdp-ui-component-pitfalls-experience/" title="组件库 UI 自动化的三个常见陷阱：以某组件库为例"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-06-09</div><div class="info-item-2">组件库 UI 自动化的三个常见陷阱：以某组件库为例</div></div><div class="info-2"><div class="info-item-1">组件库（如 Arco Design、Ant Design）对标准 HTML 元素做了封装，导致常规的自动化点击方式失效。本文记录 radio button、checkbox、select 等组件的正确操控方式。</div></div></div></a><a class="pagination-related" href="/cdp-content-filter-guide/" title="CDP 请求拦截实战：用 Python 构建内容过滤器"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-06-05</div><div class="info-item-2">CDP 请求拦截实战：用 Python 构建内容过滤器</div></div><div class="info-2"><div class="info-item-1">利用 CDP 的 Network 域实现高级请求拦截与内容过滤，构建一个可自定义规则的内容过滤器，拦截广告、跟踪器和不需要的资源。</div></div></div></a><a class="pagination-related" href="/cdp-event-system-guide/" title="CDP 事件系统指南：用 Python 监听浏览器事件"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-06-05</div><div class="info-item-2">CDP 事件系统指南：用 Python 监听浏览器事件</div></div><div class="info-2"><div class="info-item-1">详解 Chrome DevTools Protocol（CDP）的事件驱动机制。涵盖如何监听 CDP 事件、一次性 vs 持久监听模式、常见事件类型（网络请求、页面加载、控制台消息等）、事件过滤与节流，以及完整的事件管理器封装类。</div></div></div></a></div></div><hr class="custom-hr"/><div id="post-comment"><div class="comment-head"><div class="comment-headline"><i class="fas fa-comments fa-fw"></i><span> 评论</span></div></div><div class="comment-wrap"><div><div id="utterances-wrap"></div></div></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/avatar.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name"></div><div class="author-info-description">Chrome DevTools Protocol 中文教程</div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">47</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">110</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">8</div></a></div><a id="card-info-btn" target="_blank" rel="noopener" href="https://github.com/lmlx07"><i class="fab fa-github"></i><span>关注我</span></a><div class="card-info-social-icons"><a class="social-icon" href="https://github.com/lmlx07" target="_blank" title="GitHub"><i class="fab fa-github" style="color: #24292e;"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">📢 CDP 自动化指南是一个专注于 Chrome DevTools Protocol 的中文技术博客，提供 Python 控制浏览器的实战教程。</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%9B%AE%E5%BD%95"><span class="toc-number">1.</span> <span class="toc-text">目录</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E9%97%AE%E9%A2%98%E5%9C%BA%E6%99%AF"><span class="toc-number">2.</span> <span class="toc-text">问题场景</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#React-%E5%8F%97%E6%8E%A7%E7%BB%84%E4%BB%B6%E5%8E%9F%E7%90%86"><span class="toc-number">3.</span> <span class="toc-text">React 受控组件原理</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E9%94%99%E8%AF%AF%E7%9A%84%E5%B0%9D%E8%AF%95"><span class="toc-number">4.</span> <span class="toc-text">错误的尝试</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%AD%A3%E7%A1%AE%E7%9A%84%E5%81%9A%E6%B3%95%EF%BC%9A%E5%8E%9F%E7%94%9F-setter-%E7%BB%95%E8%BF%87"><span class="toc-number">5.</span> <span class="toc-text">正确的做法：原生 setter 绕过</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%88%86%E6%AD%A5%E8%A7%A3%E6%9E%90"><span class="toc-number">5.1.</span> <span class="toc-text">分步解析</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%AE%8C%E6%95%B4%E7%A4%BA%E4%BE%8B"><span class="toc-number">5.2.</span> <span class="toc-text">完整示例</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%AE%8C%E6%95%B4%E5%B0%81%E8%A3%85%E4%B8%8E%E4%BD%BF%E7%94%A8"><span class="toc-number">6.</span> <span class="toc-text">完整封装与使用</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%B6%E4%BB%96%E6%A1%86%E6%9E%B6%E7%9A%84%E7%B1%BB%E4%BC%BC%E9%97%AE%E9%A2%98"><span class="toc-number">7.</span> <span class="toc-text">其他框架的类似问题</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%80%BB%E7%BB%93"><span class="toc-number">8.</span> <span class="toc-text">总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/cdp-seo-timeline-experience/" title="新站 SEO：从提交到收录的预期管理">新站 SEO：从提交到收录的预期管理</a><time datetime="2026-06-09T07:30:00.000Z" title="发表于 2026-06-09 15:30:00">2026-06-09</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/cdp-seo-webmaster-experience/" title="静态站站长平台使用手册：在受限条件下的最优收录策略">静态站站长平台使用手册：在受限条件下的最优收录策略</a><time datetime="2026-06-09T07:00:00.000Z" title="发表于 2026-06-09 15:00:00">2026-06-09</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/cdp-seo-api-submit-experience/" title="收录 API 提交脚本开发实战：从 sitemap 到百度收录">收录 API 提交脚本开发实战：从 sitemap 到百度收录</a><time datetime="2026-06-09T06:30:00.000Z" title="发表于 2026-06-09 14:30:00">2026-06-09</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/cdp-seo-github-pages-experience/" title="无备案 GitHub Pages 站的搜索 SEO 完整指南">无备案 GitHub Pages 站的搜索 SEO 完整指南</a><time datetime="2026-06-09T06:00:00.000Z" title="发表于 2026-06-09 14:00:00">2026-06-09</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/cdp-debug-inspect-experience/" title="CDP 调试脚本合集：快速检查页面状态与元素信息">CDP 调试脚本合集：快速检查页面状态与元素信息</a><time datetime="2026-06-09T05:00:00.000Z" title="发表于 2026-06-09 13:00:00">2026-06-09</time></div></div></div></div></div></div></main><footer id="footer"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2026 By </span><span class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div><div class="footer_custom_text">🚀 CDP 自动化指南</div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><a id="to_comment" href="#post-comment" title="前往评论"><i class="fas fa-comments"></i></a><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.4"></script><script src="/js/main.js?v=5.5.4"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const isShuoshuo = GLOBAL_CONFIG_SITE.pageType === 'shuoshuo'
+  const option = null
+  const getUtterancesTheme = theme => theme === 'dark' ? 'github-dark' : 'github-light'
+
+  const loadUtterances = (el = document, key) => {
+    if (isShuoshuo) {
+      window.shuoshuoComment.destroyUtterances = () => {
+        if (el.children.length) {
+          el.innerHTML = ''
+          el.classList.add('no-comment')
+        }
+      }
+    }
+
+    const config = {
+      src: 'https://utteranc.es/client.js',
+      repo: 'lmlx07/tools-review',
+      theme: getUtterancesTheme(document.documentElement.getAttribute('data-theme')),
+      crossorigin: 'anonymous',
+      async: true,
+      ...option,
+      'issue-term': isShuoshuo ? key : (option && option['issue-term']) || 'pathname'
+    }
+
+    const ele = document.createElement('script')
+    Object.entries(config).forEach(([key, value]) => ele.setAttribute(key, value))
+    el.querySelector('#utterances-wrap').appendChild(ele)
+  }
+
+  const changeUtterancesTheme = theme => {
+    const iframe = document.querySelector('#utterances-wrap iframe')
+    if (iframe) {
+      const message = {
+        type: 'set-theme',
+        theme: getUtterancesTheme(theme)
+      };
+      iframe.contentWindow.postMessage(message, 'https://utteranc.es')
+    }
+  }
+
+  btf.addGlobalFn('themeChange', changeUtterancesTheme, 'utterances')
+
+  if (isShuoshuo) {
+    'Utterances' === 'Utterances'
+      ? window.shuoshuoComment = { loadComment: loadUtterances }
+      : window.loadOtherComment = loadUtterances
+    return
+  }
+  
+  if ('Utterances' === 'Utterances' || !false) {
+    if (false) btf.loadComment(document.getElementById('utterances-wrap'), loadUtterances)
+    else loadUtterances()
+  } else {
+    window.loadOtherComment = loadUtterances
+  }
+})()</script></div><div id="lang-switch"><span class="lo" data-lang="zh-CN">中文</span><span class="sp">|</span><span class="lo" data-lang="en">EN</span></div><script>!function(){var H='<span class="lo" data-lang="zh-CN">中文</span><span class="sp">|</span><span class="lo" data-lang="en">EN</span>';function E(){var e=document.getElementById("lang-switch")||function(){var e=document.createElement("div");return e.id="lang-switch",e.style.display="inline-flex",e.innerHTML=H,e}();var n=window.location.pathname.startsWith("/en");e.querySelectorAll(".lo").forEach(function(e){e.classList.toggle("on",n?e.dataset.lang==="en":e.dataset.lang==="zh-CN")}),e.removeEventListener("click",e._l),e._l=function(t){var o=(t=t||window.event).target.closest(".lo");if(!o)return;var l=o.dataset.lang;if(l==="en"&&!n){var a=window.location.pathname.replace(/\/$/,"")||"";window.location.href="/en"+a+window.location.search}else if(l==="zh-CN"&&n){var i=window.location.pathname.replace(/^\/en/,"").replace(/\/$/,"")||"/";window.location.href=i+window.location.search}},e.addEventListener("click",e._l)}function I(){var e=document.getElementById("lang-switch")||function(){var e=document.createElement("div");return e.id="lang-switch",e.style.display="inline-flex",e.innerHTML=H,e}();var t=document.querySelector("#nav .menus_items");if(!t||t.contains(e))return;var n=document.createElement("li");n.className="menus_item",n.appendChild(e),t.appendChild(n)}E(),setTimeout(I,300),document.addEventListener("pjax:complete",function(){setTimeout(I,300),setTimeout(E,500)})}();</script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js" defer="defer"></script><script>document.addEventListener('DOMContentLoaded', () => {
+  const pjaxSelectors = ["meta[property=\"og:image\"]","meta[property=\"og:title\"]","meta[property=\"og:url\"]","meta[property=\"og:description\"]","link[rel=\"canonical\"]","head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      false
+        ? pjax.loadUrl('/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})</script><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script></div></body></html>
