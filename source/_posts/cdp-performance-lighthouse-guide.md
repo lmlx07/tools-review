@@ -59,18 +59,30 @@ Performance 域提供了最简单的性能数据获取方式。它对应的是 D
 ### 启用和采集
 
 ```python
-def collect_performance_metrics(ws):
+CMD_ID = [0]
+async def cdp(ws, method, params=None):
+    """发送 CDP 命令并等待返回结果"""
+    CMD_ID[0] += 1
+    cmd_id = CMD_ID[0]
+    request = {'id': cmd_id, 'method': method, 'params': params or {}}
+    await ws.send(json.dumps(request))
+    async for msg in ws:
+        response = json.loads(msg)
+        if response.get('id') == cmd_id:
+            return response.get('result', {})
+
+async def collect_performance_metrics(ws):
     """采集页面性能指标"""
     
     # 启用 Performance 域
-    cmd(ws, 'Performance.enable')
+    await cdp(ws, 'Performance.enable')
     
     # 导航到目标页面
-    cmd(ws, 'Page.navigate', {'url': 'https://example.com'})
-    time.sleep(5)  # 等待页面完全加载
+    await cdp(ws, 'Page.navigate', {'url': 'https://example.com'})
+    await asyncio.sleep(5)  # 等待页面完全加载
     
     # 获取性能指标
-    result = cmd(ws, 'Performance.getMetrics')
+    result = await cdp(ws, 'Performance.getMetrics')
     metrics = result.get('metrics', [])
     
     # 解析成字典
@@ -82,7 +94,7 @@ def collect_performance_metrics(ws):
 
 
 # 调用
-metrics = collect_performance_metrics(ws)
+metrics = await collect_performance_metrics(ws)
 for name, value in sorted(metrics.items()):
     print(f'{name}: {value}')
 ```
@@ -118,10 +130,10 @@ Core Web Vitals 是 Google 定义的三个核心用户体验指标：LCP、FID/I
 ### 方案一：通过 Runtime.evaluate 读取
 
 ```python
-def collect_web_vitals_js(ws):
+async def collect_web_vitals_js(ws):
     """通过 JS 采集 Web Vitals"""
     
-    result = cmd(ws, 'Runtime.evaluate', {
+    result = await cdp(ws, 'Runtime.evaluate', {
         'expression': '''
         (() => {
             const entries = performance.getEntriesByType('paint');
@@ -165,11 +177,11 @@ def collect_web_vitals_js(ws):
 对于 LCP（Largest Contentful Paint）和 CLS（Cumulative Layout Shift），需要用 PerformanceObserver 来监听：
 
 ```python
-def capture_lcp_and_cls(ws, timeout=10):
+async def capture_lcp_and_cls(ws, timeout=10):
     """通过 PerformanceObserver 捕获 LCP 和 CLS"""
     
     # 先注入 PerformanceObserver 监听脚本
-    cmd(ws, 'Runtime.evaluate', {
+    await cdp(ws, 'Runtime.evaluate', {
         'expression': '''
         window.__webVitals = {};
         
@@ -204,13 +216,13 @@ def capture_lcp_and_cls(ws, timeout=10):
     })
     
     # 导航到页面
-    cmd(ws, 'Page.navigate', {'url': 'https://example.com'})
+    await cdp(ws, 'Page.navigate', {'url': 'https://example.com'})
     
     # 等待页面加载完成
-    time.sleep(timeout)
+    await asyncio.sleep(timeout)
     
     # 采集结果
-    result = cmd(ws, 'Runtime.evaluate', {
+    result = await cdp(ws, 'Runtime.evaluate', {
         'expression': 'JSON.stringify(window.__webVitals)',
         'returnByValue': True
     })
@@ -290,7 +302,7 @@ Tracing 是 CDP 最强大的性能分析功能。它采集 Chrome 引擎层面�
 ### 启动和停止 Tracing
 
 ```python
-def trace_page(ws, url, categories=None, timeout=10):
+async def trace_page(ws, url, categories=None, timeout=10):
     """
     对页面进行性能追踪
     
@@ -320,41 +332,35 @@ def trace_page(ws, url, categories=None, timeout=10):
             'navigation',
         ]
     
-    # 启动 Tracing
-    cmd(ws, 'Tracing.start', {
+    # 启动 Tracing（使用默认传输模式，让数据通过 Tracing.dataCollected 事件发送）
+    await cdp(ws, 'Tracing.start', {
         'categories': ','.join(categories),
         'options': 'sampling-frequency=10000',  # 10kHz 采样
-        'transferMode': 'ReturnAsStream'  # 用流返回，避免单次数据过大
     })
     
     # 导航到目标页面
-    cmd(ws, 'Page.navigate', {'url': url})
+    await cdp(ws, 'Page.navigate', {'url': url})
     
-    # 等待并采集追踪数据
+    # 等待一段时间，然后停止 Tracing
+    await asyncio.sleep(timeout)
+    await cdp(ws, 'Tracing.end')
+    
+    # 采集 Tracing.dataCollected 事件中的数据
     events = []
-    start = time.time()
-    stream_handle = None
-    
-    while time.time() - start < timeout:
-        try:
-            ws.settimeout(0.3)
-            msg = json.loads(ws.recv())
-            
-            method = msg.get('method', '')
-            
-            if method == 'Tracing.tracingComplete':
-                stream_handle = msg['params']['stream']
-                break
-            
-            if method == 'Tracing.dataCollected':
-                collected = msg['params'].get('value', [])
-                events.extend(collected)
+    try:
+        async with asyncio.timeout(5):
+            async for msg in ws:
+                data = json.loads(msg)
+                method = data.get('method', '')
                 
-        except websocket.TimeoutError:
-            continue
-    
-    # 停止 Tracing
-    cmd(ws, 'Tracing.end')
+                if method == 'Tracing.tracingComplete':
+                    break
+                
+                if method == 'Tracing.dataCollected':
+                    collected = data['params'].get('value', [])
+                    events.extend(collected)
+    except (asyncio.TimeoutError, Exception):
+        pass
     
     return events
 ```
@@ -471,38 +477,11 @@ def extract_lcp_from_trace(events):
 
 Lighthouse 是 Google 官方出品的网站质量审计工具。虽然它通常作为独立 CLI 运行，但也可以通过 CDP 集成到自动化流程中。
 
-### 方案一：通过 CDP 调用 Lighthouse 协议
+> **重要说明**：CDP 协议中**没有** `Lighthouse` 域（domain），因此无法直接通过 CDP 命令调用 Lighthouse 审计。`Lighthouse.start` 并非 CDP 标准协议方法。
+>
+> 以下两种是经过验证的正确方案：
 
-较新版本的 Chrome 内置了 Lighthouse 支持，可以通过 CDP 调用：
-
-```python
-def run_lighthouse_audit(ws):
-    """通过 CDP 运行 Lighthouse 审计"""
-    
-    # 启用所需的域
-    cmd(ws, 'Page.enable')
-    
-    # 启动 Lighthouse 审计
-    # 注意：这需要 Chrome 内置了 Lighthouse 支持
-    result = cmd(ws, 'Lighthouse.start', {
-        'config': {
-            'categories': ['performance', 'accessibility', 'best-practices', 'seo'],
-            'formFactor': 'desktop',
-            'throttling': {
-                'cpuSlowdownMultiplier': 1,
-                'downloadThroughputKbps': 10000,
-                'uploadThroughputKbps': 5000,
-                'rttMs': 40
-            }
-        }
-    })
-    
-    return result
-```
-
-> **注意**：`Lighthouse.start` 协议方法可能因 Chrome 版本而异。如果不可用，可以用方案二。
-
-### 方案二：通过命令行调用 Lighthouse + CDP 端口
+### 方案一：通过命令行调用 Lighthouse + CDP 端口
 
 更通用的方式是用 Node.js Lighthouse CLI 配合 CDP 端口：
 
@@ -573,7 +552,7 @@ if 'scores' in report:
     print(f'CLS: {report["metrics"]["cls"]:.3f}')
 ```
 
-### 方案三：纯 Python Lighthouse 解析
+### 方案二：纯 Python Lighthouse 解析
 
 如果不想依赖 Node.js，也可以完全用 CDP 数据自行计算类似 Lighthouse 的指标：
 
@@ -605,7 +584,7 @@ def compute_performance_score(metrics):
 将以上技巧整合成一个定时监控系统：
 
 ```python
-import json, urllib.request, websocket, time, os
+import asyncio, json, urllib.request, websockets, os
 from datetime import datetime
 
 class CDPPerformanceMonitor:
@@ -623,42 +602,36 @@ class CDPPerformanceMonitor:
         self.host = host
         self.log_dir = log_dir
         self.ws = None
-        self._id = 1
         os.makedirs(log_dir, exist_ok=True)
     
-    def _connect(self):
+    async def _connect(self):
         data = json.loads(
             urllib.request.urlopen(f'http://{self.host}/json', timeout=5).read()
         )
         ws_url = data[0]['webSocketDebuggerUrl']
-        self.ws = websocket.create_connection(ws_url, timeout=30)
-        self._cmd('Page.enable')
-        self._cmd('Performance.enable')
+        self.ws = await websockets.connect(ws_url, max_size=2**24)
+        await self.cdp('Page.enable')
+        await self.cdp('Performance.enable')
     
-    def _cmd(self, method, params=None):
-        if params is None: params = {}
-        self._id += 1
-        self.ws.send(json.dumps({'id': self._id, 'method': method, 'params': params}))
-        while True:
-            r = json.loads(self.ws.recv())
-            if r.get('id') == self._id: return r.get('result', {})
+    async def cdp(self, method, params=None):
+        return await cdp(self.ws, method, params)
     
-    def check_url(self, url, label=''):
+    async def check_url(self, url, label=''):
         """检查单个 URL 的性能"""
         
-        self._connect()
+        await self._connect()
         
         # 导航并等待加载
         print(f'🔍 Checking {label or url}...')
-        cmd(ws, 'Page.navigate', {'url': url})
-        time.sleep(5)
+        await self.cdp('Page.navigate', {'url': url})
+        await asyncio.sleep(5)
         
         # 获取性能指标
-        result = self._cmd('Performance.getMetrics')
+        result = await self.cdp('Performance.getMetrics')
         metrics = {m['name']: m['value'] for m in result.get('metrics', [])}
         
         # 获取 Web Vitals
-        vitals_result = self._cmd('Runtime.evaluate', {
+        vitals_result = await self.cdp('Runtime.evaluate', {
             'expression': '''
             (() => {
                 const nav = performance.getEntriesByType('navigation')[0];
@@ -706,10 +679,10 @@ class CDPPerformanceMonitor:
         with open(log_file, 'w') as f:
             json.dump(report, f, indent=2)
         
-        self.ws.close()
+        await self.ws.close()
         return report, alerts
     
-    def check_multiple(self, urls):
+    async def check_multiple(self, urls):
         """批量检查多个 URL"""
         
         all_reports = []
@@ -717,7 +690,7 @@ class CDPPerformanceMonitor:
         
         for url, label in urls:
             try:
-                report, alerts = self.check_url(url, label)
+                report, alerts = await self.check_url(url, label)
                 all_reports.append(report)
                 if alerts:
                     all_alerts[label or url] = alerts
@@ -739,14 +712,16 @@ class CDPPerformanceMonitor:
         return all_reports
 
 
-# 使用示例：监控你的 CDP 教程站
-monitor = CDPPerformanceMonitor()
+# ====== 使用示例 ======
+async def demo():
+    monitor = CDPPerformanceMonitor()
+    await monitor.check_multiple([
+        ('https://cdp.autify.cc', '首页'),
+        ('https://cdp.autify.cc/cdp-python-automation-guide/', 'CDP 完全指南'),
+        ('https://cdp.autify.cc/cdp-network-intercept-guide/', '网络拦截篇'),
+    ])
 
-monitor.check_multiple([
-    ('https://cdp.autify.cc', '首页'),
-    ('https://cdp.autify.cc/cdp-python-automation-guide/', 'CDP 完全指南'),
-    ('https://cdp.autify.cc/cdp-network-intercept-guide/', '网络拦截篇'),
-])
+asyncio.run(demo())
 ```
 
 ---
@@ -756,7 +731,7 @@ monitor.check_multiple([
 在 CI/CD 中集成性能检查，防止性能退化：
 
 ```python
-def performance_regression_check(url, baseline_file='baseline.json'):
+async def performance_regression_check(url, baseline_file='baseline.json'):
     """
     性能回归测试：对比当前结果与基线
     
@@ -775,7 +750,7 @@ def performance_regression_check(url, baseline_file='baseline.json'):
     
     # 当前测试
     monitor = CDPPerformanceMonitor()
-    report, _ = monitor.check_url(url)
+    report, _ = await monitor.check_url(url)
     
     changes = {}
     passed = True
@@ -823,8 +798,8 @@ def performance_regression_check(url, baseline_file='baseline.json'):
     return passed, changes
 
 
-# 在 CI 中使用
-passed, changes = performance_regression_check('https://cdp.autify.cc/')
+# 在 CI 中使用（配合 asyncio.run）
+passed, changes = await performance_regression_check('https://cdp.autify.cc/')
 if not passed:
     print('❌ 性能回归测试未通过')
     for metric, info in changes.items():
@@ -847,11 +822,11 @@ else:
 # 限制 Tracing 时长
 TRACING_TIMEOUT = 5  # 秒
 
-# 使用流模式传输（transferMode=ReturnAsStream）
-# 而不是默认的逐个事件发送
-cmd(ws, 'Tracing.start', {
+# 使用默认传输模式（数据通过 Tracing.dataCollected 事件逐批发送）
+# 如果数据量过大，也可以改用 ReturnAsStream 模式配合 IO.read 读取
+await cdp(ws, 'Tracing.start', {
     'categories': 'devtools.timeline',
-    'transferMode': 'ReturnAsStream'  # 推荐
+    # 'transferMode': 'ReturnAsStream'  # 可选：数据量极大时用流模式
 })
 ```
 
@@ -861,29 +836,28 @@ cmd(ws, 'Tracing.start', {
 
 ```python
 # ❌ 错误：导航后立即获取
-cmd(ws, 'Page.navigate', {'url': url})
-metrics = cmd(ws, 'Performance.getMetrics')  # 还没加载完
+await cdp(ws, 'Page.navigate', {'url': url})
+metrics = await cdp(ws, 'Performance.getMetrics')  # 还没加载完
 
 # ✅ 正确：等待加载完成
-cmd(ws, 'Page.navigate', {'url': url})
-wait_for_page_loaded(ws)  # 等待 load 事件
-metrics = cmd(ws, 'Performance.getMetrics')
+await cdp(ws, 'Page.navigate', {'url': url})
+await wait_for_page_loaded(ws)  # 等待 load 事件
+metrics = await cdp(ws, 'Performance.getMetrics')
 ```
 
 判断页面加载完成的方法：
 
 ```python
-def wait_for_page_loaded(ws, timeout=15):
+async def wait_for_page_loaded(ws, timeout=15):
     """等待页面 load 事件"""
-    start = time.time()
-    while time.time() - start < timeout:
-        try:
-            ws.settimeout(0.3)
-            msg = json.loads(ws.recv())
-            if msg.get('method') == 'Page.loadEventFired':
-                return True
-        except:
-            continue
+    try:
+        async with asyncio.timeout(timeout):
+            async for msg in ws:
+                data = json.loads(msg)
+                if data.get('method') == 'Page.loadEventFired':
+                    return True
+    except (asyncio.TimeoutError, Exception):
+        pass
     return False
 ```
 
@@ -897,7 +871,7 @@ def wait_for_page_loaded(ws, timeout=15):
 
 ```python
 # 模拟 3G 网络
-cmd(ws, 'Network.emulateNetworkConditions', {
+await cdp(ws, 'Network.emulateNetworkConditions', {
     'offline': False,
     'latency': 150,            # 延迟 150ms
     'downloadThroughput': 750 * 1024 / 8,   # 750kbps
@@ -911,14 +885,14 @@ cmd(ws, 'Network.emulateNetworkConditions', {
 单次性能测试的波动很大（受 CPU、内存等影响），建议多次测试取中位数：
 
 ```python
-def median_performance(url, n=5):
+async def median_performance(url, n=5):
     """运行 n 次性能测试，取中位数"""
     
     results = []
     for i in range(n):
         print(f'  第 {i+1}/{n} 次...')
         monitor = CDPPerformanceMonitor()
-        report, _ = monitor.check_url(url)
+        report, _ = await monitor.check_url(url)
         results.append(report['metrics'].get('ScriptDuration', 0))
     
     # 取中位数
@@ -950,3 +924,13 @@ CDP 的性能分析能力覆盖了从简单指标采集到深度 Tracing 的完�
 | 持续监控 | 定时监控 + 回归测试 |
 | CI/CD 质量门禁 | 回归测试 + 阈值告警 |
 
+---
+
+
+
+
+
+
+*上一篇回顾：CDP 浏览器指纹与反检测实战：用 Python 修改指纹绕过自动化检测。*
+
+*下一篇预告：CDP 操作 Cookie 完全指南：用 Python 实现增删改查与自动化登录。*

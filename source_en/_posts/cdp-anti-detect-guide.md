@@ -108,7 +108,20 @@ CDP provides two ways to modify browser fingerprints:
 Inject a script before each new document is executed. The properties and methods modified here will overwrite the native implementation.
 
 ```python
-cmd(ws, 'Page.addScriptToEvaluateOnNewDocument', {
+CMD_ID = [0]
+
+async def cdp(ws, method, params=None):
+    """Send CDP command and wait for the result to be returned"""
+    CMD_ID[0] += 1
+    cmd_id = CMD_ID[0]
+    request = {'id': cmd_id, 'method': method, 'params': params or {}}
+    await ws.send(json.dumps(request))
+    async for msg in ws:
+        response = json.loads(msg)
+        if response.get('id') == cmd_id:
+            return response.get('result', {})
+
+await cdp(ws, 'Page.addScriptToEvaluateOnNewDocument', {
     'source': '''
         // This code executes before each page loads
         Object.defineProperty(navigator, 'webdriver', {
@@ -126,7 +139,7 @@ cmd(ws, 'Page.addScriptToEvaluateOnNewDocument', {
 The Emulation domain of CDP can modify parameters at the browser kernel level, which is lower level than JS injection.
 
 ```python
-cmd(ws, 'Emulation.setUserAgentOverride', {
+await cdp(ws, 'Emulation.setUserAgentOverride', {
     'userAgent': 'Mozilla/5.0 ...'
 })
 ```
@@ -144,7 +157,7 @@ This is the most basic bypass and required by almost every anti-detection scheme
 ```python
 def override_webdriver(ws):
     """Injection script overrides navigator.webdriver"""
-    cmd(ws, 'Page.addScriptToEvaluateOnNewDocument', {
+    await cdp(ws, 'Page.addScriptToEvaluateOnNewDocument', {
         'source': '''
         // Override webdriver properties
         Object.defineProperty(navigator, 'webdriver', {
@@ -165,7 +178,7 @@ override_webdriver(ws)
 Verification effect:
 
 ```python
-result = cmd(ws, 'Runtime.evaluate', {
+result = await cdp(ws, 'Runtime.evaluate', {
     'expression': 'navigator.webdriver',
     'returnByValue': True
 })
@@ -190,30 +203,32 @@ A more thorough bypass:
 ```python
 def stealth_webdriver(ws):
     """Hide webdriver traces in depth"""
-    cmd(ws, 'Page.addScriptToEvaluateOnNewDocument', {
+    await cdp(ws, 'Page.addScriptToEvaluateOnNewDocument', {
         'source': '''
-        // Hide webdriver with proxy
-        const originalNavigator = window.navigator;
-        const navigatorProxy = new Proxy(originalNavigator, {
-            get(target, prop) {
-                if (prop === 'webdriver') return undefined;
-                if (prop === 'plugins' && target.plugins.length === 0) {
-                    // Simulate several plugins
-                    return {
-                        ...target.plugins,
-                        length: 3,
-                        0: {name: 'Chrome PDF Plugin'},
-                        1: {name: 'Chrome PDF Viewer'},
-                        2: {name: 'Native Client'}
-                    };
-                }
-                return target[prop];
-            }
+        // ⚠️ Note: window.navigator is read-only and cannot be replaced with a Proxy.
+        // The correct approach is to manipulate the Navigator prototype:
+
+        // 1. Override webdriver (defineProperty creates an own property on navigator
+        //    that shadows the prototype getter)
+        Object.defineProperty(navigator, 'webdriver', {
+            get: () => undefined,
+            configurable: true
         });
-        
-        // Replace navigator with proxy
-        // Note: This method is more aggressive and may be tested
-        // But actually, the simpler way is enough.
+
+        // 2. Manually simulate the plugins array (automated browsers usually have length 0)
+        if (navigator.plugins.length === 0) {
+            const fakePlugins = [
+                {name: 'Chrome PDF Plugin', filename: 'internal-pdf-viewer'},
+                {name: 'Chrome PDF Viewer', filename: 'mhjfbmdgcfjbbpaeojofohoefgiehjai'},
+                {name: 'Native Client', filename: 'internal-nacl-plugin'},
+            ];
+            fakePlugins.item = i => fakePlugins[i];
+            fakePlugins.namedItem = n => fakePlugins.find(p => p.name === n);
+            Object.defineProperty(navigator, 'plugins', {
+                get: () => fakePlugins,
+                configurable: true
+            });
+        }
         '''
     })
 
@@ -236,7 +251,7 @@ def set_user_agent(ws, ua=None, platform=None):
     if platform is None:
         platform = 'Win32'
     
-    cmd(ws, 'Emulation.setUserAgentOverride', {
+    await cdp(ws, 'Emulation.setUserAgentOverride', {
         'userAgent': ua,
         'platform': platform,
         'acceptLanguage': 'zh-CN,zh;q=0.9,en;q=0.8'
@@ -274,7 +289,7 @@ The principle of Canvas fingerprinting: the website uses JavaScript to draw text
 ```python
 def override_canvas_fingerprint(ws):
     """Modify your Canvas fingerprint to return slightly different results each time"""
-    cmd(ws, 'Page.addScriptToEvaluateOnNewDocument', {
+    await cdp(ws, 'Page.addScriptToEvaluateOnNewDocument', {
         'source': '''
         // Save original method
         const originalToDataURL = HTMLCanvasElement.prototype.toDataURL;
@@ -319,7 +334,7 @@ def override_canvas_with_variation(ws, seed=None):
     if seed is None:
         seed = random.randint(1, 255)
     
-    cmd(ws, 'Page.addScriptToEvaluateOnNewDocument', {
+    await cdp(ws, 'Page.addScriptToEvaluateOnNewDocument', {
         'source': f'''
         const CANVAS_NOISE = {seed};
         
@@ -351,7 +366,7 @@ WebGL provides a wealth of information: graphics card models, renderers, vendors
 ```python
 def override_webgl_fingerprint(ws):
     """Modify WebGL parameters to hide real video card information"""
-    cmd(ws, 'Page.addScriptToEvaluateOnNewDocument', {
+    await cdp(ws, 'Page.addScriptToEvaluateOnNewDocument', {
         'source': '''
         // Modify the getParameter method of the WebGLRenderingContext
         const originalGetParameter = WebGLRenderingContext.prototype.getParameter;
@@ -425,7 +440,7 @@ AudioContext fingerprint obtains subtle differences in the device audio stack by
 ```python
 def override_audio_fingerprint(ws):
     """Modify AudioContext Fingerprint"""
-    cmd(ws, 'Page.addScriptToEvaluateOnNewDocument', {
+    await cdp(ws, 'Page.addScriptToEvaluateOnNewDocument', {
         'source': '''
         // Method to modify AudioContext to change fingerprint
         const originalGetChannelData = AudioBuffer.prototype.getChannelData;
@@ -461,7 +476,7 @@ def set_viewport(ws, width=1920, height=1080, device_scale_factor=1.0):
     """Setting Browser Viewport and Screen Parameters"""
     
     # Use Emulation Domain Settings
-    cmd(ws, 'Emulation.setDeviceMetricsOverride', {
+    await cdp(ws, 'Emulation.setDeviceMetricsOverride', {
         'width': width,
         'height': height,
         'deviceScaleFactor': device_scale_factor,
@@ -505,12 +520,12 @@ def set_timezone_and_locale(ws, timezone='Asia/Shanghai', locale='zh-CN'):
     """Set time zone and locale"""
     
     # Modify Time Zone (Emulation Field)
-    cmd(ws, 'Emulation.setTimezoneOverride', {
+    await cdp(ws, 'Emulation.setTimezoneOverride', {
         'timezoneId': timezone
     })
     
     # Change language (via script injection)
-    cmd(ws, 'Page.addScriptToEvaluateOnNewDocument', {
+    await cdp(ws, 'Page.addScriptToEvaluateOnNewDocument', {
         'source': f'''
         Object.defineProperties(navigator, {{
             language: {{ get: () => '{locale}' }},
@@ -538,7 +553,20 @@ However, the `Emulation` domain does not have a direct language setting interfac
 Integrate all the above techniques into a complete tool class:
 
 ```python
-import json, urllib.request, websocket, time, random, base64
+import asyncio, json, urllib.request, websockets, base64, random
+
+CMD_ID = [0]
+
+async def cdp(ws, method, params=None):
+    """Send CDP command and wait for the result to be returned"""
+    CMD_ID[0] += 1
+    cmd_id = CMD_ID[0]
+    request = {'id': cmd_id, 'method': method, 'params': params or {}}
+    await ws.send(json.dumps(request))
+    async for msg in ws:
+        response = json.loads(msg)
+        if response.get('id') == cmd_id:
+            return response.get('result', {})
 
 class CDPAntiDetect:
     """CDP Counter Detection Tool Class"""
@@ -559,33 +587,28 @@ class CDPAntiDetect:
     def __init__(self, host='localhost:9222'):
         self.host = host
         self.ws = None
-        self._id = 1
         self.script_ids = []
     
-    def connect(self):
+    async def connect(self):
         """Connect Chrome"""
         data = json.loads(urllib.request.urlopen(f'http://{self.host}/json', timeout=5).read())
         ws_url = data[0]['webSocketDebuggerUrl']
-        self.ws = websocket.create_connection(ws_url, timeout=30)
-        self._cmd('Page.enable')
-        self._cmd('Runtime.enable')
+        self.ws = await websockets.connect(ws_url, max_size=2**24)
+        await self.cdp('Page.enable')
+        await self.cdp('Runtime.enable')
         return self
     
-    def _cmd(self, method, params=None):
-        if params is None: params = {}
-        self._id += 1
-        self.ws.send(json.dumps({'id': self._id, 'method': method, 'params': params}))
-        while True:
-            r = json.loads(self.ws.recv())
-            if r.get('id') == self._id: return r.get('result', {})
+    async def cdp(self, method, params=None):
+        """Send CDP command"""
+        return await cdp(self.ws, method, params)
     
-    def _inject_js(self, source):
+    async def _inject_js(self, source):
         """Inject Page Script"""
-        result = self._cmd('Page.addScriptToEvaluateOnNewDocument', {'source': source})
+        result = await self.cdp('Page.addScriptToEvaluateOnNewDocument', {'source': source})
         self.script_ids.append(result.get('identifier'))
         return self
     
-    def apply_preset(self, preset='desktop'):
+    async def apply_preset(self, preset='desktop'):
         """Apply full preset"""
         preset_actions = {
             'desktop': {
@@ -607,14 +630,14 @@ class CDPAntiDetect:
         config = preset_actions.get(preset, preset_actions['desktop'])
         
         # 1. Set up User-Agent and Platform
-        self._cmd('Emulation.setUserAgentOverride', {
+        await self.cdp('Emulation.setUserAgentOverride', {
             'userAgent': config['ua'],
             'platform': config['platform'],
         })
         
         # 2. Set the viewport and resolution
         vp = config['viewport']
-        self._cmd('Emulation.setDeviceMetricsOverride', {
+        await self.cdp('Emulation.setDeviceMetricsOverride', {
             'width': vp['width'], 'height': vp['height'],
             'deviceScaleFactor': vp['scale'],
             'mobile': False,
@@ -623,11 +646,11 @@ class CDPAntiDetect:
         })
         
         # 3. Set time zone
-        self._cmd('Emulation.setTimezoneOverride', {'timezoneId': config['timezone']})
+        await self.cdp('Emulation.setTimezoneOverride', {'timezoneId': config['timezone']})
         
         # 4. Inject the counter-detection script
         seed = random.randint(1, 255)
-        self._inject_js(f'''
+        await self._inject_js(f'''
         // Override webdriver
         Object.defineProperty(navigator, 'webdriver', {{ get: () => undefined }});
         
@@ -687,33 +710,37 @@ class CDPAntiDetect:
         print(f'✅ Anti-detect preset applied: {preset}')
         return self
     
-    def navigate(self, url):
+    async def navigate(self, url):
         """Navigate to the destination page (anti-detection applied)"""
-        self._cmd('Page.navigate', {'url': url})
-        time.sleep(2)
+        await self.cdp('Page.navigate', {'url': url})
+        await asyncio.sleep(2)
         return self
     
-    def close(self):
+    async def close(self):
         if self.ws:
-            self.ws.close()
+            await self.ws.close()
 
 
 # Usage Sample
-ad = CDPAntiDetect().connect()
+async def demo():
+    ad = CDPAntiDetect()
+    await ad.connect()
+    
+    # App Desktop Anti-Detection Preset
+    await ad.apply_preset('desktop')
+    
+    # Visit target website
+    await ad.navigate('https://bot.sannysoft.com/') # A page to detect automated browsers
+    await asyncio.sleep(3)
+    
+    # Screenshot verification
+    screenshot = await ad.cdp('Page.captureScreenshot', {'format': 'png'})
+    with open('anti_detect_result.png', 'wb') as f:
+        f.write(base64.b64decode(screenshot['data']))
+    
+    await ad.close()
 
-# App Desktop Anti-Detection Preset
-ad.apply_preset('desktop')
-
-# Visit target website
-ad.navigate('https://bot.sannysoft.com/') # A page to detect automated browsers
-time.sleep(3)
-
-# Screenshot verification
-screenshot = ad._cmd('Page.captureScreenshot', {'format': 'png'})
-with open('anti_detect_result.png', 'wb') as f:
-    f.write(base64.b64decode(screenshot['data']))
-
-ad.close()
+asyncio.run(demo())
 
 
 ```
@@ -782,4 +809,9 @@ CDP provides rich fingerprint modification capabilities, which are enough to cop
 | Advanced level (banking/risk control) | Desktop preset + behavioral simulation |
 | Enterprise Grade (Cloudflare/Akamai) | All of the above + TLS fingerprinting |
 
-The next article will dive into CDP’s **Performance Tracking and Lighthouse Integration**, so stay tuned.
+
+
+
+*Previous: CDP network interception and request tampering practice: A complete guide to controlling Chrome packet capture and modification with Python*
+
+*Next up: CDP Performance Tracking and Lighthouse Integration: Measuring Web Vitals and Automating Performance Auditing with Python*
