@@ -1,0 +1,362 @@
+<!DOCTYPE html><html lang="en" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>Idempotent Automation Design: Resume Interrupted Scripts Without Duplication | CDP Automation Guide</title><meta name="author" content="John Doe"><meta name="copyright" content="John Doe"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="Long-running automation scripts inevitably crash. This article covers idempotent design — using state tracking, deduplication checks, and resume-from-checkpoint patterns so scripts can be safely re-ru">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Idempotent Automation Design: Resume Interrupted Scripts Without Duplication">
+<meta property="og:url" content="https://lmlx07.github.io/tools-review/cdp-idempotent-automation-experience/index.html">
+<meta property="og:site_name" content="CDP Automation Guide">
+<meta property="og:description" content="Long-running automation scripts inevitably crash. This article covers idempotent design — using state tracking, deduplication checks, and resume-from-checkpoint patterns so scripts can be safely re-ru">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://lmlx07.github.io/tools-review/img/avatar.png">
+<meta property="article:published_time" content="2026-06-09T04:30:00.000Z">
+<meta property="article:modified_time" content="2026-06-09T03:19:36.841Z">
+<meta property="article:author" content="John Doe">
+<meta property="article:tag" content="Architecture">
+<meta property="article:tag" content="Browser Automation">
+<meta property="article:tag" content="CDP">
+<meta property="article:tag" content="Chrome DevTools Protocol">
+<meta property="article:tag" content="Idempotent Design">
+<meta property="article:tag" content="Python">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://lmlx07.github.io/tools-review/img/avatar.png"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Idempotent Automation Design: Resume Interrupted Scripts Without Duplication",
+  "url": "https://lmlx07.github.io/tools-review/cdp-idempotent-automation-experience/",
+  "image": "https://lmlx07.github.io/tools-review/img/avatar.png",
+  "datePublished": "2026-06-09T04:30:00.000Z",
+  "dateModified": "2026-06-09T03:19:36.841Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "John Doe",
+      "url": "https://lmlx07.github.io/tools-review"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/tools-review/en/img/favicon.png"><link rel="canonical" href="https://lmlx07.github.io/tools-review/cdp-idempotent-automation-experience/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="stylesheet" href="/tools-review/en/css/index.css?v=5.5.4"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/tools-review/en/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":false,"highlightFullpage":true,"highlightMacStyle":true},
+  copy: {
+    success: 'Copy Successful',
+    error: 'Copy Failed',
+    noSupport: 'Browser Not Supported'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: '',
+  dateSuffix: {
+    just: 'Just now',
+    min: 'minutes ago',
+    hour: 'hours ago',
+    day: 'days ago',
+    month: 'months ago'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.13.0/dist/infinitegrid.min.js',
+    buttonText: 'Load More'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: false,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'Idempotent Automation Design: Resume Interrupted Scripts Without Duplication',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><style>#lang-switch{display:inline-flex;align-items:center;gap:3px;height:100%;padding:0 6px;cursor:default}#lang-switch .lo{cursor:pointer;padding:2px 6px;border-radius:4px;font-size:.82em;transition:all .2s;color:var(--menu-item-color,#555)}#lang-switch .lo:hover{background:var(--text-bg-hover,rgba(0,0,0,.06))}#lang-switch .lo.on{font-weight:700;color:var(--theme-color,#49b1f5)}#lang-switch .sp{color:var(--menu-item-color,#555);opacity:.3;font-size:.75em;user-select:none}</style><meta name="generator" content="Hexo 8.1.2"><link rel="alternate" href="/tools-review/en/atom.xml" title="CDP Automation Guide" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/tools-review/en/img/avatar.png" onerror="this.onerror=null;this.src='/tools-review/en/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/tools-review/en/archives/"><div class="headline">Articles</div><div class="length-num">47</div></a><a href="/tools-review/en/tags/"><div class="headline">Tags</div><div class="length-num">112</div></a><a href="/tools-review/en/categories/"><div class="headline">Categories</div><div class="length-num">10</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/tools-review/en/"><i class="fa-fw fas fa-home"></i><span> Home</span></a></div><div class="menus_item"><a class="site-page" href="/tools-review/en/archives/"><i class="fa-fw fas fa-archive"></i><span> Archives</span></a></div><div class="menus_item"><a class="site-page" href="/tools-review/en/categories/"><i class="fa-fw fas fa-folder-open"></i><span> Categories</span></a></div><div class="menus_item"><a class="site-page" href="/tools-review/en/tags/"><i class="fa-fw fas fa-tags"></i><span> Tags</span></a></div><div class="menus_item"><a class="site-page" href="/tools-review/en/about/"><i class="fa-fw fas fa-info-circle"></i><span> About</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/tools-review/en/img/default_bg.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/tools-review/en/"><span class="site-name">CDP Automation Guide</span></a><a class="nav-page-title" href="/tools-review/en/"><span class="site-name">Idempotent Automation Design: Resume Interrupted Scripts Without Duplication</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  Back to Home</span></span></a></span><div id="menus"><div class="menus_items"><div class="menus_item"><a class="site-page" href="/tools-review/en/"><i class="fa-fw fas fa-home"></i><span> Home</span></a></div><div class="menus_item"><a class="site-page" href="/tools-review/en/archives/"><i class="fa-fw fas fa-archive"></i><span> Archives</span></a></div><div class="menus_item"><a class="site-page" href="/tools-review/en/categories/"><i class="fa-fw fas fa-folder-open"></i><span> Categories</span></a></div><div class="menus_item"><a class="site-page" href="/tools-review/en/tags/"><i class="fa-fw fas fa-tags"></i><span> Tags</span></a></div><div class="menus_item"><a class="site-page" href="/tools-review/en/about/"><i class="fa-fw fas fa-info-circle"></i><span> About</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">Idempotent Automation Design: Resume Interrupted Scripts Without Duplication</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">Created</span><time class="post-meta-date-created" datetime="2026-06-09T04:30:00.000Z" title="Created 2026-06-09 12:30:00">2026-06-09</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">Updated</span><time class="post-meta-date-updated" datetime="2026-06-09T03:19:36.841Z" title="Updated 2026-06-09 11:19:36">2026-06-09</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/tools-review/en/categories/CDP-Practice/">CDP Practice</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/tools-review/en/categories/CDP-Practice/Experience-Sharing/">Experience Sharing</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">Post Views:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><div id="post-outdate-notice" data="{&quot;limitDay&quot;:365,&quot;messagePrev&quot;:&quot;本文距离上次更新已过去&quot;,&quot;messageNext&quot;:&quot;天，内容可能已过时。&quot;,&quot;postUpdate&quot;:&quot;2026-06-09 11:19:36&quot;}" hidden></div><blockquote>
+<p><strong>Summary in one sentence</strong>: Idempotent automation means the script is “re-entrant” — no matter where it crashes or how many times you retry, the final state is the same. Implementation: scan completed work before starting → process only unfinished items → persist progress after each item.</p>
+</blockquote>
+<hr>
+<h2 id="The-Problem"><a href="#The-Problem" class="headerlink" title="The Problem"></a>The Problem</h2><p>You need to batch-upload 100 chapters to a novel platform. Each chapter’s workflow:</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">Open editor → Fill title → Fill content → Click Next</span><br><span class="line">→ Handle typo check → Select scan mode → Confirm publish</span><br><span class="line">→ Verify success → Return to chapter list</span><br></pre></td></tr></table></figure>
+
+<p>The whole process takes 30~60 minutes. Crashes happen.</p>
+<p>If the script crashes at chapter 57, re-running should:</p>
+<ul>
+<li><strong>Not duplicate</strong>: Chapters 1~56 already published → skip them</li>
+<li><strong>Not skip</strong>: Chapter 57 was interrupted → resume or skip if already done</li>
+<li><strong>Self-heal</strong>: Recover from last known state if records are lost</li>
+</ul>
+<h2 id="Core-Concept"><a href="#Core-Concept" class="headerlink" title="Core Concept"></a>Core Concept</h2><p>Idempotency means: <strong>no matter how many times the script crashes and restarts, the end result is the same.</strong></p>
+<p>Three-step strategy:</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">1. Scan → Check &quot;what&#x27;s already done&quot;</span><br><span class="line">2. Filter → Skip completed items, process only pending</span><br><span class="line">3. Record → Persist progress after each successful item</span><br></pre></td></tr></table></figure>
+
+<h2 id="Approach-1-Local-State-Tracking"><a href="#Approach-1-Local-State-Tracking" class="headerlink" title="Approach 1: Local State Tracking"></a>Approach 1: Local State Tracking</h2><h3 id="Persistent-Record-File"><a href="#Persistent-Record-File" class="headerlink" title="Persistent Record File"></a>Persistent Record File</h3><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> os, json</span><br><span class="line"></span><br><span class="line">RECORD_FILE = <span class="string">&#x27;progress.json&#x27;</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">load_progress</span>():</span><br><span class="line">    <span class="keyword">if</span> os.path.exists(RECORD_FILE):</span><br><span class="line">        <span class="keyword">with</span> <span class="built_in">open</span>(RECORD_FILE, <span class="string">&#x27;r&#x27;</span>, encoding=<span class="string">&#x27;utf-8&#x27;</span>) <span class="keyword">as</span> f:</span><br><span class="line">            <span class="keyword">return</span> json.load(f)</span><br><span class="line">    <span class="keyword">return</span> &#123;<span class="string">&#x27;published&#x27;</span>: [], <span class="string">&#x27;failed&#x27;</span>: []&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">save_progress</span>(<span class="params">progress</span>):</span><br><span class="line">    <span class="keyword">with</span> <span class="built_in">open</span>(RECORD_FILE, <span class="string">&#x27;w&#x27;</span>, encoding=<span class="string">&#x27;utf-8&#x27;</span>) <span class="keyword">as</span> f:</span><br><span class="line">        json.dump(progress, f, ensure_ascii=<span class="literal">False</span>, indent=<span class="number">2</span>)</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">mark_published</span>(<span class="params">progress, chapter_id</span>):</span><br><span class="line">    <span class="keyword">if</span> chapter_id <span class="keyword">not</span> <span class="keyword">in</span> progress[<span class="string">&#x27;published&#x27;</span>]:</span><br><span class="line">        progress[<span class="string">&#x27;published&#x27;</span>].append(chapter_id)</span><br><span class="line">        save_progress(progress)</span><br></pre></td></tr></table></figure>
+
+<h3 id="Filter-Pending-Items"><a href="#Filter-Pending-Items" class="headerlink" title="Filter Pending Items"></a>Filter Pending Items</h3><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">get_pending_chapters</span>(<span class="params">all_chapters, progress</span>):</span><br><span class="line">    published = <span class="built_in">set</span>(progress[<span class="string">&#x27;published&#x27;</span>])</span><br><span class="line">    <span class="keyword">return</span> [ch <span class="keyword">for</span> ch <span class="keyword">in</span> all_chapters <span class="keyword">if</span> ch[<span class="string">&#x27;id&#x27;</span>] <span class="keyword">not</span> <span class="keyword">in</span> published]</span><br></pre></td></tr></table></figure>
+
+<h2 id="Approach-2-Page-State-Verification"><a href="#Approach-2-Page-State-Verification" class="headerlink" title="Approach 2: Page State Verification"></a>Approach 2: Page State Verification</h2><p>The record file can be lost. A more reliable approach: verify against the <strong>page’s current state</strong>.</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">get_published_chapters</span>(<span class="params">ws</span>):</span><br><span class="line">    <span class="string">&quot;&quot;&quot;Navigate to management page and scan published chapters&quot;&quot;&quot;</span></span><br><span class="line">    cmd(ws, <span class="string">&#x27;Page.navigate&#x27;</span>, &#123;<span class="string">&#x27;url&#x27;</span>: <span class="string">&#x27;https://mouplatform.com/author/chapters&#x27;</span>&#125;)</span><br><span class="line">    time.sleep(<span class="number">3</span>)</span><br><span class="line">    </span><br><span class="line">    chapters = js(ws, <span class="string">&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">        (() =&gt; &#123;</span></span><br><span class="line"><span class="string">            const items = document.querySelectorAll(&#x27;.chapter-item&#x27;);</span></span><br><span class="line"><span class="string">            return Array.from(items).map(item =&gt; &#123;</span></span><br><span class="line"><span class="string">                const num = item.querySelector(&#x27;.chapter-num&#x27;);</span></span><br><span class="line"><span class="string">                const status = item.querySelector(&#x27;.chapter-status&#x27;);</span></span><br><span class="line"><span class="string">                return &#123;</span></span><br><span class="line"><span class="string">                    id: parseInt(num?.innerText || &#x27;0&#x27;),</span></span><br><span class="line"><span class="string">                    status: status?.innerText?.trim() || &#x27;&#x27;</span></span><br><span class="line"><span class="string">                &#125;;</span></span><br><span class="line"><span class="string">            &#125;).filter(ch =&gt; ch.status === &#x27;Published&#x27;);</span></span><br><span class="line"><span class="string">        &#125;)()</span></span><br><span class="line"><span class="string">    &quot;&quot;&quot;</span>)</span><br><span class="line">    <span class="keyword">return</span> &#123;ch[<span class="string">&#x27;id&#x27;</span>] <span class="keyword">for</span> ch <span class="keyword">in</span> chapters&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="Combined-Approach"><a href="#Combined-Approach" class="headerlink" title="Combined Approach"></a>Combined Approach</h3><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">get_pending_list</span>(<span class="params">ws, all_chapters</span>):</span><br><span class="line">    <span class="string">&quot;&quot;&quot;Double verification: local record + page state&quot;&quot;&quot;</span></span><br><span class="line">    progress = load_progress()</span><br><span class="line">    local_published = <span class="built_in">set</span>(progress[<span class="string">&#x27;published&#x27;</span>])</span><br><span class="line">    page_published = get_published_chapters(ws)</span><br><span class="line">    </span><br><span class="line">    already_published = local_published | page_published</span><br><span class="line">    </span><br><span class="line">    <span class="comment"># Sync local record</span></span><br><span class="line">    progress[<span class="string">&#x27;published&#x27;</span>] = <span class="built_in">list</span>(already_published)</span><br><span class="line">    save_progress(progress)</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">return</span> [ch <span class="keyword">for</span> ch <span class="keyword">in</span> all_chapters <span class="keyword">if</span> ch[<span class="string">&#x27;id&#x27;</span>] <span class="keyword">not</span> <span class="keyword">in</span> already_published]</span><br></pre></td></tr></table></figure>
+
+<h2 id="Complete-Flow"><a href="#Complete-Flow" class="headerlink" title="Complete Flow"></a>Complete Flow</h2><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">run_upload_flow</span>(<span class="params">ws, all_chapters</span>):</span><br><span class="line">    pending = get_pending_list(ws, all_chapters)</span><br><span class="line">    <span class="built_in">print</span>(<span class="string">f&#x27;Total <span class="subst">&#123;<span class="built_in">len</span>(all_chapters)&#125;</span> chapters, pending <span class="subst">&#123;<span class="built_in">len</span>(pending)&#125;</span>&#x27;</span>)</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">if</span> <span class="keyword">not</span> pending:</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&#x27;All done!&#x27;</span>)</span><br><span class="line">        <span class="keyword">return</span></span><br><span class="line">    </span><br><span class="line">    progress = load_progress()</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">for</span> idx, ch <span class="keyword">in</span> <span class="built_in">enumerate</span>(pending):</span><br><span class="line">        <span class="keyword">try</span>:</span><br><span class="line">            success = process_one_chapter(ws, ch)</span><br><span class="line">            <span class="keyword">if</span> success:</span><br><span class="line">                mark_published(progress, ch[<span class="string">&#x27;id&#x27;</span>])</span><br><span class="line">        <span class="keyword">except</span> ConnectionError <span class="keyword">as</span> e:</span><br><span class="line">            ws = reconnect_ws(ws)</span><br><span class="line">            <span class="comment"># Retry current chapter</span></span><br><span class="line">            <span class="keyword">try</span>:</span><br><span class="line">                <span class="keyword">if</span> process_one_chapter(ws, ch):</span><br><span class="line">                    mark_published(progress, ch[<span class="string">&#x27;id&#x27;</span>])</span><br><span class="line">            <span class="keyword">except</span> Exception <span class="keyword">as</span> e2:</span><br><span class="line">                mark_failed(progress, ch[<span class="string">&#x27;id&#x27;</span>], <span class="built_in">str</span>(e2))</span><br><span class="line">        <span class="keyword">except</span> Exception <span class="keyword">as</span> e:</span><br><span class="line">            mark_failed(progress, ch[<span class="string">&#x27;id&#x27;</span>], <span class="built_in">str</span>(e))</span><br><span class="line">        </span><br><span class="line">        time.sleep(<span class="number">1</span>)  <span class="comment"># Brief pause between chapters</span></span><br><span class="line">    </span><br><span class="line">    final = load_progress()</span><br><span class="line">    <span class="built_in">print</span>(<span class="string">f&#x27;Done! Published: <span class="subst">&#123;<span class="built_in">len</span>(final[<span class="string">&quot;published&quot;</span>])&#125;</span>, Failed: <span class="subst">&#123;<span class="built_in">len</span>(final[<span class="string">&quot;failed&quot;</span>])&#125;</span>&#x27;</span>)</span><br></pre></td></tr></table></figure>
+
+<h2 id="Idempotent-vs-Non-Idempotent-Operations"><a href="#Idempotent-vs-Non-Idempotent-Operations" class="headerlink" title="Idempotent vs Non-Idempotent Operations"></a>Idempotent vs Non-Idempotent Operations</h2><table>
+<thead>
+<tr>
+<th>Operation</th>
+<th align="center">Idempotent?</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Click “Next” button</td>
+<td align="center">❌</td>
+<td>Clicking twice submits twice</td>
+</tr>
+<tr>
+<td>Fill input field</td>
+<td align="center">✅</td>
+<td>Same value, same result</td>
+</tr>
+<tr>
+<td>Select radio</td>
+<td align="center">✅</td>
+<td>Same selection, same result</td>
+</tr>
+<tr>
+<td>Click “Confirm Publish”</td>
+<td align="center">❌</td>
+<td>May create duplicates</td>
+</tr>
+<tr>
+<td>Navigate to URL</td>
+<td align="center">✅</td>
+<td>Same URL, same page</td>
+</tr>
+<tr>
+<td>Read page data</td>
+<td align="center">✅</td>
+<td>Read-only, naturally idempotent</td>
+</tr>
+<tr>
+<td>Write progress file</td>
+<td align="center">✅</td>
+<td>Overwrite, not append</td>
+</tr>
+</tbody></table>
+<p><strong>Non-idempotent protection</strong>: Verify if the action was already performed before executing.</p>
+<h2 id="Summary"><a href="#Summary" class="headerlink" title="Summary"></a>Summary</h2><ol>
+<li><strong>Idempotent design isn’t a post-hoc patch</strong> — plan it from the start</li>
+<li><strong>Triple safeguard</strong>: local record + page verification + exception retry</li>
+<li><strong>Non-idempotent operations need guards</strong>: check state before executing</li>
+<li><strong>Connection errors deserve special handling</strong>: reconnect and retry the current item</li>
+<li><strong>Persist immediately</strong>: write after each item, not in batch at the end</li>
+</ol>
+<blockquote>
+<p><strong>Summary</strong>: Idempotent design upgrades automation scripts from “fragile one-shot tools” to “robust long-running services.” The concept is simple — check “what’s already done” before starting, rather than assuming “nothing is done.” Combined with persistent records and page state verification, even with network issues, browser crashes, or security software interruptions, the script runs reliably to the end.</p>
+</blockquote>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>Author: </span><span class="post-copyright-info"><a href="https://lmlx07.github.io/tools-review">John Doe</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>Link: </span><span class="post-copyright-info"><a href="https://lmlx07.github.io/tools-review/cdp-idempotent-automation-experience/">https://lmlx07.github.io/tools-review/cdp-idempotent-automation-experience/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>Copyright Notice: </span><span class="post-copyright-info">All articles on this blog are licensed under <a target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a> unless otherwise stated.</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tools-review/en/tags/Chrome-DevTools-Protocol/">Chrome DevTools Protocol</a><a class="post-meta__tags" href="/tools-review/en/tags/CDP/">CDP</a><a class="post-meta__tags" href="/tools-review/en/tags/Python/">Python</a><a class="post-meta__tags" href="/tools-review/en/tags/Browser-Automation/">Browser Automation</a><a class="post-meta__tags" href="/tools-review/en/tags/Idempotent-Design/">Idempotent Design</a><a class="post-meta__tags" href="/tools-review/en/tags/Architecture/">Architecture</a></div><div class="post-share"><div class="social-share" data-image="/tools-review/en/img/avatar.png" data-sites="facebook,x,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/tools-review/en/cdp-debug-inspect-experience/" title="CDP Debug Utility Collection: Quick Page Inspection and Element Diagnostics"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info"><div class="info-1"><div class="info-item-1">Previous</div><div class="info-item-2">CDP Debug Utility Collection: Quick Page Inspection and Element Diagnostics</div></div><div class="info-2"><div class="info-item-1">When developing CDP automation scripts, 80% of the time is spent figuring out "what's on the page right now." This article provides a set of practical debug utilities — page snapshots, visible button scans, dialog diagnostics, and element coordinate locators.</div></div></div></a><a class="pagination-related" href="/tools-review/en/cdp-websocket-reconnect-experience/" title="CDP WebSocket Reconnection: Handling ConnectionAbortedError in Practice"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-right"><div class="info-1"><div class="info-item-1">Next</div><div class="info-item-2">CDP WebSocket Reconnection: Handling ConnectionAbortedError in Practice</div></div><div class="info-2"><div class="info-item-1">Long-running CDP automation scripts frequently face WebSocket disconnections. This article analyzes common causes and provides heartbeat detection, auto-reconnect, and defensive execution patterns for robust automation.</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>Related Articles</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/tools-review/en/cdp-vs-playwright-guide/" title="CDP vs Playwright: Browser Automation Framework Comparison Guide"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-06-05</div><div class="info-item-2">CDP vs Playwright: Browser Automation Framework Comparison Guide</div></div><div class="info-2"><div class="info-item-1">An in-depth comparison between raw CDP and Playwright abstractions for browser automation, helping you choose the right approach for your use case.</div></div></div></a><a class="pagination-related" href="/tools-review/en/cdp-service-worker-guide/" title="CDP Service Worker Management: Debugging Offline Cache with Python"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-06-05</div><div class="info-item-2">CDP Service Worker Management: Debugging Offline Cache with Python</div></div><div class="info-2"><div class="info-item-1">A comprehensive guide to managing Service Workers via Chrome DevTools Protocol (CDP). Covers registration/unregistration monitoring, lifecycle tracking, push notification simulation, CacheStorage operations, and offline debugging automation with Python.</div></div></div></a><a class="pagination-related" href="/tools-review/en/cdp-network-condition-guide/" title="CDP Network Condition Emulation Guide: Control Bandwidth, Latency &amp; Offline with Python"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-06-05</div><div class="info-item-2">CDP Network Condition Emulation Guide: Control Bandwidth, Latency &amp; Offline with Python</div></div><div class="info-2"><div class="info-item-1">A comprehensive guide to emulating network conditions using Chrome DevTools Protocol (CDP). Learn how to simulate throttling (2G/3G/4G/WiFi), inject latency, test offline mode, and create custom network profiles — all without external proxy tools.</div></div></div></a><a class="pagination-related" href="/tools-review/en/cdp-headless-deploy-guide/" title="CDP Headless Browser Deployment: Server-Side Automation Setup"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-06-05</div><div class="info-item-2">CDP Headless Browser Deployment: Server-Side Automation Setup</div></div><div class="info-2"><div class="info-item-1">A comprehensive guide to deploying Headless Chrome on servers and controlling it via CDP, covering startup configuration, process management, virtual display, and containerized deployment.</div></div></div></a><a class="pagination-related" href="/tools-review/en/cdp-browser-history-guide/" title="CDP Browser History Management: Controlling Page Navigation with Python"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-06-05</div><div class="info-item-2">CDP Browser History Management: Controlling Page Navigation with Python</div></div><div class="info-2"><div class="info-item-1">A comprehensive guide to controlling browser navigation history using CDP. Learn to navigate back/forward, jump to specific history entries via Page.navigateToHistoryEntry, handle JavaScript dialogs, listen to navigation events, and understand hash vs full navigation differences.</div></div></div></a><a class="pagination-related" href="/tools-review/en/cdp-console-guide/" title="CDP Console Debugging Guide: Capture Page Logs &amp; Exceptions with Python"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-06-05</div><div class="info-item-2">CDP Console Debugging Guide: Capture Page Logs &amp; Exceptions with Python</div></div><div class="info-2"><div class="info-item-1">A comprehensive guide to capturing browser console output using Chrome DevTools Protocol (CDP). Learn to listen for console.log/warn/error, catch uncaught exceptions, filter log levels, inject custom console commands, and build automated error monitoring tools.</div></div></div></a></div></div><hr class="custom-hr"/><div id="post-comment"><div class="comment-head"><div class="comment-headline"><i class="fas fa-comments fa-fw"></i><span> Comments</span></div></div><div class="comment-wrap"><div><div id="utterances-wrap"></div></div></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/tools-review/en/img/avatar.png" onerror="this.onerror=null;this.src='/tools-review/en/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">John Doe</div><div class="author-info-description">Chrome DevTools Protocol Tutorial</div><div class="site-data"><a href="/tools-review/en/archives/"><div class="headline">Articles</div><div class="length-num">47</div></a><a href="/tools-review/en/tags/"><div class="headline">Tags</div><div class="length-num">112</div></a><a href="/tools-review/en/categories/"><div class="headline">Categories</div><div class="length-num">10</div></a></div><a id="card-info-btn" target="_blank" rel="noopener" href="https://github.com/lmlx07"><i class="fab fa-github"></i><span>Follow me</span></a><div class="card-info-social-icons"><a class="social-icon" href="https://github.com/lmlx07" target="_blank" title="GitHub"><i class="fab fa-github" style="color: #24292e;"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>Announcement</span></div><div class="announcement_content">📢 CDP Automation Guide is a Chinese tech blog focused on Chrome DevTools Protocol, providing hands-on tutorials for controlling browsers with Python.</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>Contents</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#The-Problem"><span class="toc-number">1.</span> <span class="toc-text">The Problem</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Core-Concept"><span class="toc-number">2.</span> <span class="toc-text">Core Concept</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Approach-1-Local-State-Tracking"><span class="toc-number">3.</span> <span class="toc-text">Approach 1: Local State Tracking</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#Persistent-Record-File"><span class="toc-number">3.1.</span> <span class="toc-text">Persistent Record File</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Filter-Pending-Items"><span class="toc-number">3.2.</span> <span class="toc-text">Filter Pending Items</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Approach-2-Page-State-Verification"><span class="toc-number">4.</span> <span class="toc-text">Approach 2: Page State Verification</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#Combined-Approach"><span class="toc-number">4.1.</span> <span class="toc-text">Combined Approach</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Complete-Flow"><span class="toc-number">5.</span> <span class="toc-text">Complete Flow</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Idempotent-vs-Non-Idempotent-Operations"><span class="toc-number">6.</span> <span class="toc-text">Idempotent vs Non-Idempotent Operations</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Summary"><span class="toc-number">7.</span> <span class="toc-text">Summary</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>Recent Posts</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/tools-review/en/cdp-seo-timeline-experience/" title="New Site SEO: Expectation Management from Submission to Indexing">New Site SEO: Expectation Management from Submission to Indexing</a><time datetime="2026-06-09T07:30:00.000Z" title="Created 2026-06-09 15:30:00">2026-06-09</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/tools-review/en/cdp-seo-webmaster-experience/" title="Static Site Webmaster Platform Guide: Optimal Indexing Strategy Under Constraints">Static Site Webmaster Platform Guide: Optimal Indexing Strategy Under Constraints</a><time datetime="2026-06-09T07:00:00.000Z" title="Created 2026-06-09 15:00:00">2026-06-09</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/tools-review/en/cdp-seo-api-submit-experience/" title="API Submission Script Development: From Sitemap to Search Engine Indexing">API Submission Script Development: From Sitemap to Search Engine Indexing</a><time datetime="2026-06-09T06:30:00.000Z" title="Created 2026-06-09 14:30:00">2026-06-09</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/tools-review/en/cdp-seo-github-pages-experience/" title="Complete SEO Guide for Unlicensed GitHub Pages Sites">Complete SEO Guide for Unlicensed GitHub Pages Sites</a><time datetime="2026-06-09T06:00:00.000Z" title="Created 2026-06-09 14:00:00">2026-06-09</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/tools-review/en/cdp-debug-inspect-experience/" title="CDP Debug Utility Collection: Quick Page Inspection and Element Diagnostics">CDP Debug Utility Collection: Quick Page Inspection and Element Diagnostics</a><time datetime="2026-06-09T05:00:00.000Z" title="Created 2026-06-09 13:00:00">2026-06-09</time></div></div></div></div></div></div></main><footer id="footer"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2026 By John Doe</span><span class="framework-info"><span>Framework </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>Theme </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div><div class="footer_custom_text">🚀 CDP Automation Guide</div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="Reading Mode"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="Toggle Between Light and Dark Mode"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="Toggle Between Single-column and Double-column"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="Settings"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="Table of Contents"><i class="fas fa-list-ul"></i></button><a id="to_comment" href="#post-comment" title="Scroll to Comments"><i class="fas fa-comments"></i></a><button id="go-up" type="button" title="Back to Top"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/tools-review/en/js/utils.js?v=5.5.4"></script><script src="/tools-review/en/js/main.js?v=5.5.4"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const isShuoshuo = GLOBAL_CONFIG_SITE.pageType === 'shuoshuo'
+  const option = null
+  const getUtterancesTheme = theme => theme === 'dark' ? 'github-dark' : 'github-light'
+
+  const loadUtterances = (el = document, key) => {
+    if (isShuoshuo) {
+      window.shuoshuoComment.destroyUtterances = () => {
+        if (el.children.length) {
+          el.innerHTML = ''
+          el.classList.add('no-comment')
+        }
+      }
+    }
+
+    const config = {
+      src: 'https://utteranc.es/client.js',
+      repo: 'lmlx07/tools-review',
+      theme: getUtterancesTheme(document.documentElement.getAttribute('data-theme')),
+      crossorigin: 'anonymous',
+      async: true,
+      ...option,
+      'issue-term': isShuoshuo ? key : (option && option['issue-term']) || 'pathname'
+    }
+
+    const ele = document.createElement('script')
+    Object.entries(config).forEach(([key, value]) => ele.setAttribute(key, value))
+    el.querySelector('#utterances-wrap').appendChild(ele)
+  }
+
+  const changeUtterancesTheme = theme => {
+    const iframe = document.querySelector('#utterances-wrap iframe')
+    if (iframe) {
+      const message = {
+        type: 'set-theme',
+        theme: getUtterancesTheme(theme)
+      };
+      iframe.contentWindow.postMessage(message, 'https://utteranc.es')
+    }
+  }
+
+  btf.addGlobalFn('themeChange', changeUtterancesTheme, 'utterances')
+
+  if (isShuoshuo) {
+    'Utterances' === 'Utterances'
+      ? window.shuoshuoComment = { loadComment: loadUtterances }
+      : window.loadOtherComment = loadUtterances
+    return
+  }
+  
+  if ('Utterances' === 'Utterances' || !false) {
+    if (false) btf.loadComment(document.getElementById('utterances-wrap'), loadUtterances)
+    else loadUtterances()
+  } else {
+    window.loadOtherComment = loadUtterances
+  }
+})()</script></div><div id="lang-switch"><span class="lo" data-lang="zh-CN">中文</span><span class="sp">|</span><span class="lo" data-lang="en">EN</span></div><script>!function(){var H='<span class="lo" data-lang="zh-CN">中文</span><span class="sp">|</span><span class="lo" data-lang="en">EN</span>';function E(){var e=document.getElementById("lang-switch")||function(){var e=document.createElement("div");return e.id="lang-switch",e.style.display="inline-flex",e.innerHTML=H,e}();var n=window.location.pathname.startsWith("/en");e.querySelectorAll(".lo").forEach(function(e){e.classList.toggle("on",n?e.dataset.lang==="en":e.dataset.lang==="zh-CN")}),e.removeEventListener("click",e._l),e._l=function(t){var o=(t=t||window.event).target.closest(".lo");if(!o)return;var l=o.dataset.lang;if(l==="en"&&!n){var a=window.location.pathname.replace(/\/$/,"")||"";window.location.href="/en"+a+window.location.search}else if(l==="zh-CN"&&n){var i=window.location.pathname.replace(/^\/en/,"").replace(/\/$/,"")||"/";window.location.href=i+window.location.search}},e.addEventListener("click",e._l)}function I(){var e=document.getElementById("lang-switch")||function(){var e=document.createElement("div");return e.id="lang-switch",e.style.display="inline-flex",e.innerHTML=H,e}();var t=document.querySelector("#nav .menus_items");if(!t||t.contains(e))return;var n=document.createElement("li");n.className="menus_item",n.appendChild(e),t.appendChild(n)}E(),setTimeout(I,300),document.addEventListener("pjax:complete",function(){setTimeout(I,300),setTimeout(E,500)})}();</script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js" defer="defer"></script><script>document.addEventListener('DOMContentLoaded', () => {
+  const pjaxSelectors = ["meta[property=\"og:image\"]","meta[property=\"og:title\"]","meta[property=\"og:url\"]","meta[property=\"og:description\"]","link[rel=\"canonical\"]","head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      false
+        ? pjax.loadUrl('/tools-review/en/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})</script><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script></div></body></html>

@@ -1,0 +1,355 @@
+<!DOCTYPE html><html lang="en" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>Three Common Traps in UI Library Automation: A Component Library Case Study | CDP Automation Guide</title><meta name="author" content="John Doe"><meta name="copyright" content="John Doe"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="Component libraries like Arco Design and Ant Design wrap standard HTML elements, breaking conventional automation approaches. This article covers the correct way to handle radio buttons, custom select">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Three Common Traps in UI Library Automation: A Component Library Case Study">
+<meta property="og:url" content="https://lmlx07.github.io/tools-review/cdp-ui-component-pitfalls-experience/index.html">
+<meta property="og:site_name" content="CDP Automation Guide">
+<meta property="og:description" content="Component libraries like Arco Design and Ant Design wrap standard HTML elements, breaking conventional automation approaches. This article covers the correct way to handle radio buttons, custom select">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://lmlx07.github.io/tools-review/img/avatar.png">
+<meta property="article:published_time" content="2026-06-09T03:00:00.000Z">
+<meta property="article:modified_time" content="2026-06-09T03:18:57.053Z">
+<meta property="article:author" content="John Doe">
+<meta property="article:tag" content="Browser Automation">
+<meta property="article:tag" content="CDP">
+<meta property="article:tag" content="Chrome DevTools Protocol">
+<meta property="article:tag" content="Pitfalls">
+<meta property="article:tag" content="Python">
+<meta property="article:tag" content="UI Library">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://lmlx07.github.io/tools-review/img/avatar.png"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Three Common Traps in UI Library Automation: A Component Library Case Study",
+  "url": "https://lmlx07.github.io/tools-review/cdp-ui-component-pitfalls-experience/",
+  "image": "https://lmlx07.github.io/tools-review/img/avatar.png",
+  "datePublished": "2026-06-09T03:00:00.000Z",
+  "dateModified": "2026-06-09T03:18:57.053Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "John Doe",
+      "url": "https://lmlx07.github.io/tools-review"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/tools-review/en/img/favicon.png"><link rel="canonical" href="https://lmlx07.github.io/tools-review/cdp-ui-component-pitfalls-experience/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="stylesheet" href="/tools-review/en/css/index.css?v=5.5.4"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/tools-review/en/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":false,"highlightFullpage":true,"highlightMacStyle":true},
+  copy: {
+    success: 'Copy Successful',
+    error: 'Copy Failed',
+    noSupport: 'Browser Not Supported'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: '',
+  dateSuffix: {
+    just: 'Just now',
+    min: 'minutes ago',
+    hour: 'hours ago',
+    day: 'days ago',
+    month: 'months ago'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.13.0/dist/infinitegrid.min.js',
+    buttonText: 'Load More'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: false,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'Three Common Traps in UI Library Automation: A Component Library Case Study',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><style>#lang-switch{display:inline-flex;align-items:center;gap:3px;height:100%;padding:0 6px;cursor:default}#lang-switch .lo{cursor:pointer;padding:2px 6px;border-radius:4px;font-size:.82em;transition:all .2s;color:var(--menu-item-color,#555)}#lang-switch .lo:hover{background:var(--text-bg-hover,rgba(0,0,0,.06))}#lang-switch .lo.on{font-weight:700;color:var(--theme-color,#49b1f5)}#lang-switch .sp{color:var(--menu-item-color,#555);opacity:.3;font-size:.75em;user-select:none}</style><meta name="generator" content="Hexo 8.1.2"><link rel="alternate" href="/tools-review/en/atom.xml" title="CDP Automation Guide" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/tools-review/en/img/avatar.png" onerror="this.onerror=null;this.src='/tools-review/en/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/tools-review/en/archives/"><div class="headline">Articles</div><div class="length-num">47</div></a><a href="/tools-review/en/tags/"><div class="headline">Tags</div><div class="length-num">112</div></a><a href="/tools-review/en/categories/"><div class="headline">Categories</div><div class="length-num">10</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/tools-review/en/"><i class="fa-fw fas fa-home"></i><span> Home</span></a></div><div class="menus_item"><a class="site-page" href="/tools-review/en/archives/"><i class="fa-fw fas fa-archive"></i><span> Archives</span></a></div><div class="menus_item"><a class="site-page" href="/tools-review/en/categories/"><i class="fa-fw fas fa-folder-open"></i><span> Categories</span></a></div><div class="menus_item"><a class="site-page" href="/tools-review/en/tags/"><i class="fa-fw fas fa-tags"></i><span> Tags</span></a></div><div class="menus_item"><a class="site-page" href="/tools-review/en/about/"><i class="fa-fw fas fa-info-circle"></i><span> About</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/tools-review/en/img/default_bg.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/tools-review/en/"><span class="site-name">CDP Automation Guide</span></a><a class="nav-page-title" href="/tools-review/en/"><span class="site-name">Three Common Traps in UI Library Automation: A Component Library Case Study</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  Back to Home</span></span></a></span><div id="menus"><div class="menus_items"><div class="menus_item"><a class="site-page" href="/tools-review/en/"><i class="fa-fw fas fa-home"></i><span> Home</span></a></div><div class="menus_item"><a class="site-page" href="/tools-review/en/archives/"><i class="fa-fw fas fa-archive"></i><span> Archives</span></a></div><div class="menus_item"><a class="site-page" href="/tools-review/en/categories/"><i class="fa-fw fas fa-folder-open"></i><span> Categories</span></a></div><div class="menus_item"><a class="site-page" href="/tools-review/en/tags/"><i class="fa-fw fas fa-tags"></i><span> Tags</span></a></div><div class="menus_item"><a class="site-page" href="/tools-review/en/about/"><i class="fa-fw fas fa-info-circle"></i><span> About</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">Three Common Traps in UI Library Automation: A Component Library Case Study</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">Created</span><time class="post-meta-date-created" datetime="2026-06-09T03:00:00.000Z" title="Created 2026-06-09 11:00:00">2026-06-09</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">Updated</span><time class="post-meta-date-updated" datetime="2026-06-09T03:18:57.053Z" title="Updated 2026-06-09 11:18:57">2026-06-09</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/tools-review/en/categories/CDP-Practice/">CDP Practice</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/tools-review/en/categories/CDP-Practice/Experience-Sharing/">Experience Sharing</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">Post Views:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><div id="post-outdate-notice" data="{&quot;limitDay&quot;:365,&quot;messagePrev&quot;:&quot;本文距离上次更新已过去&quot;,&quot;messageNext&quot;:&quot;天，内容可能已过时。&quot;,&quot;postUpdate&quot;:&quot;2026-06-09 11:18:57&quot;}" hidden></div><blockquote>
+<p><strong>Summary in one sentence</strong>: UI component libraries typically hide the original input element and replace it with custom DOM elements, then listen for events on the container. To automate them, click the <strong>outer container</strong> (label&#x2F;div) instead of the hidden input, and sometimes you need to simulate the full event chain.</p>
+</blockquote>
+<hr>
+<h2 id="Trap-1-Radio-Buttons"><a href="#Trap-1-Radio-Buttons" class="headerlink" title="Trap 1: Radio Buttons"></a>Trap 1: Radio Buttons</h2><h3 id="The-Problem"><a href="#The-Problem" class="headerlink" title="The Problem"></a>The Problem</h3><p>Need to select the “No” option in a publish settings dialog. Directly clicking the input does nothing:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># ❌ Wrong: clicking the hidden input</span></span><br><span class="line">js(ws, <span class="string">&quot;document.querySelector(&#x27;input[value=\&quot;no\&quot;]&#x27;).click()&quot;</span>)</span><br></pre></td></tr></table></figure>
+
+<h3 id="Root-Cause"><a href="#Root-Cause" class="headerlink" title="Root Cause"></a>Root Cause</h3><p>The component library’s radio structure:</p>
+<figure class="highlight html"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">label</span> <span class="attr">class</span>=<span class="string">&quot;arco-radio&quot;</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">input</span> <span class="attr">type</span>=<span class="string">&quot;radio&quot;</span> <span class="attr">value</span>=<span class="string">&quot;no&quot;</span> <span class="attr">hidden</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">span</span> <span class="attr">class</span>=<span class="string">&quot;arco-radio-text&quot;</span>&gt;</span>No<span class="tag">&lt;/<span class="name">span</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">label</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
+<p>Key points:</p>
+<ol>
+<li>The <code>input[type=radio]</code> is hidden</li>
+<li>The library <strong>doesn’t use the raw input’s change event</strong></li>
+<li>Clicking <code>&lt;label&gt;</code> triggers the library’s internal state management</li>
+</ol>
+<h3 id="The-Fix"><a href="#The-Fix" class="headerlink" title="The Fix"></a>The Fix</h3><p>Click the outer <code>&lt;label class=&quot;arco-radio&quot;&gt;</code>:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">click_radio_label</span>(<span class="params">ws, text</span>):</span><br><span class="line">    <span class="keyword">return</span> js(ws, <span class="string">f&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">        (() =&gt; &#123;&#123;</span></span><br><span class="line"><span class="string">            const labels = document.querySelectorAll(&#x27;label.arco-radio&#x27;);</span></span><br><span class="line"><span class="string">            for (const lb of labels) &#123;&#123;</span></span><br><span class="line"><span class="string">                const txt = lb.querySelector(&#x27;.arco-radio-text&#x27;);</span></span><br><span class="line"><span class="string">                if (txt &amp;&amp; txt.innerText.trim() === &#x27;<span class="subst">&#123;text&#125;</span>&#x27;) &#123;&#123;</span></span><br><span class="line"><span class="string">                    lb.click();</span></span><br><span class="line"><span class="string">                    return true;</span></span><br><span class="line"><span class="string">                &#125;&#125;</span></span><br><span class="line"><span class="string">            &#125;&#125;</span></span><br><span class="line"><span class="string">            return false;</span></span><br><span class="line"><span class="string">        &#125;&#125;)()</span></span><br><span class="line"><span class="string">    &quot;&quot;&quot;</span>)</span><br><span class="line"></span><br><span class="line">click_radio_label(ws, <span class="string">&#x27;No&#x27;</span>)</span><br></pre></td></tr></table></figure>
+
+<h3 id="Ant-Design-Radio"><a href="#Ant-Design-Radio" class="headerlink" title="Ant Design Radio"></a>Ant Design Radio</h3><figure class="highlight html"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">label</span> <span class="attr">class</span>=<span class="string">&quot;ant-radio-wrapper&quot;</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">span</span> <span class="attr">class</span>=<span class="string">&quot;ant-radio&quot;</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">input</span> <span class="attr">type</span>=<span class="string">&quot;radio&quot;</span> <span class="attr">class</span>=<span class="string">&quot;ant-radio-input&quot;</span> <span class="attr">value</span>=<span class="string">&quot;no&quot;</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">span</span> <span class="attr">class</span>=<span class="string">&quot;ant-radio-inner&quot;</span>&gt;</span><span class="tag">&lt;/<span class="name">span</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;/<span class="name">span</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">span</span>&gt;</span>No<span class="tag">&lt;/<span class="name">span</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">label</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">click_ant_radio</span>(<span class="params">ws, text</span>):</span><br><span class="line">    <span class="keyword">return</span> js(ws, <span class="string">f&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">        (() =&gt; &#123;&#123;</span></span><br><span class="line"><span class="string">            const wrappers = document.querySelectorAll(&#x27;.ant-radio-wrapper&#x27;);</span></span><br><span class="line"><span class="string">            for (const w of wrappers) &#123;&#123;</span></span><br><span class="line"><span class="string">                if (w.innerText.trim() === &#x27;<span class="subst">&#123;text&#125;</span>&#x27;) &#123;&#123;</span></span><br><span class="line"><span class="string">                    w.click();</span></span><br><span class="line"><span class="string">                    return true;</span></span><br><span class="line"><span class="string">                &#125;&#125;</span></span><br><span class="line"><span class="string">            &#125;&#125;</span></span><br><span class="line"><span class="string">            return false;</span></span><br><span class="line"><span class="string">        &#125;&#125;)()</span></span><br><span class="line"><span class="string">    &quot;&quot;&quot;</span>)</span><br></pre></td></tr></table></figure>
+
+<h2 id="Trap-2-Custom-Select-Components"><a href="#Trap-2-Custom-Select-Components" class="headerlink" title="Trap 2: Custom Select Components"></a>Trap 2: Custom Select Components</h2><p>Custom Select components replace the standard <code>&lt;select&gt;</code> with a button + popup panel.</p>
+<h3 id="The-Fix-1"><a href="#The-Fix-1" class="headerlink" title="The Fix"></a>The Fix</h3><p>Click trigger → wait for popup → select option:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">select_custom_option</span>(<span class="params">ws, trigger_selector, option_text</span>):</span><br><span class="line">    js(ws, <span class="string">f&quot;document.querySelector(&#x27;<span class="subst">&#123;trigger_selector&#125;</span>&#x27;).click()&quot;</span>)</span><br><span class="line">    time.sleep(<span class="number">0.5</span>)</span><br><span class="line">    </span><br><span class="line">    result = js(ws, <span class="string">f&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">        (() =&gt; &#123;&#123;</span></span><br><span class="line"><span class="string">            const panels = document.querySelectorAll(</span></span><br><span class="line"><span class="string">                &#x27;.arco-select-popup, .ant-select-dropdown, &#x27; +</span></span><br><span class="line"><span class="string">                &#x27;[class*=&quot;dropdown&quot;], [class*=&quot;popup&quot;]&#x27;</span></span><br><span class="line"><span class="string">            );</span></span><br><span class="line"><span class="string">            for (const panel of panels) &#123;&#123;</span></span><br><span class="line"><span class="string">                if (panel.offsetParent === null) continue;</span></span><br><span class="line"><span class="string">                const options = panel.querySelectorAll(</span></span><br><span class="line"><span class="string">                    &#x27;.arco-select-option, .ant-select-item-option, &#x27; +</span></span><br><span class="line"><span class="string">                    &#x27;[class*=&quot;option&quot;], [role=&quot;option&quot;]&#x27;</span></span><br><span class="line"><span class="string">                );</span></span><br><span class="line"><span class="string">                for (const opt of options) &#123;&#123;</span></span><br><span class="line"><span class="string">                    if (opt.innerText.trim() === &#x27;<span class="subst">&#123;option_text&#125;</span>&#x27;) &#123;&#123;</span></span><br><span class="line"><span class="string">                        opt.click();</span></span><br><span class="line"><span class="string">                        return &#x27;OK&#x27;;</span></span><br><span class="line"><span class="string">                    &#125;&#125;</span></span><br><span class="line"><span class="string">                &#125;&#125;</span></span><br><span class="line"><span class="string">            &#125;&#125;</span></span><br><span class="line"><span class="string">            return &#x27;NOT_FOUND&#x27;;</span></span><br><span class="line"><span class="string">        &#125;&#125;)()</span></span><br><span class="line"><span class="string">    &quot;&quot;&quot;</span>)</span><br><span class="line">    <span class="keyword">return</span> result</span><br></pre></td></tr></table></figure>
+
+<h2 id="Trap-3-Switch-Toggle-Components"><a href="#Trap-3-Switch-Toggle-Components" class="headerlink" title="Trap 3: Switch&#x2F;Toggle Components"></a>Trap 3: Switch&#x2F;Toggle Components</h2><p>Switch components are usually a div + sliding animation, not a standard checkbox.</p>
+<h3 id="The-Fix-2"><a href="#The-Fix-2" class="headerlink" title="The Fix"></a>The Fix</h3><p>Click the entire switch container:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">toggle_switch</span>(<span class="params">ws, switch_selector, want_on=<span class="literal">True</span></span>):</span><br><span class="line">    current = js(ws, <span class="string">f&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">        (() =&gt; &#123;&#123;</span></span><br><span class="line"><span class="string">            const sw = document.querySelector(&#x27;<span class="subst">&#123;switch_selector&#125;</span>&#x27;);</span></span><br><span class="line"><span class="string">            if (!sw) return null;</span></span><br><span class="line"><span class="string">            return sw.classList.contains(&#x27;arco-switch-checked&#x27;);</span></span><br><span class="line"><span class="string">        &#125;&#125;)()</span></span><br><span class="line"><span class="string">    &quot;&quot;&quot;</span>)</span><br><span class="line">    <span class="keyword">if</span> current <span class="keyword">is</span> <span class="literal">None</span>:</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">False</span></span><br><span class="line">    <span class="keyword">if</span> current != want_on:</span><br><span class="line">        js(ws, <span class="string">f&quot;document.querySelector(&#x27;<span class="subst">&#123;switch_selector&#125;</span>&#x27;).click()&quot;</span>)</span><br><span class="line">        time.sleep(<span class="number">0.3</span>)</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">True</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="Universal-Principles"><a href="#Universal-Principles" class="headerlink" title="Universal Principles"></a>Universal Principles</h2><h3 id="1-Click-Outer-Container-Not-Inner-Elements"><a href="#1-Click-Outer-Container-Not-Inner-Elements" class="headerlink" title="1. Click Outer Container, Not Inner Elements"></a>1. Click Outer Container, Not Inner Elements</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">✅ Click &lt;label class=&quot;arco-radio&quot;&gt; → library handles state internally</span><br><span class="line">❌ Click &lt;input type=&quot;radio&quot; hidden&gt; → no effect</span><br></pre></td></tr></table></figure>
+
+<h3 id="2-Search-by-Text-Not-by-Structure"><a href="#2-Search-by-Text-Not-by-Structure" class="headerlink" title="2. Search by Text, Not by Structure"></a>2. Search by Text, Not by Structure</h3><p>Structural selectors (nth-child, class combinations) are fragile — version upgrades or theme changes can alter class names.</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># ✅ Find by text — more reliable</span></span><br><span class="line">js(ws, <span class="string">&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">    Array.from(document.querySelectorAll(&#x27;label, button, div, span&#x27;))</span></span><br><span class="line"><span class="string">        .find(el =&gt; el.innerText.trim() === &#x27;Target Text&#x27;)</span></span><br><span class="line"><span class="string">        ?.click()</span></span><br><span class="line"><span class="string">&quot;&quot;&quot;</span>)</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-Use-offsetParent-null-to-Filter-Visible-Elements"><a href="#3-Use-offsetParent-null-to-Filter-Visible-Elements" class="headerlink" title="3. Use offsetParent !== null to Filter Visible Elements"></a>3. Use <code>offsetParent !== null</code> to Filter Visible Elements</h3><p>Component libraries often pre-render popups and panels in the DOM even when invisible:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">js(ws, <span class="string">&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">    Array.from(document.querySelectorAll(&#x27;.arco-radio&#x27;))</span></span><br><span class="line"><span class="string">        .filter(el =&gt; el.offsetParent !== null)</span></span><br><span class="line"><span class="string">        .find(el =&gt; el.innerText.includes(&#x27;No&#x27;))</span></span><br><span class="line"><span class="string">        ?.click()</span></span><br><span class="line"><span class="string">&quot;&quot;&quot;</span>)</span><br></pre></td></tr></table></figure>
+
+<h2 id="Debugging-Checklist"><a href="#Debugging-Checklist" class="headerlink" title="Debugging Checklist"></a>Debugging Checklist</h2><p>When a click doesn’t work:</p>
+<ol>
+<li><strong>Inspect element structure</strong>: Get outerHTML</li>
+<li><strong>Check visibility</strong>: <code>el.offsetParent !== null</code></li>
+<li><strong>Try layered approach</strong>: Outer container → CDP click → Full event chain</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Wrong Approach</th>
+<th>Correct Approach</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Radio button</td>
+<td>Click hidden input</td>
+<td>Click label container</td>
+</tr>
+<tr>
+<td>Custom Select</td>
+<td>Set value property</td>
+<td>Click trigger → select option</td>
+</tr>
+<tr>
+<td>Switch</td>
+<td>Set checked property</td>
+<td>Click container element</td>
+</tr>
+<tr>
+<td>Custom Dropdown</td>
+<td>Direct value assignment</td>
+<td>CDP mouse open → select → Escape</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p><strong>Core principle</strong>: With UI library components, always click the outermost visible container. When JS click fails, escalate to CDP’s dispatchMouseEvent for real event injection.</p>
+</blockquote>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>Author: </span><span class="post-copyright-info"><a href="https://lmlx07.github.io/tools-review">John Doe</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>Link: </span><span class="post-copyright-info"><a href="https://lmlx07.github.io/tools-review/cdp-ui-component-pitfalls-experience/">https://lmlx07.github.io/tools-review/cdp-ui-component-pitfalls-experience/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>Copyright Notice: </span><span class="post-copyright-info">All articles on this blog are licensed under <a target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a> unless otherwise stated.</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tools-review/en/tags/Chrome-DevTools-Protocol/">Chrome DevTools Protocol</a><a class="post-meta__tags" href="/tools-review/en/tags/CDP/">CDP</a><a class="post-meta__tags" href="/tools-review/en/tags/Python/">Python</a><a class="post-meta__tags" href="/tools-review/en/tags/Browser-Automation/">Browser Automation</a><a class="post-meta__tags" href="/tools-review/en/tags/Pitfalls/">Pitfalls</a><a class="post-meta__tags" href="/tools-review/en/tags/UI-Library/">UI Library</a></div><div class="post-share"><div class="social-share" data-image="/tools-review/en/img/avatar.png" data-sites="facebook,x,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/tools-review/en/cdp-dialog-layering-experience/" title="Handling Multi-Layer Dialog Overlays: Sequential Close Strategy for Automation"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info"><div class="info-1"><div class="info-item-1">Previous</div><div class="info-item-2">Handling Multi-Layer Dialog Overlays: Sequential Close Strategy for Automation</div></div><div class="info-2"><div class="info-item-1">When a web application shows multiple layered dialogs during publishing, fixed waits and out-of-order clicks won't work. This article documents a polling + sequential close strategy for reliably handling multi-level modals.</div></div></div></a><a class="pagination-related" href="/tools-review/en/cdp-react-controlled-input-experience/" title="Filling React Controlled Inputs with CDP: Bypassing the Virtual DOM"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-right"><div class="info-1"><div class="info-item-1">Next</div><div class="info-item-2">Filling React Controlled Inputs with CDP: Bypassing the Virtual DOM</div></div><div class="info-2"><div class="info-item-1">When automating form filling, React controlled components won't respond to direct el.value = x assignments. This article shows how to retrieve the native value setter via Object.getOwnPropertyDescriptor, bypass React's interception, and trigger state synchronization.</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>Related Articles</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/tools-review/en/cdp-dialog-layering-experience/" title="Handling Multi-Layer Dialog Overlays: Sequential Close Strategy for Automation"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-06-09</div><div class="info-item-2">Handling Multi-Layer Dialog Overlays: Sequential Close Strategy for Automation</div></div><div class="info-2"><div class="info-item-1">When a web application shows multiple layered dialogs during publishing, fixed waits and out-of-order clicks won't work. This article documents a polling + sequential close strategy for reliably handling multi-level modals.</div></div></div></a><a class="pagination-related" href="/tools-review/en/cdp-multi-instance-guide/" title="CDP Multi-Instance Orchestration: Controlling Distributed Browser Clusters with Python"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-06-05</div><div class="info-item-2">CDP Multi-Instance Orchestration: Controlling Distributed Browser Clusters with Python</div></div><div class="info-2"><div class="info-item-1">Learn how to launch and coordinate multiple Chrome instances simultaneously to build a distributed browser cluster for large-scale automation tasks.</div></div></div></a><a class="pagination-related" href="/tools-review/en/cdp-headless-deploy-guide/" title="CDP Headless Browser Deployment: Server-Side Automation Setup"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-06-05</div><div class="info-item-2">CDP Headless Browser Deployment: Server-Side Automation Setup</div></div><div class="info-2"><div class="info-item-1">A comprehensive guide to deploying Headless Chrome on servers and controlling it via CDP, covering startup configuration, process management, virtual display, and containerized deployment.</div></div></div></a><a class="pagination-related" href="/tools-review/en/cdp-accessibility-guide/" title="CDP Accessibility Guide: Automated Accessibility Testing with Python"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-06-05</div><div class="info-item-2">CDP Accessibility Guide: Automated Accessibility Testing with Python</div></div><div class="info-2"><div class="info-item-1">A comprehensive guide to automated accessibility testing using Chrome DevTools Protocol (CDP). Learn Accessibility.enable, getFullAXTree/getPartialAXTree, AXNode property analysis, automated audit rules for missing labels, focus order verification, and generating a11y reports.</div></div></div></a><a class="pagination-related" href="/tools-review/en/cdp-network-condition-guide/" title="CDP Network Condition Emulation Guide: Control Bandwidth, Latency &amp; Offline with Python"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-06-05</div><div class="info-item-2">CDP Network Condition Emulation Guide: Control Bandwidth, Latency &amp; Offline with Python</div></div><div class="info-2"><div class="info-item-1">A comprehensive guide to emulating network conditions using Chrome DevTools Protocol (CDP). Learn how to simulate throttling (2G/3G/4G/WiFi), inject latency, test offline mode, and create custom network profiles — all without external proxy tools.</div></div></div></a><a class="pagination-related" href="/tools-review/en/cdp-dom-guide/" title="The Complete Guide to CDP DOM Operations: Real-Time Observation &amp; Manipulation with Python"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-06-05</div><div class="info-item-2">The Complete Guide to CDP DOM Operations: Real-Time Observation &amp; Manipulation with Python</div></div><div class="info-2"><div class="info-item-1">A comprehensive guide to manipulating and observing DOM changes using Chrome DevTools Protocol (CDP). Learn how to capture full DOM snapshots, locate elements with CSS selectors, modify element attributes and text, and listen to live DOM mutations — all without loading jQuery or any third-party library.</div></div></div></a></div></div><hr class="custom-hr"/><div id="post-comment"><div class="comment-head"><div class="comment-headline"><i class="fas fa-comments fa-fw"></i><span> Comments</span></div></div><div class="comment-wrap"><div><div id="utterances-wrap"></div></div></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/tools-review/en/img/avatar.png" onerror="this.onerror=null;this.src='/tools-review/en/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">John Doe</div><div class="author-info-description">Chrome DevTools Protocol Tutorial</div><div class="site-data"><a href="/tools-review/en/archives/"><div class="headline">Articles</div><div class="length-num">47</div></a><a href="/tools-review/en/tags/"><div class="headline">Tags</div><div class="length-num">112</div></a><a href="/tools-review/en/categories/"><div class="headline">Categories</div><div class="length-num">10</div></a></div><a id="card-info-btn" target="_blank" rel="noopener" href="https://github.com/lmlx07"><i class="fab fa-github"></i><span>Follow me</span></a><div class="card-info-social-icons"><a class="social-icon" href="https://github.com/lmlx07" target="_blank" title="GitHub"><i class="fab fa-github" style="color: #24292e;"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>Announcement</span></div><div class="announcement_content">📢 CDP Automation Guide is a Chinese tech blog focused on Chrome DevTools Protocol, providing hands-on tutorials for controlling browsers with Python.</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>Contents</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#Trap-1-Radio-Buttons"><span class="toc-number">1.</span> <span class="toc-text">Trap 1: Radio Buttons</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#The-Problem"><span class="toc-number">1.1.</span> <span class="toc-text">The Problem</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Root-Cause"><span class="toc-number">1.2.</span> <span class="toc-text">Root Cause</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#The-Fix"><span class="toc-number">1.3.</span> <span class="toc-text">The Fix</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Ant-Design-Radio"><span class="toc-number">1.4.</span> <span class="toc-text">Ant Design Radio</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Trap-2-Custom-Select-Components"><span class="toc-number">2.</span> <span class="toc-text">Trap 2: Custom Select Components</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#The-Fix-1"><span class="toc-number">2.1.</span> <span class="toc-text">The Fix</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Trap-3-Switch-Toggle-Components"><span class="toc-number">3.</span> <span class="toc-text">Trap 3: Switch&#x2F;Toggle Components</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#The-Fix-2"><span class="toc-number">3.1.</span> <span class="toc-text">The Fix</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Universal-Principles"><span class="toc-number">4.</span> <span class="toc-text">Universal Principles</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-Click-Outer-Container-Not-Inner-Elements"><span class="toc-number">4.1.</span> <span class="toc-text">1. Click Outer Container, Not Inner Elements</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-Search-by-Text-Not-by-Structure"><span class="toc-number">4.2.</span> <span class="toc-text">2. Search by Text, Not by Structure</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-Use-offsetParent-null-to-Filter-Visible-Elements"><span class="toc-number">4.3.</span> <span class="toc-text">3. Use offsetParent !&#x3D;&#x3D; null to Filter Visible Elements</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Debugging-Checklist"><span class="toc-number">5.</span> <span class="toc-text">Debugging Checklist</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>Recent Posts</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/tools-review/en/cdp-seo-timeline-experience/" title="New Site SEO: Expectation Management from Submission to Indexing">New Site SEO: Expectation Management from Submission to Indexing</a><time datetime="2026-06-09T07:30:00.000Z" title="Created 2026-06-09 15:30:00">2026-06-09</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/tools-review/en/cdp-seo-webmaster-experience/" title="Static Site Webmaster Platform Guide: Optimal Indexing Strategy Under Constraints">Static Site Webmaster Platform Guide: Optimal Indexing Strategy Under Constraints</a><time datetime="2026-06-09T07:00:00.000Z" title="Created 2026-06-09 15:00:00">2026-06-09</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/tools-review/en/cdp-seo-api-submit-experience/" title="API Submission Script Development: From Sitemap to Search Engine Indexing">API Submission Script Development: From Sitemap to Search Engine Indexing</a><time datetime="2026-06-09T06:30:00.000Z" title="Created 2026-06-09 14:30:00">2026-06-09</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/tools-review/en/cdp-seo-github-pages-experience/" title="Complete SEO Guide for Unlicensed GitHub Pages Sites">Complete SEO Guide for Unlicensed GitHub Pages Sites</a><time datetime="2026-06-09T06:00:00.000Z" title="Created 2026-06-09 14:00:00">2026-06-09</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/tools-review/en/cdp-debug-inspect-experience/" title="CDP Debug Utility Collection: Quick Page Inspection and Element Diagnostics">CDP Debug Utility Collection: Quick Page Inspection and Element Diagnostics</a><time datetime="2026-06-09T05:00:00.000Z" title="Created 2026-06-09 13:00:00">2026-06-09</time></div></div></div></div></div></div></main><footer id="footer"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2026 By John Doe</span><span class="framework-info"><span>Framework </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>Theme </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div><div class="footer_custom_text">🚀 CDP Automation Guide</div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="Reading Mode"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="Toggle Between Light and Dark Mode"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="Toggle Between Single-column and Double-column"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="Settings"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="Table of Contents"><i class="fas fa-list-ul"></i></button><a id="to_comment" href="#post-comment" title="Scroll to Comments"><i class="fas fa-comments"></i></a><button id="go-up" type="button" title="Back to Top"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/tools-review/en/js/utils.js?v=5.5.4"></script><script src="/tools-review/en/js/main.js?v=5.5.4"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const isShuoshuo = GLOBAL_CONFIG_SITE.pageType === 'shuoshuo'
+  const option = null
+  const getUtterancesTheme = theme => theme === 'dark' ? 'github-dark' : 'github-light'
+
+  const loadUtterances = (el = document, key) => {
+    if (isShuoshuo) {
+      window.shuoshuoComment.destroyUtterances = () => {
+        if (el.children.length) {
+          el.innerHTML = ''
+          el.classList.add('no-comment')
+        }
+      }
+    }
+
+    const config = {
+      src: 'https://utteranc.es/client.js',
+      repo: 'lmlx07/tools-review',
+      theme: getUtterancesTheme(document.documentElement.getAttribute('data-theme')),
+      crossorigin: 'anonymous',
+      async: true,
+      ...option,
+      'issue-term': isShuoshuo ? key : (option && option['issue-term']) || 'pathname'
+    }
+
+    const ele = document.createElement('script')
+    Object.entries(config).forEach(([key, value]) => ele.setAttribute(key, value))
+    el.querySelector('#utterances-wrap').appendChild(ele)
+  }
+
+  const changeUtterancesTheme = theme => {
+    const iframe = document.querySelector('#utterances-wrap iframe')
+    if (iframe) {
+      const message = {
+        type: 'set-theme',
+        theme: getUtterancesTheme(theme)
+      };
+      iframe.contentWindow.postMessage(message, 'https://utteranc.es')
+    }
+  }
+
+  btf.addGlobalFn('themeChange', changeUtterancesTheme, 'utterances')
+
+  if (isShuoshuo) {
+    'Utterances' === 'Utterances'
+      ? window.shuoshuoComment = { loadComment: loadUtterances }
+      : window.loadOtherComment = loadUtterances
+    return
+  }
+  
+  if ('Utterances' === 'Utterances' || !false) {
+    if (false) btf.loadComment(document.getElementById('utterances-wrap'), loadUtterances)
+    else loadUtterances()
+  } else {
+    window.loadOtherComment = loadUtterances
+  }
+})()</script></div><div id="lang-switch"><span class="lo" data-lang="zh-CN">中文</span><span class="sp">|</span><span class="lo" data-lang="en">EN</span></div><script>!function(){var H='<span class="lo" data-lang="zh-CN">中文</span><span class="sp">|</span><span class="lo" data-lang="en">EN</span>';function E(){var e=document.getElementById("lang-switch")||function(){var e=document.createElement("div");return e.id="lang-switch",e.style.display="inline-flex",e.innerHTML=H,e}();var n=window.location.pathname.startsWith("/en");e.querySelectorAll(".lo").forEach(function(e){e.classList.toggle("on",n?e.dataset.lang==="en":e.dataset.lang==="zh-CN")}),e.removeEventListener("click",e._l),e._l=function(t){var o=(t=t||window.event).target.closest(".lo");if(!o)return;var l=o.dataset.lang;if(l==="en"&&!n){var a=window.location.pathname.replace(/\/$/,"")||"";window.location.href="/en"+a+window.location.search}else if(l==="zh-CN"&&n){var i=window.location.pathname.replace(/^\/en/,"").replace(/\/$/,"")||"/";window.location.href=i+window.location.search}},e.addEventListener("click",e._l)}function I(){var e=document.getElementById("lang-switch")||function(){var e=document.createElement("div");return e.id="lang-switch",e.style.display="inline-flex",e.innerHTML=H,e}();var t=document.querySelector("#nav .menus_items");if(!t||t.contains(e))return;var n=document.createElement("li");n.className="menus_item",n.appendChild(e),t.appendChild(n)}E(),setTimeout(I,300),document.addEventListener("pjax:complete",function(){setTimeout(I,300),setTimeout(E,500)})}();</script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js" defer="defer"></script><script>document.addEventListener('DOMContentLoaded', () => {
+  const pjaxSelectors = ["meta[property=\"og:image\"]","meta[property=\"og:title\"]","meta[property=\"og:url\"]","meta[property=\"og:description\"]","link[rel=\"canonical\"]","head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      false
+        ? pjax.loadUrl('/tools-review/en/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})</script><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script></div></body></html>

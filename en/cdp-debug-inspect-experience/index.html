@@ -1,0 +1,342 @@
+<!DOCTYPE html><html lang="en" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>CDP Debug Utility Collection: Quick Page Inspection and Element Diagnostics | CDP Automation Guide</title><meta name="author" content="John Doe"><meta name="copyright" content="John Doe"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="When developing CDP automation scripts, 80% of the time is spent figuring out &quot;what&#39;s on the page right now.&quot; This article provides a set of practical debug utilities — page snapshots, visible button">
+<meta property="og:type" content="article">
+<meta property="og:title" content="CDP Debug Utility Collection: Quick Page Inspection and Element Diagnostics">
+<meta property="og:url" content="https://lmlx07.github.io/tools-review/cdp-debug-inspect-experience/index.html">
+<meta property="og:site_name" content="CDP Automation Guide">
+<meta property="og:description" content="When developing CDP automation scripts, 80% of the time is spent figuring out &quot;what&#39;s on the page right now.&quot; This article provides a set of practical debug utilities — page snapshots, visible button">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://lmlx07.github.io/tools-review/img/avatar.png">
+<meta property="article:published_time" content="2026-06-09T05:00:00.000Z">
+<meta property="article:modified_time" content="2026-06-09T03:19:51.478Z">
+<meta property="article:author" content="John Doe">
+<meta property="article:tag" content="Browser Automation">
+<meta property="article:tag" content="CDP">
+<meta property="article:tag" content="Chrome DevTools Protocol">
+<meta property="article:tag" content="Debugging">
+<meta property="article:tag" content="Python">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://lmlx07.github.io/tools-review/img/avatar.png"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "CDP Debug Utility Collection: Quick Page Inspection and Element Diagnostics",
+  "url": "https://lmlx07.github.io/tools-review/cdp-debug-inspect-experience/",
+  "image": "https://lmlx07.github.io/tools-review/img/avatar.png",
+  "datePublished": "2026-06-09T05:00:00.000Z",
+  "dateModified": "2026-06-09T03:19:51.478Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "John Doe",
+      "url": "https://lmlx07.github.io/tools-review"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/tools-review/en/img/favicon.png"><link rel="canonical" href="https://lmlx07.github.io/tools-review/cdp-debug-inspect-experience/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="stylesheet" href="/tools-review/en/css/index.css?v=5.5.4"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/tools-review/en/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":false,"highlightFullpage":true,"highlightMacStyle":true},
+  copy: {
+    success: 'Copy Successful',
+    error: 'Copy Failed',
+    noSupport: 'Browser Not Supported'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: '',
+  dateSuffix: {
+    just: 'Just now',
+    min: 'minutes ago',
+    hour: 'hours ago',
+    day: 'days ago',
+    month: 'months ago'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.13.0/dist/infinitegrid.min.js',
+    buttonText: 'Load More'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: false,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'CDP Debug Utility Collection: Quick Page Inspection and Element Diagnostics',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><style>#lang-switch{display:inline-flex;align-items:center;gap:3px;height:100%;padding:0 6px;cursor:default}#lang-switch .lo{cursor:pointer;padding:2px 6px;border-radius:4px;font-size:.82em;transition:all .2s;color:var(--menu-item-color,#555)}#lang-switch .lo:hover{background:var(--text-bg-hover,rgba(0,0,0,.06))}#lang-switch .lo.on{font-weight:700;color:var(--theme-color,#49b1f5)}#lang-switch .sp{color:var(--menu-item-color,#555);opacity:.3;font-size:.75em;user-select:none}</style><meta name="generator" content="Hexo 8.1.2"><link rel="alternate" href="/tools-review/en/atom.xml" title="CDP Automation Guide" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/tools-review/en/img/avatar.png" onerror="this.onerror=null;this.src='/tools-review/en/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/tools-review/en/archives/"><div class="headline">Articles</div><div class="length-num">47</div></a><a href="/tools-review/en/tags/"><div class="headline">Tags</div><div class="length-num">112</div></a><a href="/tools-review/en/categories/"><div class="headline">Categories</div><div class="length-num">10</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/tools-review/en/"><i class="fa-fw fas fa-home"></i><span> Home</span></a></div><div class="menus_item"><a class="site-page" href="/tools-review/en/archives/"><i class="fa-fw fas fa-archive"></i><span> Archives</span></a></div><div class="menus_item"><a class="site-page" href="/tools-review/en/categories/"><i class="fa-fw fas fa-folder-open"></i><span> Categories</span></a></div><div class="menus_item"><a class="site-page" href="/tools-review/en/tags/"><i class="fa-fw fas fa-tags"></i><span> Tags</span></a></div><div class="menus_item"><a class="site-page" href="/tools-review/en/about/"><i class="fa-fw fas fa-info-circle"></i><span> About</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/tools-review/en/img/default_bg.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/tools-review/en/"><span class="site-name">CDP Automation Guide</span></a><a class="nav-page-title" href="/tools-review/en/"><span class="site-name">CDP Debug Utility Collection: Quick Page Inspection and Element Diagnostics</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  Back to Home</span></span></a></span><div id="menus"><div class="menus_items"><div class="menus_item"><a class="site-page" href="/tools-review/en/"><i class="fa-fw fas fa-home"></i><span> Home</span></a></div><div class="menus_item"><a class="site-page" href="/tools-review/en/archives/"><i class="fa-fw fas fa-archive"></i><span> Archives</span></a></div><div class="menus_item"><a class="site-page" href="/tools-review/en/categories/"><i class="fa-fw fas fa-folder-open"></i><span> Categories</span></a></div><div class="menus_item"><a class="site-page" href="/tools-review/en/tags/"><i class="fa-fw fas fa-tags"></i><span> Tags</span></a></div><div class="menus_item"><a class="site-page" href="/tools-review/en/about/"><i class="fa-fw fas fa-info-circle"></i><span> About</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">CDP Debug Utility Collection: Quick Page Inspection and Element Diagnostics</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">Created</span><time class="post-meta-date-created" datetime="2026-06-09T05:00:00.000Z" title="Created 2026-06-09 13:00:00">2026-06-09</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">Updated</span><time class="post-meta-date-updated" datetime="2026-06-09T03:19:51.478Z" title="Updated 2026-06-09 11:19:51">2026-06-09</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/tools-review/en/categories/CDP-Practice/">CDP Practice</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/tools-review/en/categories/CDP-Practice/Experience-Sharing/">Experience Sharing</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">Post Views:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><div id="post-outdate-notice" data="{&quot;limitDay&quot;:365,&quot;messagePrev&quot;:&quot;本文距离上次更新已过去&quot;,&quot;messageNext&quot;:&quot;天，内容可能已过时。&quot;,&quot;postUpdate&quot;:&quot;2026-06-09 11:19:51&quot;}" hidden></div><blockquote>
+<p><strong>Summary in one sentence</strong>: The most time-consuming part of CDP automation is guessing the page state. A set of debug utilities — reading page text, scanning visible buttons, checking dialog overlays, locating element coordinates — can cut that time by 80%.</p>
+</blockquote>
+<hr>
+<h2 id="Quick-Page-Snapshot"><a href="#Quick-Page-Snapshot" class="headerlink" title="Quick Page Snapshot"></a>Quick Page Snapshot</h2><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">page_snapshot</span>(<span class="params">ws</span>):</span><br><span class="line">    <span class="string">&quot;&quot;&quot;Get a snapshot of the current page state&quot;&quot;&quot;</span></span><br><span class="line">    url = js(ws, <span class="string">&#x27;window.location.href&#x27;</span>)</span><br><span class="line">    title = js(ws, <span class="string">&#x27;document.title&#x27;</span>)</span><br><span class="line">    text = js(ws, <span class="string">&#x27;document.body.innerText.substring(0, 1000)&#x27;</span>)</span><br><span class="line">    </span><br><span class="line">    <span class="built_in">print</span>(<span class="string">f&#x27;URL:   <span class="subst">&#123;url&#125;</span>&#x27;</span>)</span><br><span class="line">    <span class="built_in">print</span>(<span class="string">f&#x27;Title: <span class="subst">&#123;title&#125;</span>&#x27;</span>)</span><br><span class="line">    <span class="built_in">print</span>(<span class="string">f&#x27;Text:  <span class="subst">&#123;text[:<span class="number">300</span>]&#125;</span>...&#x27;</span>)</span><br><span class="line">    <span class="keyword">return</span> &#123;<span class="string">&#x27;url&#x27;</span>: url, <span class="string">&#x27;title&#x27;</span>: title, <span class="string">&#x27;text&#x27;</span>: text&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="Page-Ready-Detection"><a href="#Page-Ready-Detection" class="headerlink" title="Page Ready Detection"></a>Page Ready Detection</h2><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">wait_page_ready</span>(<span class="params">ws, timeout=<span class="number">15</span></span>):</span><br><span class="line">    <span class="string">&quot;&quot;&quot;Wait until document.readyState === &#x27;complete&#x27;&quot;&quot;&quot;</span></span><br><span class="line">    t0 = time.time()</span><br><span class="line">    <span class="keyword">while</span> time.time() - t0 &lt; timeout:</span><br><span class="line">        state = js(ws, <span class="string">&#x27;document.readyState&#x27;</span>)</span><br><span class="line">        <span class="keyword">if</span> state == <span class="string">&#x27;complete&#x27;</span>:</span><br><span class="line">            <span class="keyword">return</span> <span class="literal">True</span></span><br><span class="line">        time.sleep(<span class="number">0.5</span>)</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">False</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="Visible-Button-Scanner"><a href="#Visible-Button-Scanner" class="headerlink" title="Visible Button Scanner"></a>Visible Button Scanner</h2><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">scan_buttons</span>(<span class="params">ws</span>):</span><br><span class="line">    <span class="string">&quot;&quot;&quot;Scan all visible buttons on the page&quot;&quot;&quot;</span></span><br><span class="line">    buttons = js(ws, <span class="string">&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">        (() =&gt; &#123;</span></span><br><span class="line"><span class="string">            const r = [];</span></span><br><span class="line"><span class="string">            const btns = document.querySelectorAll(&#x27;button, a, [role=&quot;button&quot;]&#x27;);</span></span><br><span class="line"><span class="string">            for (const b of btns) &#123;</span></span><br><span class="line"><span class="string">                if (b.offsetParent === null) continue;</span></span><br><span class="line"><span class="string">                const rect = b.getBoundingClientRect();</span></span><br><span class="line"><span class="string">                const txt = (b.innerText || &#x27;&#x27;).trim().substring(0, 40);</span></span><br><span class="line"><span class="string">                const aria = (b.getAttribute(&#x27;aria-label&#x27;) || &#x27;&#x27;).substring(0, 40);</span></span><br><span class="line"><span class="string">                if (txt || aria) &#123;</span></span><br><span class="line"><span class="string">                    r.push(&#123;</span></span><br><span class="line"><span class="string">                        text: txt, aria: aria,</span></span><br><span class="line"><span class="string">                        disabled: b.disabled || b.classList.contains(&#x27;disabled&#x27;),</span></span><br><span class="line"><span class="string">                        x: Math.round(rect.left), y: Math.round(rect.top),</span></span><br><span class="line"><span class="string">                        w: Math.round(rect.width), h: Math.round(rect.height)</span></span><br><span class="line"><span class="string">                    &#125;);</span></span><br><span class="line"><span class="string">                &#125;</span></span><br><span class="line"><span class="string">            &#125;</span></span><br><span class="line"><span class="string">            return JSON.stringify(r);</span></span><br><span class="line"><span class="string">        &#125;)()</span></span><br><span class="line"><span class="string">    &quot;&quot;&quot;</span>)</span><br><span class="line">    </span><br><span class="line">    buttons = json.loads(buttons) <span class="keyword">if</span> buttons <span class="keyword">else</span> []</span><br><span class="line">    <span class="keyword">for</span> b <span class="keyword">in</span> buttons:</span><br><span class="line">        flag = <span class="string">&#x27; [DISABLED]&#x27;</span> <span class="keyword">if</span> b[<span class="string">&#x27;disabled&#x27;</span>] <span class="keyword">else</span> <span class="string">&#x27;&#x27;</span></span><br><span class="line">        <span class="built_in">print</span>(<span class="string">f&#x27;  &quot;<span class="subst">&#123;b[<span class="string">&quot;text&quot;</span>]&#125;</span>&quot; at [<span class="subst">&#123;b[<span class="string">&quot;x&quot;</span>]&#125;</span>,<span class="subst">&#123;b[<span class="string">&quot;y&quot;</span>]&#125;</span>]<span class="subst">&#123;flag&#125;</span>&#x27;</span>)</span><br><span class="line">    <span class="keyword">return</span> buttons</span><br></pre></td></tr></table></figure>
+
+<h2 id="Input-Scanner"><a href="#Input-Scanner" class="headerlink" title="Input Scanner"></a>Input Scanner</h2><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">scan_inputs</span>(<span class="params">ws</span>):</span><br><span class="line">    <span class="string">&quot;&quot;&quot;Scan all visible input fields&quot;&quot;&quot;</span></span><br><span class="line">    inputs = js(ws, <span class="string">&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">        (() =&gt; &#123;</span></span><br><span class="line"><span class="string">            const r = [];</span></span><br><span class="line"><span class="string">            const els = document.querySelectorAll(</span></span><br><span class="line"><span class="string">                &#x27;input:not([type=hidden]), textarea, [contenteditable=&quot;true&quot;]&#x27;</span></span><br><span class="line"><span class="string">            );</span></span><br><span class="line"><span class="string">            for (const el of els) &#123;</span></span><br><span class="line"><span class="string">                if (el.offsetParent === null) continue;</span></span><br><span class="line"><span class="string">                const rect = el.getBoundingClientRect();</span></span><br><span class="line"><span class="string">                r.push(&#123;</span></span><br><span class="line"><span class="string">                    tag: el.tagName,</span></span><br><span class="line"><span class="string">                    type: el.getAttribute(&#x27;type&#x27;) || &#x27;&#x27;,</span></span><br><span class="line"><span class="string">                    name: el.getAttribute(&#x27;name&#x27;) || &#x27;&#x27;,</span></span><br><span class="line"><span class="string">                    placeholder: el.getAttribute(&#x27;placeholder&#x27;) || &#x27;&#x27;,</span></span><br><span class="line"><span class="string">                    x: Math.round(rect.left), y: Math.round(rect.top)</span></span><br><span class="line"><span class="string">                &#125;);</span></span><br><span class="line"><span class="string">            &#125;</span></span><br><span class="line"><span class="string">            return JSON.stringify(r);</span></span><br><span class="line"><span class="string">        &#125;)()</span></span><br><span class="line"><span class="string">    &quot;&quot;&quot;</span>)</span><br><span class="line">    </span><br><span class="line">    inputs = json.loads(inputs) <span class="keyword">if</span> inputs <span class="keyword">else</span> []</span><br><span class="line">    <span class="keyword">for</span> inp <span class="keyword">in</span> inputs:</span><br><span class="line">        desc = inp[<span class="string">&#x27;placeholder&#x27;</span>] <span class="keyword">or</span> inp[<span class="string">&#x27;name&#x27;</span>] <span class="keyword">or</span> <span class="string">f&#x27;&lt;<span class="subst">&#123;inp[<span class="string">&quot;tag&quot;</span>]&#125;</span>&gt;&#x27;</span></span><br><span class="line">        <span class="built_in">print</span>(<span class="string">f&#x27;  <span class="subst">&#123;desc&#125;</span> at [<span class="subst">&#123;inp[<span class="string">&quot;x&quot;</span>]&#125;</span>,<span class="subst">&#123;inp[<span class="string">&quot;y&quot;</span>]&#125;</span>]&#x27;</span>)</span><br><span class="line">    <span class="keyword">return</span> inputs</span><br></pre></td></tr></table></figure>
+
+<h2 id="Dialog-Diagnostics"><a href="#Dialog-Diagnostics" class="headerlink" title="Dialog Diagnostics"></a>Dialog Diagnostics</h2><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">diagnose_dialogs</span>(<span class="params">ws</span>):</span><br><span class="line">    <span class="string">&quot;&quot;&quot;Diagnose dialog/overlay state&quot;&quot;&quot;</span></span><br><span class="line">    info = js(ws, <span class="string">&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">        (() =&gt; &#123;</span></span><br><span class="line"><span class="string">            const dialogs = document.querySelectorAll(</span></span><br><span class="line"><span class="string">                &#x27;[class*=&quot;dialog&quot;],[class*=&quot;modal&quot;],[class*=&quot;overlay&quot;],&#x27; +</span></span><br><span class="line"><span class="string">                &#x27;[class*=&quot;mask&quot;],[role=&quot;dialog&quot;]&#x27;</span></span><br><span class="line"><span class="string">            );</span></span><br><span class="line"><span class="string">            return JSON.stringify(Array.from(dialogs).map(d =&gt; (&#123;</span></span><br><span class="line"><span class="string">                className: d.className.substring(0, 60),</span></span><br><span class="line"><span class="string">                visible: d.offsetParent !== null,</span></span><br><span class="line"><span class="string">                zIndex: window.getComputedStyle(d).zIndex,</span></span><br><span class="line"><span class="string">                text: (d.innerText || &#x27;&#x27;).trim().substring(0, 200)</span></span><br><span class="line"><span class="string">            &#125;)));</span></span><br><span class="line"><span class="string">        &#125;)()</span></span><br><span class="line"><span class="string">    &quot;&quot;&quot;</span>)</span><br><span class="line">    </span><br><span class="line">    dialogs = json.loads(info) <span class="keyword">if</span> info <span class="keyword">else</span> []</span><br><span class="line">    <span class="keyword">for</span> d <span class="keyword">in</span> dialogs:</span><br><span class="line">        vis = <span class="string">&#x27;VISIBLE&#x27;</span> <span class="keyword">if</span> d[<span class="string">&#x27;visible&#x27;</span>] <span class="keyword">else</span> <span class="string">&#x27;HIDDEN&#x27;</span></span><br><span class="line">        <span class="built_in">print</span>(<span class="string">f&#x27;  [<span class="subst">&#123;vis&#125;</span>] z=<span class="subst">&#123;d[<span class="string">&quot;zIndex&quot;</span>]&#125;</span> <span class="subst">&#123;d[<span class="string">&quot;className&quot;</span>][:<span class="number">40</span>]&#125;</span>&#x27;</span>)</span><br><span class="line">        <span class="keyword">if</span> d[<span class="string">&#x27;visible&#x27;</span>] <span class="keyword">and</span> d[<span class="string">&#x27;text&#x27;</span>]:</span><br><span class="line">            <span class="built_in">print</span>(<span class="string">f&#x27;     text: <span class="subst">&#123;d[<span class="string">&quot;text&quot;</span>][:<span class="number">100</span>]&#125;</span>&#x27;</span>)</span><br><span class="line">    <span class="keyword">return</span> dialogs</span><br></pre></td></tr></table></figure>
+
+<h2 id="Element-Locator"><a href="#Element-Locator" class="headerlink" title="Element Locator"></a>Element Locator</h2><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">locate_element</span>(<span class="params">ws, css_selector</span>):</span><br><span class="line">    <span class="string">&quot;&quot;&quot;Get element position and visibility info&quot;&quot;&quot;</span></span><br><span class="line">    info = js(ws, <span class="string">f&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">        (() =&gt; &#123;&#123;</span></span><br><span class="line"><span class="string">            const el = document.querySelector(&#x27;<span class="subst">&#123;css_selector&#125;</span>&#x27;);</span></span><br><span class="line"><span class="string">            if (!el) return null;</span></span><br><span class="line"><span class="string">            const r = el.getBoundingClientRect();</span></span><br><span class="line"><span class="string">            return JSON.stringify(&#123;&#123;</span></span><br><span class="line"><span class="string">                tag: el.tagName,</span></span><br><span class="line"><span class="string">                text: (el.innerText || &#x27;&#x27;).trim().substring(0, 50),</span></span><br><span class="line"><span class="string">                visible: el.offsetParent !== null,</span></span><br><span class="line"><span class="string">                x: Math.round(r.left), y: Math.round(r.top),</span></span><br><span class="line"><span class="string">                w: Math.round(r.width), h: Math.round(r.height),</span></span><br><span class="line"><span class="string">                centerX: Math.round(r.left + r.width / 2),</span></span><br><span class="line"><span class="string">                centerY: Math.round(r.top + r.height / 2)</span></span><br><span class="line"><span class="string">            &#125;&#125;);</span></span><br><span class="line"><span class="string">        &#125;&#125;)()</span></span><br><span class="line"><span class="string">    &quot;&quot;&quot;</span>)</span><br><span class="line">    <span class="keyword">return</span> json.loads(info) <span class="keyword">if</span> info <span class="keyword">else</span> <span class="literal">None</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="Element-Status-Check"><a href="#Element-Status-Check" class="headerlink" title="Element Status Check"></a>Element Status Check</h2><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">element_status</span>(<span class="params">ws, css_selector</span>):</span><br><span class="line">    <span class="string">&quot;&quot;&quot;Full element status check&quot;&quot;&quot;</span></span><br><span class="line">    <span class="keyword">return</span> js(ws, <span class="string">f&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">        (() =&gt; &#123;&#123;</span></span><br><span class="line"><span class="string">            const el = document.querySelector(&#x27;<span class="subst">&#123;css_selector&#125;</span>&#x27;);</span></span><br><span class="line"><span class="string">            if (!el) return &#x27;NOT_FOUND&#x27;;</span></span><br><span class="line"><span class="string">            return JSON.stringify(&#123;&#123;</span></span><br><span class="line"><span class="string">                exists: true,</span></span><br><span class="line"><span class="string">                visible: el.offsetParent !== null,</span></span><br><span class="line"><span class="string">                disabled: el.disabled === true,</span></span><br><span class="line"><span class="string">                pointerEvents: window.getComputedStyle(el).pointerEvents,</span></span><br><span class="line"><span class="string">                zIndex: window.getComputedStyle(el).zIndex</span></span><br><span class="line"><span class="string">            &#125;&#125;);</span></span><br><span class="line"><span class="string">        &#125;&#125;)()</span></span><br><span class="line"><span class="string">    &quot;&quot;&quot;</span>)</span><br></pre></td></tr></table></figure>
+
+<h2 id="Full-Diagnosis"><a href="#Full-Diagnosis" class="headerlink" title="Full Diagnosis"></a>Full Diagnosis</h2><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">full_diagnosis</span>(<span class="params">ws</span>):</span><br><span class="line">    <span class="string">&quot;&quot;&quot;One-shot comprehensive page diagnosis&quot;&quot;&quot;</span></span><br><span class="line">    <span class="built_in">print</span>(<span class="string">&#x27;=&#x27;</span> * <span class="number">50</span>)</span><br><span class="line">    <span class="built_in">print</span>(<span class="string">&#x27;CDP Page Diagnosis&#x27;</span>)</span><br><span class="line">    <span class="built_in">print</span>(<span class="string">&#x27;=&#x27;</span> * <span class="number">50</span>)</span><br><span class="line">    page_snapshot(ws)</span><br><span class="line">    scan_buttons(ws)</span><br><span class="line">    scan_inputs(ws)</span><br><span class="line">    diagnose_dialogs(ws)</span><br><span class="line">    <span class="built_in">print</span>(<span class="string">&#x27;=&#x27;</span> * <span class="number">50</span>)</span><br></pre></td></tr></table></figure>
+
+<h2 id="Debug-Workflow"><a href="#Debug-Workflow" class="headerlink" title="Debug Workflow"></a>Debug Workflow</h2><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 1. Check page state first</span></span><br><span class="line">page_snapshot(ws)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 2. Find target button</span></span><br><span class="line">buttons = scan_buttons(ws)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 3. Check for blocking dialogs</span></span><br><span class="line">dialogs = diagnose_dialogs(ws)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 4. Get element coordinates for CDP click</span></span><br><span class="line">pos = locate_element(ws, <span class="string">&#x27;.target-btn&#x27;</span>)</span><br><span class="line">cdp_click(ws, pos[<span class="string">&#x27;centerX&#x27;</span>], pos[<span class="string">&#x27;centerY&#x27;</span>])</span><br></pre></td></tr></table></figure>
+
+<h2 id="Summary"><a href="#Summary" class="headerlink" title="Summary"></a>Summary</h2><table>
+<thead>
+<tr>
+<th>Utility</th>
+<th>Use When</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>page_snapshot()</code></td>
+<td>Need to confirm page state after navigation</td>
+</tr>
+<tr>
+<td><code>wait_page_ready()</code></td>
+<td>Replace <code>time.sleep()</code> for loading</td>
+</tr>
+<tr>
+<td><code>scan_buttons()</code></td>
+<td>Can’t find the right button to click</td>
+</tr>
+<tr>
+<td><code>scan_inputs()</code></td>
+<td>Before form-filling operations</td>
+</tr>
+<tr>
+<td><code>diagnose_dialogs()</code></td>
+<td>Clicks aren’t working (overlay blocking?)</td>
+</tr>
+<tr>
+<td><code>locate_element()</code></td>
+<td>Need coordinates for CDP mouse click</td>
+</tr>
+<tr>
+<td><code>element_status()</code></td>
+<td>Debugging why a click doesn’t work</td>
+</tr>
+<tr>
+<td><code>full_diagnosis()</code></td>
+<td>Script is stuck, want a complete picture</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p><strong>Summary</strong>: Debug utilities are the Swiss Army knife of CDP automation. Instead of guessing the page state, run <code>full_diagnosis()</code> to see everything at once. Check before you act — this should be the first principle of CDP automation.</p>
+</blockquote>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>Author: </span><span class="post-copyright-info"><a href="https://lmlx07.github.io/tools-review">John Doe</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>Link: </span><span class="post-copyright-info"><a href="https://lmlx07.github.io/tools-review/cdp-debug-inspect-experience/">https://lmlx07.github.io/tools-review/cdp-debug-inspect-experience/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>Copyright Notice: </span><span class="post-copyright-info">All articles on this blog are licensed under <a target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a> unless otherwise stated.</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tools-review/en/tags/Chrome-DevTools-Protocol/">Chrome DevTools Protocol</a><a class="post-meta__tags" href="/tools-review/en/tags/CDP/">CDP</a><a class="post-meta__tags" href="/tools-review/en/tags/Python/">Python</a><a class="post-meta__tags" href="/tools-review/en/tags/Browser-Automation/">Browser Automation</a><a class="post-meta__tags" href="/tools-review/en/tags/Debugging/">Debugging</a></div><div class="post-share"><div class="social-share" data-image="/tools-review/en/img/avatar.png" data-sites="facebook,x,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/tools-review/en/cdp-seo-github-pages-experience/" title="Complete SEO Guide for Unlicensed GitHub Pages Sites"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info"><div class="info-1"><div class="info-item-1">Previous</div><div class="info-item-2">Complete SEO Guide for Unlicensed GitHub Pages Sites</div></div><div class="info-2"><div class="info-item-1">Hosting a personal blog on GitHub Pages means no ICP filing, which blocks sitemap submission on some search platforms. This article documents how file verification + API submission can get your unlicensed GitHub Pages site indexed.</div></div></div></a><a class="pagination-related" href="/tools-review/en/cdp-idempotent-automation-experience/" title="Idempotent Automation Design: Resume Interrupted Scripts Without Duplication"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-right"><div class="info-1"><div class="info-item-1">Next</div><div class="info-item-2">Idempotent Automation Design: Resume Interrupted Scripts Without Duplication</div></div><div class="info-2"><div class="info-item-1">Long-running automation scripts inevitably crash. This article covers idempotent design — using state tracking, deduplication checks, and resume-from-checkpoint patterns so scripts can be safely re-run after any failure without duplication or omission.</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>Related Articles</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/tools-review/en/cdp-console-guide/" title="CDP Console Debugging Guide: Capture Page Logs &amp; Exceptions with Python"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-06-05</div><div class="info-item-2">CDP Console Debugging Guide: Capture Page Logs &amp; Exceptions with Python</div></div><div class="info-2"><div class="info-item-1">A comprehensive guide to capturing browser console output using Chrome DevTools Protocol (CDP). Learn to listen for console.log/warn/error, catch uncaught exceptions, filter log levels, inject custom console commands, and build automated error monitoring tools.</div></div></div></a><a class="pagination-related" href="/tools-review/en/cdp-dialog-layering-experience/" title="Handling Multi-Layer Dialog Overlays: Sequential Close Strategy for Automation"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-06-09</div><div class="info-item-2">Handling Multi-Layer Dialog Overlays: Sequential Close Strategy for Automation</div></div><div class="info-2"><div class="info-item-1">When a web application shows multiple layered dialogs during publishing, fixed waits and out-of-order clicks won't work. This article documents a polling + sequential close strategy for reliably handling multi-level modals.</div></div></div></a><a class="pagination-related" href="/tools-review/en/cdp-event-system-guide/" title="CDP Event System Guide: Listening to Browser Events with Python"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-06-05</div><div class="info-item-2">CDP Event System Guide: Listening to Browser Events with Python</div></div><div class="info-2"><div class="info-item-1">A comprehensive guide to the Chrome DevTools Protocol (CDP) event-driven architecture. Learn how to listen for CDP events, one-shot vs persistent listener patterns, common event types (network requests, page loading, console messages), event filtering & throttling, and a complete event manager class.</div></div></div></a><a class="pagination-related" href="/tools-review/en/cdp-websocket-guide/" title="CDP WebSocket Debugging Guide: Intercept and Inspect WebSocket Frames with Python"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-06-05</div><div class="info-item-2">CDP WebSocket Debugging Guide: Intercept and Inspect WebSocket Frames with Python</div></div><div class="info-2"><div class="info-item-1">A comprehensive guide to debugging WebSocket connections using Chrome DevTools Protocol (CDP). Learn to capture WebSocket frames, intercept and modify frame content, analyze WebSocket traffic, and automate WebSocket protocol testing.</div></div></div></a><a class="pagination-related" href="/tools-review/en/cdp-frame-guide/" title="CDP Frame Management Guide: Handle iframes &amp; Cross-Origin Frames with Python"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-06-05</div><div class="info-item-2">CDP Frame Management Guide: Handle iframes &amp; Cross-Origin Frames with Python</div></div><div class="info-2"><div class="info-item-1">A comprehensive guide to managing browser frames using Chrome DevTools Protocol (CDP). Learn to get the frame tree, execute JavaScript in iframes, handle cross-origin frames, listen to frame lifecycle events, and extract content across all frames.</div></div></div></a><a class="pagination-related" href="/tools-review/en/cdp-python-automation-guide/" title="The Complete Guide to Chrome DevTools Protocol (CDP): The Ultimate Solution to Controlling Your Browser with Python"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-06-03</div><div class="info-item-2">The Complete Guide to Chrome DevTools Protocol (CDP): The Ultimate Solution to Controlling Your Browser with Python</div></div><div class="info-2"><div class="info-item-1">What is Chrome DevTools Protocol (CDP)? Why is it said to be a more powerful browser automation solution than Selenium? This article will help you start from scratch, use Python to directly control the Chrome browser through WebSocket, and implement advanced operations such as navigation, screenshots, and network interception, and attaches complete practical code.</div></div></div></a></div></div><hr class="custom-hr"/><div id="post-comment"><div class="comment-head"><div class="comment-headline"><i class="fas fa-comments fa-fw"></i><span> Comments</span></div></div><div class="comment-wrap"><div><div id="utterances-wrap"></div></div></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/tools-review/en/img/avatar.png" onerror="this.onerror=null;this.src='/tools-review/en/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">John Doe</div><div class="author-info-description">Chrome DevTools Protocol Tutorial</div><div class="site-data"><a href="/tools-review/en/archives/"><div class="headline">Articles</div><div class="length-num">47</div></a><a href="/tools-review/en/tags/"><div class="headline">Tags</div><div class="length-num">112</div></a><a href="/tools-review/en/categories/"><div class="headline">Categories</div><div class="length-num">10</div></a></div><a id="card-info-btn" target="_blank" rel="noopener" href="https://github.com/lmlx07"><i class="fab fa-github"></i><span>Follow me</span></a><div class="card-info-social-icons"><a class="social-icon" href="https://github.com/lmlx07" target="_blank" title="GitHub"><i class="fab fa-github" style="color: #24292e;"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>Announcement</span></div><div class="announcement_content">📢 CDP Automation Guide is a Chinese tech blog focused on Chrome DevTools Protocol, providing hands-on tutorials for controlling browsers with Python.</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>Contents</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#Quick-Page-Snapshot"><span class="toc-number">1.</span> <span class="toc-text">Quick Page Snapshot</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Page-Ready-Detection"><span class="toc-number">2.</span> <span class="toc-text">Page Ready Detection</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Visible-Button-Scanner"><span class="toc-number">3.</span> <span class="toc-text">Visible Button Scanner</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Input-Scanner"><span class="toc-number">4.</span> <span class="toc-text">Input Scanner</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Dialog-Diagnostics"><span class="toc-number">5.</span> <span class="toc-text">Dialog Diagnostics</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Element-Locator"><span class="toc-number">6.</span> <span class="toc-text">Element Locator</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Element-Status-Check"><span class="toc-number">7.</span> <span class="toc-text">Element Status Check</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Full-Diagnosis"><span class="toc-number">8.</span> <span class="toc-text">Full Diagnosis</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Debug-Workflow"><span class="toc-number">9.</span> <span class="toc-text">Debug Workflow</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Summary"><span class="toc-number">10.</span> <span class="toc-text">Summary</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>Recent Posts</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/tools-review/en/cdp-seo-timeline-experience/" title="New Site SEO: Expectation Management from Submission to Indexing">New Site SEO: Expectation Management from Submission to Indexing</a><time datetime="2026-06-09T07:30:00.000Z" title="Created 2026-06-09 15:30:00">2026-06-09</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/tools-review/en/cdp-seo-webmaster-experience/" title="Static Site Webmaster Platform Guide: Optimal Indexing Strategy Under Constraints">Static Site Webmaster Platform Guide: Optimal Indexing Strategy Under Constraints</a><time datetime="2026-06-09T07:00:00.000Z" title="Created 2026-06-09 15:00:00">2026-06-09</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/tools-review/en/cdp-seo-api-submit-experience/" title="API Submission Script Development: From Sitemap to Search Engine Indexing">API Submission Script Development: From Sitemap to Search Engine Indexing</a><time datetime="2026-06-09T06:30:00.000Z" title="Created 2026-06-09 14:30:00">2026-06-09</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/tools-review/en/cdp-seo-github-pages-experience/" title="Complete SEO Guide for Unlicensed GitHub Pages Sites">Complete SEO Guide for Unlicensed GitHub Pages Sites</a><time datetime="2026-06-09T06:00:00.000Z" title="Created 2026-06-09 14:00:00">2026-06-09</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/tools-review/en/cdp-debug-inspect-experience/" title="CDP Debug Utility Collection: Quick Page Inspection and Element Diagnostics">CDP Debug Utility Collection: Quick Page Inspection and Element Diagnostics</a><time datetime="2026-06-09T05:00:00.000Z" title="Created 2026-06-09 13:00:00">2026-06-09</time></div></div></div></div></div></div></main><footer id="footer"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2026 By John Doe</span><span class="framework-info"><span>Framework </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>Theme </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div><div class="footer_custom_text">🚀 CDP Automation Guide</div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="Reading Mode"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="Toggle Between Light and Dark Mode"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="Toggle Between Single-column and Double-column"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="Settings"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="Table of Contents"><i class="fas fa-list-ul"></i></button><a id="to_comment" href="#post-comment" title="Scroll to Comments"><i class="fas fa-comments"></i></a><button id="go-up" type="button" title="Back to Top"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/tools-review/en/js/utils.js?v=5.5.4"></script><script src="/tools-review/en/js/main.js?v=5.5.4"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const isShuoshuo = GLOBAL_CONFIG_SITE.pageType === 'shuoshuo'
+  const option = null
+  const getUtterancesTheme = theme => theme === 'dark' ? 'github-dark' : 'github-light'
+
+  const loadUtterances = (el = document, key) => {
+    if (isShuoshuo) {
+      window.shuoshuoComment.destroyUtterances = () => {
+        if (el.children.length) {
+          el.innerHTML = ''
+          el.classList.add('no-comment')
+        }
+      }
+    }
+
+    const config = {
+      src: 'https://utteranc.es/client.js',
+      repo: 'lmlx07/tools-review',
+      theme: getUtterancesTheme(document.documentElement.getAttribute('data-theme')),
+      crossorigin: 'anonymous',
+      async: true,
+      ...option,
+      'issue-term': isShuoshuo ? key : (option && option['issue-term']) || 'pathname'
+    }
+
+    const ele = document.createElement('script')
+    Object.entries(config).forEach(([key, value]) => ele.setAttribute(key, value))
+    el.querySelector('#utterances-wrap').appendChild(ele)
+  }
+
+  const changeUtterancesTheme = theme => {
+    const iframe = document.querySelector('#utterances-wrap iframe')
+    if (iframe) {
+      const message = {
+        type: 'set-theme',
+        theme: getUtterancesTheme(theme)
+      };
+      iframe.contentWindow.postMessage(message, 'https://utteranc.es')
+    }
+  }
+
+  btf.addGlobalFn('themeChange', changeUtterancesTheme, 'utterances')
+
+  if (isShuoshuo) {
+    'Utterances' === 'Utterances'
+      ? window.shuoshuoComment = { loadComment: loadUtterances }
+      : window.loadOtherComment = loadUtterances
+    return
+  }
+  
+  if ('Utterances' === 'Utterances' || !false) {
+    if (false) btf.loadComment(document.getElementById('utterances-wrap'), loadUtterances)
+    else loadUtterances()
+  } else {
+    window.loadOtherComment = loadUtterances
+  }
+})()</script></div><div id="lang-switch"><span class="lo" data-lang="zh-CN">中文</span><span class="sp">|</span><span class="lo" data-lang="en">EN</span></div><script>!function(){var H='<span class="lo" data-lang="zh-CN">中文</span><span class="sp">|</span><span class="lo" data-lang="en">EN</span>';function E(){var e=document.getElementById("lang-switch")||function(){var e=document.createElement("div");return e.id="lang-switch",e.style.display="inline-flex",e.innerHTML=H,e}();var n=window.location.pathname.startsWith("/en");e.querySelectorAll(".lo").forEach(function(e){e.classList.toggle("on",n?e.dataset.lang==="en":e.dataset.lang==="zh-CN")}),e.removeEventListener("click",e._l),e._l=function(t){var o=(t=t||window.event).target.closest(".lo");if(!o)return;var l=o.dataset.lang;if(l==="en"&&!n){var a=window.location.pathname.replace(/\/$/,"")||"";window.location.href="/en"+a+window.location.search}else if(l==="zh-CN"&&n){var i=window.location.pathname.replace(/^\/en/,"").replace(/\/$/,"")||"/";window.location.href=i+window.location.search}},e.addEventListener("click",e._l)}function I(){var e=document.getElementById("lang-switch")||function(){var e=document.createElement("div");return e.id="lang-switch",e.style.display="inline-flex",e.innerHTML=H,e}();var t=document.querySelector("#nav .menus_items");if(!t||t.contains(e))return;var n=document.createElement("li");n.className="menus_item",n.appendChild(e),t.appendChild(n)}E(),setTimeout(I,300),document.addEventListener("pjax:complete",function(){setTimeout(I,300),setTimeout(E,500)})}();</script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js" defer="defer"></script><script>document.addEventListener('DOMContentLoaded', () => {
+  const pjaxSelectors = ["meta[property=\"og:image\"]","meta[property=\"og:title\"]","meta[property=\"og:url\"]","meta[property=\"og:description\"]","link[rel=\"canonical\"]","head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      false
+        ? pjax.loadUrl('/tools-review/en/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})</script><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script></div></body></html>

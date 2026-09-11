@@ -1,0 +1,334 @@
+<!DOCTYPE html><html lang="en" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>CDP WebSocket Reconnection: Handling ConnectionAbortedError in Practice | CDP Automation Guide</title><meta name="author" content="John Doe"><meta name="copyright" content="John Doe"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="Long-running CDP automation scripts frequently face WebSocket disconnections. This article analyzes common causes and provides heartbeat detection, auto-reconnect, and defensive execution patterns for">
+<meta property="og:type" content="article">
+<meta property="og:title" content="CDP WebSocket Reconnection: Handling ConnectionAbortedError in Practice">
+<meta property="og:url" content="https://lmlx07.github.io/tools-review/cdp-websocket-reconnect-experience/index.html">
+<meta property="og:site_name" content="CDP Automation Guide">
+<meta property="og:description" content="Long-running CDP automation scripts frequently face WebSocket disconnections. This article analyzes common causes and provides heartbeat detection, auto-reconnect, and defensive execution patterns for">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://lmlx07.github.io/tools-review/img/avatar.png">
+<meta property="article:published_time" content="2026-06-09T04:00:00.000Z">
+<meta property="article:modified_time" content="2026-06-09T03:19:22.954Z">
+<meta property="article:author" content="John Doe">
+<meta property="article:tag" content="Browser Automation">
+<meta property="article:tag" content="CDP">
+<meta property="article:tag" content="Chrome DevTools Protocol">
+<meta property="article:tag" content="Python">
+<meta property="article:tag" content="Stability">
+<meta property="article:tag" content="WebSocket">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://lmlx07.github.io/tools-review/img/avatar.png"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "CDP WebSocket Reconnection: Handling ConnectionAbortedError in Practice",
+  "url": "https://lmlx07.github.io/tools-review/cdp-websocket-reconnect-experience/",
+  "image": "https://lmlx07.github.io/tools-review/img/avatar.png",
+  "datePublished": "2026-06-09T04:00:00.000Z",
+  "dateModified": "2026-06-09T03:19:22.954Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "John Doe",
+      "url": "https://lmlx07.github.io/tools-review"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/tools-review/en/img/favicon.png"><link rel="canonical" href="https://lmlx07.github.io/tools-review/cdp-websocket-reconnect-experience/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="stylesheet" href="/tools-review/en/css/index.css?v=5.5.4"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/tools-review/en/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":false,"highlightFullpage":true,"highlightMacStyle":true},
+  copy: {
+    success: 'Copy Successful',
+    error: 'Copy Failed',
+    noSupport: 'Browser Not Supported'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: '',
+  dateSuffix: {
+    just: 'Just now',
+    min: 'minutes ago',
+    hour: 'hours ago',
+    day: 'days ago',
+    month: 'months ago'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.13.0/dist/infinitegrid.min.js',
+    buttonText: 'Load More'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: false,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'CDP WebSocket Reconnection: Handling ConnectionAbortedError in Practice',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><style>#lang-switch{display:inline-flex;align-items:center;gap:3px;height:100%;padding:0 6px;cursor:default}#lang-switch .lo{cursor:pointer;padding:2px 6px;border-radius:4px;font-size:.82em;transition:all .2s;color:var(--menu-item-color,#555)}#lang-switch .lo:hover{background:var(--text-bg-hover,rgba(0,0,0,.06))}#lang-switch .lo.on{font-weight:700;color:var(--theme-color,#49b1f5)}#lang-switch .sp{color:var(--menu-item-color,#555);opacity:.3;font-size:.75em;user-select:none}</style><meta name="generator" content="Hexo 8.1.2"><link rel="alternate" href="/tools-review/en/atom.xml" title="CDP Automation Guide" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/tools-review/en/img/avatar.png" onerror="this.onerror=null;this.src='/tools-review/en/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/tools-review/en/archives/"><div class="headline">Articles</div><div class="length-num">47</div></a><a href="/tools-review/en/tags/"><div class="headline">Tags</div><div class="length-num">112</div></a><a href="/tools-review/en/categories/"><div class="headline">Categories</div><div class="length-num">10</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/tools-review/en/"><i class="fa-fw fas fa-home"></i><span> Home</span></a></div><div class="menus_item"><a class="site-page" href="/tools-review/en/archives/"><i class="fa-fw fas fa-archive"></i><span> Archives</span></a></div><div class="menus_item"><a class="site-page" href="/tools-review/en/categories/"><i class="fa-fw fas fa-folder-open"></i><span> Categories</span></a></div><div class="menus_item"><a class="site-page" href="/tools-review/en/tags/"><i class="fa-fw fas fa-tags"></i><span> Tags</span></a></div><div class="menus_item"><a class="site-page" href="/tools-review/en/about/"><i class="fa-fw fas fa-info-circle"></i><span> About</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/tools-review/en/img/default_bg.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/tools-review/en/"><span class="site-name">CDP Automation Guide</span></a><a class="nav-page-title" href="/tools-review/en/"><span class="site-name">CDP WebSocket Reconnection: Handling ConnectionAbortedError in Practice</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  Back to Home</span></span></a></span><div id="menus"><div class="menus_items"><div class="menus_item"><a class="site-page" href="/tools-review/en/"><i class="fa-fw fas fa-home"></i><span> Home</span></a></div><div class="menus_item"><a class="site-page" href="/tools-review/en/archives/"><i class="fa-fw fas fa-archive"></i><span> Archives</span></a></div><div class="menus_item"><a class="site-page" href="/tools-review/en/categories/"><i class="fa-fw fas fa-folder-open"></i><span> Categories</span></a></div><div class="menus_item"><a class="site-page" href="/tools-review/en/tags/"><i class="fa-fw fas fa-tags"></i><span> Tags</span></a></div><div class="menus_item"><a class="site-page" href="/tools-review/en/about/"><i class="fa-fw fas fa-info-circle"></i><span> About</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">CDP WebSocket Reconnection: Handling ConnectionAbortedError in Practice</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">Created</span><time class="post-meta-date-created" datetime="2026-06-09T04:00:00.000Z" title="Created 2026-06-09 12:00:00">2026-06-09</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">Updated</span><time class="post-meta-date-updated" datetime="2026-06-09T03:19:22.954Z" title="Updated 2026-06-09 11:19:22">2026-06-09</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/tools-review/en/categories/CDP-Practice/">CDP Practice</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/tools-review/en/categories/CDP-Practice/Experience-Sharing/">Experience Sharing</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">Post Views:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><div id="post-outdate-notice" data="{&quot;limitDay&quot;:365,&quot;messagePrev&quot;:&quot;本文距离上次更新已过去&quot;,&quot;messageNext&quot;:&quot;天，内容可能已过时。&quot;,&quot;postUpdate&quot;:&quot;2026-06-09 11:19:22&quot;}" hidden></div><blockquote>
+<p><strong>Summary in one sentence</strong>: CDP WebSocket connections can drop due to security software, page navigation, or browser resource pressure. The solution: a “heartbeat before each operation → auto-reconnect on disconnect → retry current operation” defensive pattern.</p>
+</blockquote>
+<hr>
+<h2 id="The-Problem"><a href="#The-Problem" class="headerlink" title="The Problem"></a>The Problem</h2><p>During long-running automation, the console suddenly shows:</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ConnectionAbortedError: [WinError 10053] An established connection was aborted by the software in your host machine.</span><br></pre></td></tr></table></figure>
+
+<p>The script crashes and all progress is lost. This is especially common in batch operations (e.g., uploading 100 chapters over 30+ minutes).</p>
+<h2 id="Root-Cause-Analysis"><a href="#Root-Cause-Analysis" class="headerlink" title="Root Cause Analysis"></a>Root Cause Analysis</h2><h3 id="1-Security-Software-Interception-Most-Likely"><a href="#1-Security-Software-Interception-Most-Likely" class="headerlink" title="1. Security Software Interception (Most Likely)"></a>1. Security Software Interception (Most Likely)</h3><p>360, Tencent PC Manager, and similar security tools may flag local WebSocket connections as threats.</p>
+<p><strong>Symptoms</strong>: Random disconnects with no fixed pattern.</p>
+<h3 id="2-Page-Navigation"><a href="#2-Page-Navigation" class="headerlink" title="2. Page Navigation"></a>2. Page Navigation</h3><p>When CDP sends <code>Page.navigate</code>, Chrome briefly disconnects the old WebSocket and reconnects.</p>
+<p><strong>Symptoms</strong>: Disconnects always happen after <code>Page.navigate</code> calls.</p>
+<h3 id="3-Browser-Resource-Pressure"><a href="#3-Browser-Resource-Pressure" class="headerlink" title="3. Browser Resource Pressure"></a>3. Browser Resource Pressure</h3><p>Chrome may reclaim resources after running for long periods with high memory usage.</p>
+<h3 id="4-Windows-Power-Management"><a href="#4-Windows-Power-Management" class="headerlink" title="4. Windows Power Management"></a>4. Windows Power Management</h3><p>The browser process gets suspended or its priority is lowered.</p>
+<h2 id="Heartbeat-Auto-Reconnect"><a href="#Heartbeat-Auto-Reconnect" class="headerlink" title="Heartbeat + Auto-Reconnect"></a>Heartbeat + Auto-Reconnect</h2><h3 id="Connection-Check"><a href="#Connection-Check" class="headerlink" title="Connection Check"></a>Connection Check</h3><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">ensure_ws_alive</span>(<span class="params">ws</span>):</span><br><span class="line">    <span class="string">&quot;&quot;&quot;Check if WebSocket is alive&quot;&quot;&quot;</span></span><br><span class="line">    <span class="keyword">try</span>:</span><br><span class="line">        cmd(ws, <span class="string">&#x27;Runtime.evaluate&#x27;</span>, &#123;</span><br><span class="line">            <span class="string">&#x27;expression&#x27;</span>: <span class="string">&#x27;1+1&#x27;</span>,</span><br><span class="line">            <span class="string">&#x27;returnByValue&#x27;</span>: <span class="literal">True</span></span><br><span class="line">        &#125;)</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">True</span></span><br><span class="line">    <span class="keyword">except</span>:</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">False</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="Reconnect"><a href="#Reconnect" class="headerlink" title="Reconnect"></a>Reconnect</h3><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">reconnect_ws</span>():</span><br><span class="line">    <span class="string">&quot;&quot;&quot;Re-establish CDP WebSocket connection&quot;&quot;&quot;</span></span><br><span class="line">    <span class="keyword">for</span> attempt <span class="keyword">in</span> <span class="built_in">range</span>(<span class="number">3</span>):</span><br><span class="line">        <span class="keyword">try</span>:</span><br><span class="line">            ws_url = get_page_ws()</span><br><span class="line">            ws = websocket.create_connection(ws_url, timeout=<span class="number">30</span>)</span><br><span class="line">            cmd(ws, <span class="string">&#x27;Page.enable&#x27;</span>)</span><br><span class="line">            cmd(ws, <span class="string">&#x27;Runtime.enable&#x27;</span>)</span><br><span class="line">            <span class="keyword">return</span> ws</span><br><span class="line">        <span class="keyword">except</span> Exception <span class="keyword">as</span> e:</span><br><span class="line">            <span class="keyword">if</span> attempt &lt; <span class="number">2</span>:</span><br><span class="line">                time.sleep(<span class="number">2</span>)</span><br><span class="line">            <span class="keyword">else</span>:</span><br><span class="line">                <span class="keyword">raise</span></span><br><span class="line">    <span class="keyword">return</span> <span class="literal">None</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="Defensive-Execution"><a href="#Defensive-Execution" class="headerlink" title="Defensive Execution"></a>Defensive Execution</h3><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">safe_execute</span>(<span class="params">ws, func, *args, max_retries=<span class="number">2</span>, **kwargs</span>):</span><br><span class="line">    <span class="string">&quot;&quot;&quot;Execute with auto-reconnect on failure&quot;&quot;&quot;</span></span><br><span class="line">    <span class="keyword">for</span> attempt <span class="keyword">in</span> <span class="built_in">range</span>(max_retries):</span><br><span class="line">        <span class="keyword">try</span>:</span><br><span class="line">            <span class="keyword">if</span> <span class="keyword">not</span> ensure_ws_alive(ws):</span><br><span class="line">                ws = reconnect_ws()</span><br><span class="line">                <span class="keyword">if</span> ws <span class="keyword">is</span> <span class="literal">None</span>:</span><br><span class="line">                    <span class="keyword">raise</span> Exception(<span class="string">&#x27;Reconnect failed&#x27;</span>)</span><br><span class="line">            <span class="keyword">return</span> func(ws, *args, **kwargs)</span><br><span class="line">        </span><br><span class="line">        <span class="keyword">except</span> (websocket.WebSocketConnectionClosedException,</span><br><span class="line">                ConnectionAbortedError, ConnectionResetError) <span class="keyword">as</span> e:</span><br><span class="line">            <span class="keyword">if</span> attempt &lt; max_retries - <span class="number">1</span>:</span><br><span class="line">                ws = reconnect_ws()</span><br><span class="line">                time.sleep(<span class="number">1</span>)</span><br><span class="line">            <span class="keyword">else</span>:</span><br><span class="line">                <span class="keyword">raise</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="Connection-Manager"><a href="#Connection-Manager" class="headerlink" title="Connection Manager"></a>Connection Manager</h2><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">CDPConnection</span>:</span><br><span class="line">    <span class="string">&quot;&quot;&quot;CDP connection manager with auto-reconnect&quot;&quot;&quot;</span></span><br><span class="line">    </span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">__init__</span>(<span class="params">self, port=<span class="number">9222</span></span>):</span><br><span class="line">        <span class="variable language_">self</span>.port = port</span><br><span class="line">        <span class="variable language_">self</span>.ws = <span class="literal">None</span></span><br><span class="line">        <span class="variable language_">self</span>.connect()</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">connect</span>(<span class="params">self</span>):</span><br><span class="line">        ws_url = get_page_ws()</span><br><span class="line">        <span class="variable language_">self</span>.ws = websocket.create_connection(ws_url, timeout=<span class="number">30</span>)</span><br><span class="line">        cmd(<span class="variable language_">self</span>.ws, <span class="string">&#x27;Page.enable&#x27;</span>)</span><br><span class="line">        cmd(<span class="variable language_">self</span>.ws, <span class="string">&#x27;Runtime.enable&#x27;</span>)</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">reconnect</span>(<span class="params">self</span>):</span><br><span class="line">        <span class="keyword">try</span>:</span><br><span class="line">            <span class="variable language_">self</span>.ws.close()</span><br><span class="line">        <span class="keyword">except</span>:</span><br><span class="line">            <span class="keyword">pass</span></span><br><span class="line">        time.sleep(<span class="number">1</span>)</span><br><span class="line">        <span class="variable language_">self</span>.connect()</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">is_alive</span>(<span class="params">self</span>):</span><br><span class="line">        <span class="keyword">try</span>:</span><br><span class="line">            cmd(<span class="variable language_">self</span>.ws, <span class="string">&#x27;Runtime.evaluate&#x27;</span>, &#123;</span><br><span class="line">                <span class="string">&#x27;expression&#x27;</span>: <span class="string">&#x27;1+1&#x27;</span>, <span class="string">&#x27;returnByValue&#x27;</span>: <span class="literal">True</span></span><br><span class="line">            &#125;)</span><br><span class="line">            <span class="keyword">return</span> <span class="literal">True</span></span><br><span class="line">        <span class="keyword">except</span>:</span><br><span class="line">            <span class="keyword">return</span> <span class="literal">False</span></span><br><span class="line">    </span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">execute</span>(<span class="params">self, func, *args, max_retries=<span class="number">2</span>, **kwargs</span>):</span><br><span class="line">        <span class="keyword">for</span> attempt <span class="keyword">in</span> <span class="built_in">range</span>(max_retries):</span><br><span class="line">            <span class="keyword">try</span>:</span><br><span class="line">                <span class="keyword">if</span> <span class="keyword">not</span> <span class="variable language_">self</span>.is_alive():</span><br><span class="line">                    <span class="variable language_">self</span>.reconnect()</span><br><span class="line">                <span class="keyword">return</span> func(<span class="variable language_">self</span>.ws, *args, **kwargs)</span><br><span class="line">            <span class="keyword">except</span> (websocket.WebSocketConnectionClosedException,</span><br><span class="line">                    ConnectionAbortedError, ConnectionResetError):</span><br><span class="line">                <span class="keyword">if</span> attempt &lt; max_retries - <span class="number">1</span>:</span><br><span class="line">                    <span class="variable language_">self</span>.reconnect()</span><br><span class="line">                <span class="keyword">else</span>:</span><br><span class="line">                    <span class="keyword">raise</span></span><br><span class="line">    </span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">close</span>(<span class="params">self</span>):</span><br><span class="line">        <span class="keyword">try</span>:</span><br><span class="line">            <span class="variable language_">self</span>.ws.close()</span><br><span class="line">        <span class="keyword">except</span>:</span><br><span class="line">            <span class="keyword">pass</span></span><br><span class="line"></span><br><span class="line">conn = CDPConnection()</span><br><span class="line"><span class="keyword">for</span> ch <span class="keyword">in</span> chapters:</span><br><span class="line">    conn.execute(process_chapter, ch)</span><br><span class="line">conn.close()</span><br></pre></td></tr></table></figure>
+
+<h2 id="Prevention"><a href="#Prevention" class="headerlink" title="Prevention"></a>Prevention</h2><h3 id="1-Security-Software-Whitelist"><a href="#1-Security-Software-Whitelist" class="headerlink" title="1. Security Software Whitelist"></a>1. Security Software Whitelist</h3><p>Add <code>python.exe</code> and <code>chrome.exe</code> to security software whitelist.</p>
+<h3 id="2-Reduce-Unnecessary-Navigation"><a href="#2-Reduce-Unnecessary-Navigation" class="headerlink" title="2. Reduce Unnecessary Navigation"></a>2. Reduce Unnecessary Navigation</h3><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># ✅ Use new tabs instead of navigating the same one</span></span><br><span class="line">result = cmd(ws, <span class="string">&#x27;Target.createTarget&#x27;</span>, &#123;<span class="string">&#x27;url&#x27;</span>: url&#125;)</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-Control-Operation-Pace"><a href="#3-Control-Operation-Pace" class="headerlink" title="3. Control Operation Pace"></a>3. Control Operation Pace</h3><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">for</span> item <span class="keyword">in</span> items:</span><br><span class="line">    process(item)</span><br><span class="line">    time.sleep(<span class="number">0.5</span>)  <span class="comment"># Brief pause between operations</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="4-Memory-Monitoring"><a href="#4-Memory-Monitoring" class="headerlink" title="4. Memory Monitoring"></a>4. Memory Monitoring</h3><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">check_memory</span>(<span class="params">ws</span>):</span><br><span class="line">    result = cmd(ws, <span class="string">&#x27;Runtime.evaluate&#x27;</span>, &#123;</span><br><span class="line">        <span class="string">&#x27;expression&#x27;</span>: <span class="string">&#x27;performance.memory.usedJSHeapSize&#x27;</span>,</span><br><span class="line">        <span class="string">&#x27;returnByValue&#x27;</span>: <span class="literal">True</span></span><br><span class="line">    &#125;)</span><br><span class="line">    mem_mb = result[<span class="string">&#x27;result&#x27;</span>][<span class="string">&#x27;value&#x27;</span>] / <span class="number">1024</span> / <span class="number">1024</span></span><br><span class="line">    <span class="keyword">if</span> mem_mb &gt; <span class="number">500</span>:</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">f&#x27;Warning: <span class="subst">&#123;mem_mb:<span class="number">.0</span>f&#125;</span>MB used, consider restarting&#x27;</span>)</span><br><span class="line">    <span class="keyword">return</span> mem_mb</span><br></pre></td></tr></table></figure>
+
+<h2 id="Summary"><a href="#Summary" class="headerlink" title="Summary"></a>Summary</h2><table>
+<thead>
+<tr>
+<th>Issue</th>
+<th>Solution</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Security software disconnection</td>
+<td>Whitelist + auto-reconnect fallback</td>
+</tr>
+<tr>
+<td>Navigation drops</td>
+<td>Wait for readyState after navigation</td>
+</tr>
+<tr>
+<td>Browser resource pressure</td>
+<td>Control pace + monitor memory</td>
+</tr>
+<tr>
+<td>Power management</td>
+<td>Adjust Windows power settings</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p><strong>Core strategy</strong>: Don’t try to prevent disconnections entirely (impossible). Instead, build a “check before each operation → auto-reconnect → retry” defensive pattern. Combined with security software whitelisting and reasonable operation pacing, you can minimize disruption to your automation flow.</p>
+</blockquote>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>Author: </span><span class="post-copyright-info"><a href="https://lmlx07.github.io/tools-review">John Doe</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>Link: </span><span class="post-copyright-info"><a href="https://lmlx07.github.io/tools-review/cdp-websocket-reconnect-experience/">https://lmlx07.github.io/tools-review/cdp-websocket-reconnect-experience/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>Copyright Notice: </span><span class="post-copyright-info">All articles on this blog are licensed under <a target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a> unless otherwise stated.</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tools-review/en/tags/Chrome-DevTools-Protocol/">Chrome DevTools Protocol</a><a class="post-meta__tags" href="/tools-review/en/tags/CDP/">CDP</a><a class="post-meta__tags" href="/tools-review/en/tags/Python/">Python</a><a class="post-meta__tags" href="/tools-review/en/tags/Browser-Automation/">Browser Automation</a><a class="post-meta__tags" href="/tools-review/en/tags/WebSocket/">WebSocket</a><a class="post-meta__tags" href="/tools-review/en/tags/Stability/">Stability</a></div><div class="post-share"><div class="social-share" data-image="/tools-review/en/img/avatar.png" data-sites="facebook,x,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/tools-review/en/cdp-idempotent-automation-experience/" title="Idempotent Automation Design: Resume Interrupted Scripts Without Duplication"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info"><div class="info-1"><div class="info-item-1">Previous</div><div class="info-item-2">Idempotent Automation Design: Resume Interrupted Scripts Without Duplication</div></div><div class="info-2"><div class="info-item-1">Long-running automation scripts inevitably crash. This article covers idempotent design — using state tracking, deduplication checks, and resume-from-checkpoint patterns so scripts can be safely re-run after any failure without duplication or omission.</div></div></div></a><a class="pagination-related" href="/tools-review/en/cdp-dialog-layering-experience/" title="Handling Multi-Layer Dialog Overlays: Sequential Close Strategy for Automation"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-right"><div class="info-1"><div class="info-item-1">Next</div><div class="info-item-2">Handling Multi-Layer Dialog Overlays: Sequential Close Strategy for Automation</div></div><div class="info-2"><div class="info-item-1">When a web application shows multiple layered dialogs during publishing, fixed waits and out-of-order clicks won't work. This article documents a polling + sequential close strategy for reliably handling multi-level modals.</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>Related Articles</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/tools-review/en/cdp-websocket-guide/" title="CDP WebSocket Debugging Guide: Intercept and Inspect WebSocket Frames with Python"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-06-05</div><div class="info-item-2">CDP WebSocket Debugging Guide: Intercept and Inspect WebSocket Frames with Python</div></div><div class="info-2"><div class="info-item-1">A comprehensive guide to debugging WebSocket connections using Chrome DevTools Protocol (CDP). Learn to capture WebSocket frames, intercept and modify frame content, analyze WebSocket traffic, and automate WebSocket protocol testing.</div></div></div></a><a class="pagination-related" href="/tools-review/en/cdp-vs-playwright-guide/" title="CDP vs Playwright: Browser Automation Framework Comparison Guide"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-06-05</div><div class="info-item-2">CDP vs Playwright: Browser Automation Framework Comparison Guide</div></div><div class="info-2"><div class="info-item-1">An in-depth comparison between raw CDP and Playwright abstractions for browser automation, helping you choose the right approach for your use case.</div></div></div></a><a class="pagination-related" href="/tools-review/en/cdp-content-filter-guide/" title="CDP Request Blocking: Building a Content Filter with Python"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-06-05</div><div class="info-item-2">CDP Request Blocking: Building a Content Filter with Python</div></div><div class="info-2"><div class="info-item-1">Leverage CDP's Network domain for advanced request interception and content filtering, building a customizable ad blocker and tracker blocker with Python.</div></div></div></a><a class="pagination-related" href="/tools-review/en/cdp-mobile-emulation-guide/" title="CDP Mobile Device Emulation Guide: Debug Mobile Pages with Python"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-06-05</div><div class="info-item-2">CDP Mobile Device Emulation Guide: Debug Mobile Pages with Python</div></div><div class="info-2"><div class="info-item-1">A comprehensive guide to emulating mobile devices using Chrome DevTools Protocol (CDP). Learn how to set device metrics (resolution/DPR/viewport), simulate touch events, spoof geolocation, emulate device orientation, and automate mobile compatibility testing.</div></div></div></a><a class="pagination-related" href="/tools-review/en/cdp-input-automation-guide/" title="CDP Input Automation Guide: Simulating Mouse &amp; Keyboard with Python"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-06-05</div><div class="info-item-2">CDP Input Automation Guide: Simulating Mouse &amp; Keyboard with Python</div></div><div class="info-2"><div class="info-item-1">A comprehensive guide to simulating user input using the Chrome DevTools Protocol (CDP) Input domain. Covers mouse clicks and movement, keyboard input, text insertion, drag-and-drop operations, touch events, coordinate system fundamentals, and a complete InputSimulator wrapper class.</div></div></div></a><a class="pagination-related" href="/tools-review/en/cdp-console-guide/" title="CDP Console Debugging Guide: Capture Page Logs &amp; Exceptions with Python"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-06-05</div><div class="info-item-2">CDP Console Debugging Guide: Capture Page Logs &amp; Exceptions with Python</div></div><div class="info-2"><div class="info-item-1">A comprehensive guide to capturing browser console output using Chrome DevTools Protocol (CDP). Learn to listen for console.log/warn/error, catch uncaught exceptions, filter log levels, inject custom console commands, and build automated error monitoring tools.</div></div></div></a></div></div><hr class="custom-hr"/><div id="post-comment"><div class="comment-head"><div class="comment-headline"><i class="fas fa-comments fa-fw"></i><span> Comments</span></div></div><div class="comment-wrap"><div><div id="utterances-wrap"></div></div></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/tools-review/en/img/avatar.png" onerror="this.onerror=null;this.src='/tools-review/en/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">John Doe</div><div class="author-info-description">Chrome DevTools Protocol Tutorial</div><div class="site-data"><a href="/tools-review/en/archives/"><div class="headline">Articles</div><div class="length-num">47</div></a><a href="/tools-review/en/tags/"><div class="headline">Tags</div><div class="length-num">112</div></a><a href="/tools-review/en/categories/"><div class="headline">Categories</div><div class="length-num">10</div></a></div><a id="card-info-btn" target="_blank" rel="noopener" href="https://github.com/lmlx07"><i class="fab fa-github"></i><span>Follow me</span></a><div class="card-info-social-icons"><a class="social-icon" href="https://github.com/lmlx07" target="_blank" title="GitHub"><i class="fab fa-github" style="color: #24292e;"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>Announcement</span></div><div class="announcement_content">📢 CDP Automation Guide is a Chinese tech blog focused on Chrome DevTools Protocol, providing hands-on tutorials for controlling browsers with Python.</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>Contents</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#The-Problem"><span class="toc-number">1.</span> <span class="toc-text">The Problem</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Root-Cause-Analysis"><span class="toc-number">2.</span> <span class="toc-text">Root Cause Analysis</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-Security-Software-Interception-Most-Likely"><span class="toc-number">2.1.</span> <span class="toc-text">1. Security Software Interception (Most Likely)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-Page-Navigation"><span class="toc-number">2.2.</span> <span class="toc-text">2. Page Navigation</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-Browser-Resource-Pressure"><span class="toc-number">2.3.</span> <span class="toc-text">3. Browser Resource Pressure</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-Windows-Power-Management"><span class="toc-number">2.4.</span> <span class="toc-text">4. Windows Power Management</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Heartbeat-Auto-Reconnect"><span class="toc-number">3.</span> <span class="toc-text">Heartbeat + Auto-Reconnect</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#Connection-Check"><span class="toc-number">3.1.</span> <span class="toc-text">Connection Check</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Reconnect"><span class="toc-number">3.2.</span> <span class="toc-text">Reconnect</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Defensive-Execution"><span class="toc-number">3.3.</span> <span class="toc-text">Defensive Execution</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Connection-Manager"><span class="toc-number">4.</span> <span class="toc-text">Connection Manager</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Prevention"><span class="toc-number">5.</span> <span class="toc-text">Prevention</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-Security-Software-Whitelist"><span class="toc-number">5.1.</span> <span class="toc-text">1. Security Software Whitelist</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-Reduce-Unnecessary-Navigation"><span class="toc-number">5.2.</span> <span class="toc-text">2. Reduce Unnecessary Navigation</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-Control-Operation-Pace"><span class="toc-number">5.3.</span> <span class="toc-text">3. Control Operation Pace</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-Memory-Monitoring"><span class="toc-number">5.4.</span> <span class="toc-text">4. Memory Monitoring</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Summary"><span class="toc-number">6.</span> <span class="toc-text">Summary</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>Recent Posts</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/tools-review/en/cdp-seo-timeline-experience/" title="New Site SEO: Expectation Management from Submission to Indexing">New Site SEO: Expectation Management from Submission to Indexing</a><time datetime="2026-06-09T07:30:00.000Z" title="Created 2026-06-09 15:30:00">2026-06-09</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/tools-review/en/cdp-seo-webmaster-experience/" title="Static Site Webmaster Platform Guide: Optimal Indexing Strategy Under Constraints">Static Site Webmaster Platform Guide: Optimal Indexing Strategy Under Constraints</a><time datetime="2026-06-09T07:00:00.000Z" title="Created 2026-06-09 15:00:00">2026-06-09</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/tools-review/en/cdp-seo-api-submit-experience/" title="API Submission Script Development: From Sitemap to Search Engine Indexing">API Submission Script Development: From Sitemap to Search Engine Indexing</a><time datetime="2026-06-09T06:30:00.000Z" title="Created 2026-06-09 14:30:00">2026-06-09</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/tools-review/en/cdp-seo-github-pages-experience/" title="Complete SEO Guide for Unlicensed GitHub Pages Sites">Complete SEO Guide for Unlicensed GitHub Pages Sites</a><time datetime="2026-06-09T06:00:00.000Z" title="Created 2026-06-09 14:00:00">2026-06-09</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/tools-review/en/cdp-debug-inspect-experience/" title="CDP Debug Utility Collection: Quick Page Inspection and Element Diagnostics">CDP Debug Utility Collection: Quick Page Inspection and Element Diagnostics</a><time datetime="2026-06-09T05:00:00.000Z" title="Created 2026-06-09 13:00:00">2026-06-09</time></div></div></div></div></div></div></main><footer id="footer"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2026 By John Doe</span><span class="framework-info"><span>Framework </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>Theme </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div><div class="footer_custom_text">🚀 CDP Automation Guide</div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="Reading Mode"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="Toggle Between Light and Dark Mode"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="Toggle Between Single-column and Double-column"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="Settings"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="Table of Contents"><i class="fas fa-list-ul"></i></button><a id="to_comment" href="#post-comment" title="Scroll to Comments"><i class="fas fa-comments"></i></a><button id="go-up" type="button" title="Back to Top"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/tools-review/en/js/utils.js?v=5.5.4"></script><script src="/tools-review/en/js/main.js?v=5.5.4"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const isShuoshuo = GLOBAL_CONFIG_SITE.pageType === 'shuoshuo'
+  const option = null
+  const getUtterancesTheme = theme => theme === 'dark' ? 'github-dark' : 'github-light'
+
+  const loadUtterances = (el = document, key) => {
+    if (isShuoshuo) {
+      window.shuoshuoComment.destroyUtterances = () => {
+        if (el.children.length) {
+          el.innerHTML = ''
+          el.classList.add('no-comment')
+        }
+      }
+    }
+
+    const config = {
+      src: 'https://utteranc.es/client.js',
+      repo: 'lmlx07/tools-review',
+      theme: getUtterancesTheme(document.documentElement.getAttribute('data-theme')),
+      crossorigin: 'anonymous',
+      async: true,
+      ...option,
+      'issue-term': isShuoshuo ? key : (option && option['issue-term']) || 'pathname'
+    }
+
+    const ele = document.createElement('script')
+    Object.entries(config).forEach(([key, value]) => ele.setAttribute(key, value))
+    el.querySelector('#utterances-wrap').appendChild(ele)
+  }
+
+  const changeUtterancesTheme = theme => {
+    const iframe = document.querySelector('#utterances-wrap iframe')
+    if (iframe) {
+      const message = {
+        type: 'set-theme',
+        theme: getUtterancesTheme(theme)
+      };
+      iframe.contentWindow.postMessage(message, 'https://utteranc.es')
+    }
+  }
+
+  btf.addGlobalFn('themeChange', changeUtterancesTheme, 'utterances')
+
+  if (isShuoshuo) {
+    'Utterances' === 'Utterances'
+      ? window.shuoshuoComment = { loadComment: loadUtterances }
+      : window.loadOtherComment = loadUtterances
+    return
+  }
+  
+  if ('Utterances' === 'Utterances' || !false) {
+    if (false) btf.loadComment(document.getElementById('utterances-wrap'), loadUtterances)
+    else loadUtterances()
+  } else {
+    window.loadOtherComment = loadUtterances
+  }
+})()</script></div><div id="lang-switch"><span class="lo" data-lang="zh-CN">中文</span><span class="sp">|</span><span class="lo" data-lang="en">EN</span></div><script>!function(){var H='<span class="lo" data-lang="zh-CN">中文</span><span class="sp">|</span><span class="lo" data-lang="en">EN</span>';function E(){var e=document.getElementById("lang-switch")||function(){var e=document.createElement("div");return e.id="lang-switch",e.style.display="inline-flex",e.innerHTML=H,e}();var n=window.location.pathname.startsWith("/en");e.querySelectorAll(".lo").forEach(function(e){e.classList.toggle("on",n?e.dataset.lang==="en":e.dataset.lang==="zh-CN")}),e.removeEventListener("click",e._l),e._l=function(t){var o=(t=t||window.event).target.closest(".lo");if(!o)return;var l=o.dataset.lang;if(l==="en"&&!n){var a=window.location.pathname.replace(/\/$/,"")||"";window.location.href="/en"+a+window.location.search}else if(l==="zh-CN"&&n){var i=window.location.pathname.replace(/^\/en/,"").replace(/\/$/,"")||"/";window.location.href=i+window.location.search}},e.addEventListener("click",e._l)}function I(){var e=document.getElementById("lang-switch")||function(){var e=document.createElement("div");return e.id="lang-switch",e.style.display="inline-flex",e.innerHTML=H,e}();var t=document.querySelector("#nav .menus_items");if(!t||t.contains(e))return;var n=document.createElement("li");n.className="menus_item",n.appendChild(e),t.appendChild(n)}E(),setTimeout(I,300),document.addEventListener("pjax:complete",function(){setTimeout(I,300),setTimeout(E,500)})}();</script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js" defer="defer"></script><script>document.addEventListener('DOMContentLoaded', () => {
+  const pjaxSelectors = ["meta[property=\"og:image\"]","meta[property=\"og:title\"]","meta[property=\"og:url\"]","meta[property=\"og:description\"]","link[rel=\"canonical\"]","head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      false
+        ? pjax.loadUrl('/tools-review/en/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})</script><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script></div></body></html>

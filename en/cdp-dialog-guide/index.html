@@ -1,0 +1,392 @@
+<!DOCTYPE html><html lang="en" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>CDP Dialog Handling Guide: Auto-Process alert/confirm/prompt with Python | CDP Automation Guide</title><meta name="author" content="John Doe"><meta name="copyright" content="John Doe"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="A comprehensive guide to handling browser dialogs with Chrome DevTools Protocol (CDP). Learn to auto-dismiss alerts, accept&#x2F;decline confirms, fill prompt inputs, handle beforeunload events, and keep a">
+<meta property="og:type" content="article">
+<meta property="og:title" content="CDP Dialog Handling Guide: Auto-Process alert&#x2F;confirm&#x2F;prompt with Python">
+<meta property="og:url" content="https://lmlx07.github.io/tools-review/cdp-dialog-guide/index.html">
+<meta property="og:site_name" content="CDP Automation Guide">
+<meta property="og:description" content="A comprehensive guide to handling browser dialogs with Chrome DevTools Protocol (CDP). Learn to auto-dismiss alerts, accept&#x2F;decline confirms, fill prompt inputs, handle beforeunload events, and keep a">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://lmlx07.github.io/tools-review/img/avatar.png">
+<meta property="article:published_time" content="2026-06-05T12:00:00.000Z">
+<meta property="article:modified_time" content="2026-06-05T05:13:53.625Z">
+<meta property="article:author" content="John Doe">
+<meta property="article:tag" content="Browser Automation">
+<meta property="article:tag" content="CDP">
+<meta property="article:tag" content="Chrome DevTools Protocol">
+<meta property="article:tag" content="Dialog">
+<meta property="article:tag" content="Popup Handling">
+<meta property="article:tag" content="Python">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://lmlx07.github.io/tools-review/img/avatar.png"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "CDP Dialog Handling Guide: Auto-Process alert/confirm/prompt with Python",
+  "url": "https://lmlx07.github.io/tools-review/cdp-dialog-guide/",
+  "image": "https://lmlx07.github.io/tools-review/img/avatar.png",
+  "datePublished": "2026-06-05T12:00:00.000Z",
+  "dateModified": "2026-06-05T05:13:53.625Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "John Doe",
+      "url": "https://lmlx07.github.io/tools-review"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/tools-review/en/img/favicon.png"><link rel="canonical" href="https://lmlx07.github.io/tools-review/cdp-dialog-guide/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="stylesheet" href="/tools-review/en/css/index.css?v=5.5.4"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!true && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/tools-review/en/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":false,"highlightFullpage":true,"highlightMacStyle":true},
+  copy: {
+    success: 'Copy Successful',
+    error: 'Copy Failed',
+    noSupport: 'Browser Not Supported'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: '',
+  dateSuffix: {
+    just: 'Just now',
+    min: 'minutes ago',
+    hour: 'hours ago',
+    day: 'days ago',
+    month: 'months ago'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.13.0/dist/infinitegrid.min.js',
+    buttonText: 'Load More'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: true,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: false,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'CDP Dialog Handling Guide: Auto-Process alert/confirm/prompt with Python',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><style>#lang-switch{display:inline-flex;align-items:center;gap:3px;height:100%;padding:0 6px;cursor:default}#lang-switch .lo{cursor:pointer;padding:2px 6px;border-radius:4px;font-size:.82em;transition:all .2s;color:var(--menu-item-color,#555)}#lang-switch .lo:hover{background:var(--text-bg-hover,rgba(0,0,0,.06))}#lang-switch .lo.on{font-weight:700;color:var(--theme-color,#49b1f5)}#lang-switch .sp{color:var(--menu-item-color,#555);opacity:.3;font-size:.75em;user-select:none}</style><meta name="generator" content="Hexo 8.1.2"><link rel="alternate" href="/tools-review/en/atom.xml" title="CDP Automation Guide" type="application/atom+xml">
+</head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/tools-review/en/img/avatar.png" onerror="this.onerror=null;this.src='/tools-review/en/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/tools-review/en/archives/"><div class="headline">Articles</div><div class="length-num">47</div></a><a href="/tools-review/en/tags/"><div class="headline">Tags</div><div class="length-num">112</div></a><a href="/tools-review/en/categories/"><div class="headline">Categories</div><div class="length-num">10</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/tools-review/en/"><i class="fa-fw fas fa-home"></i><span> Home</span></a></div><div class="menus_item"><a class="site-page" href="/tools-review/en/archives/"><i class="fa-fw fas fa-archive"></i><span> Archives</span></a></div><div class="menus_item"><a class="site-page" href="/tools-review/en/categories/"><i class="fa-fw fas fa-folder-open"></i><span> Categories</span></a></div><div class="menus_item"><a class="site-page" href="/tools-review/en/tags/"><i class="fa-fw fas fa-tags"></i><span> Tags</span></a></div><div class="menus_item"><a class="site-page" href="/tools-review/en/about/"><i class="fa-fw fas fa-info-circle"></i><span> About</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-image: url(/tools-review/en/img/default_bg.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/tools-review/en/"><span class="site-name">CDP Automation Guide</span></a><a class="nav-page-title" href="/tools-review/en/"><span class="site-name">CDP Dialog Handling Guide: Auto-Process alert/confirm/prompt with Python</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  Back to Home</span></span></a></span><div id="menus"><div class="menus_items"><div class="menus_item"><a class="site-page" href="/tools-review/en/"><i class="fa-fw fas fa-home"></i><span> Home</span></a></div><div class="menus_item"><a class="site-page" href="/tools-review/en/archives/"><i class="fa-fw fas fa-archive"></i><span> Archives</span></a></div><div class="menus_item"><a class="site-page" href="/tools-review/en/categories/"><i class="fa-fw fas fa-folder-open"></i><span> Categories</span></a></div><div class="menus_item"><a class="site-page" href="/tools-review/en/tags/"><i class="fa-fw fas fa-tags"></i><span> Tags</span></a></div><div class="menus_item"><a class="site-page" href="/tools-review/en/about/"><i class="fa-fw fas fa-info-circle"></i><span> About</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">CDP Dialog Handling Guide: Auto-Process alert/confirm/prompt with Python</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">Created</span><time class="post-meta-date-created" datetime="2026-06-05T12:00:00.000Z" title="Created 2026-06-05 20:00:00">2026-06-05</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">Updated</span><time class="post-meta-date-updated" datetime="2026-06-05T05:13:53.625Z" title="Updated 2026-06-05 13:13:53">2026-06-05</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/tools-review/en/categories/CDP-Advanced/">CDP Advanced</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/tools-review/en/categories/CDP-Advanced/Python-Practice/">Python Practice</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">Post Views:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><div id="post-outdate-notice" data="{&quot;limitDay&quot;:365,&quot;messagePrev&quot;:&quot;本文距离上次更新已过去&quot;,&quot;messageNext&quot;:&quot;天，内容可能已过时。&quot;,&quot;postUpdate&quot;:&quot;2026-06-05 13:13:53&quot;}" hidden></div><blockquote>
+<p><strong>Summary in one sentence</strong>: CDP’s <code>Page.javascriptDialogOpening</code> event lets you intercept all browser dialogs — alert, confirm, prompt, beforeunload — and programmatically decide to accept, dismiss, or input text.</p>
+</blockquote>
+<hr>
+<h2 id="Table-of-Contents"><a href="#Table-of-Contents" class="headerlink" title="Table of Contents"></a>Table of Contents</h2><ol>
+<li><a href="#why-use-cdp-for-dialog-handling">Why Use CDP for Dialog Handling</a></li>
+<li><a href="#listening-for-dialog-events">Listening for Dialog Events</a></li>
+<li><a href="#auto-processing-dialogs">Auto-Processing Dialogs</a></li>
+<li><a href="#handling-beforeunload">Handling beforeunload</a></li>
+<li><a href="#practical-interruption-free-automation">Practical: Interruption-Free Automation</a></li>
+<li><a href="#common-pitfalls--best-practices">Common Pitfalls &amp; Best Practices</a></li>
+</ol>
+<hr>
+<h2 id="Why-Use-CDP-for-Dialog-Handling"><a href="#Why-Use-CDP-for-Dialog-Handling" class="headerlink" title="Why Use CDP for Dialog Handling"></a>Why Use CDP for Dialog Handling</h2><table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Selenium</th>
+<th>CDP</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>alert handling</td>
+<td>✅ switchTo().alert()</td>
+<td>✅ Page.javascriptDialogOpening event</td>
+</tr>
+<tr>
+<td>confirm handling</td>
+<td>✅ Same</td>
+<td>✅ Choose accept&#x2F;dismiss</td>
+</tr>
+<tr>
+<td>prompt text input</td>
+<td>✅ sendKeys()</td>
+<td>✅ Preset prompt text</td>
+</tr>
+<tr>
+<td>beforeunload</td>
+<td>⚠️ Difficult</td>
+<td>✅ Native support</td>
+</tr>
+<tr>
+<td>Non-blocking flow</td>
+<td>❌ Blocks execution</td>
+<td>✅ Event-driven, non-blocking</td>
+</tr>
+<tr>
+<td>Dialog content</td>
+<td>✅ Get text</td>
+<td>✅ Get type + message</td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="Listening-for-Dialog-Events"><a href="#Listening-for-Dialog-Events" class="headerlink" title="Listening for Dialog Events"></a>Listening for Dialog Events</h2><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> asyncio, websockets, json</span><br><span class="line"></span><br><span class="line">CDP_URL = <span class="string">&quot;ws://127.0.0.1:9222/devtools/browser/...&quot;</span></span><br><span class="line">CMD_ID = [<span class="number">0</span>]</span><br><span class="line"></span><br><span class="line"><span class="keyword">async</span> <span class="keyword">def</span> <span class="title function_">cdp</span>(<span class="params">ws, session_id, method, params=<span class="literal">None</span></span>):</span><br><span class="line">    CMD_ID[<span class="number">0</span>] += <span class="number">1</span>; cmd_id = CMD_ID[<span class="number">0</span>]</span><br><span class="line">    <span class="keyword">await</span> ws.send(json.dumps(&#123;<span class="string">&quot;sessionId&quot;</span>: session_id, <span class="string">&quot;id&quot;</span>: cmd_id,</span><br><span class="line">                               <span class="string">&quot;method&quot;</span>: method, <span class="string">&quot;params&quot;</span>: params <span class="keyword">or</span> &#123;&#125;&#125;))</span><br><span class="line">    <span class="keyword">async</span> <span class="keyword">for</span> msg <span class="keyword">in</span> ws:</span><br><span class="line">        resp = json.loads(msg)</span><br><span class="line">        <span class="keyword">if</span> resp.get(<span class="string">&quot;id&quot;</span>) == cmd_id:</span><br><span class="line">            <span class="keyword">return</span> resp.get(<span class="string">&quot;result&quot;</span>, &#123;&#125;)</span><br><span class="line"></span><br><span class="line"><span class="keyword">async</span> <span class="keyword">def</span> <span class="title function_">connect_page</span>(<span class="params">ws</span>):</span><br><span class="line">    targets = <span class="keyword">await</span> cdp(ws, <span class="literal">None</span>, <span class="string">&quot;Target.getTargets&quot;</span>)</span><br><span class="line">    target_id = targets[<span class="string">&quot;targetInfos&quot;</span>][<span class="number">0</span>][<span class="string">&quot;targetId&quot;</span>]</span><br><span class="line">    session = <span class="keyword">await</span> cdp(ws, <span class="literal">None</span>, <span class="string">&quot;Target.attachToTarget&quot;</span>, &#123;</span><br><span class="line">        <span class="string">&quot;targetId&quot;</span>: target_id, <span class="string">&quot;flatten&quot;</span>: <span class="literal">True</span></span><br><span class="line">    &#125;)</span><br><span class="line">    <span class="keyword">return</span> session[<span class="string">&quot;sessionId&quot;</span>]</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">async</span> <span class="keyword">def</span> <span class="title function_">listen_for_dialogs</span>(<span class="params">ws, session_id, duration=<span class="number">10</span></span>):</span><br><span class="line">    dialogs = []</span><br><span class="line">    start = asyncio.get_event_loop().time()</span><br><span class="line">    <span class="keyword">while</span> (asyncio.get_event_loop().time() - start) &lt; duration:</span><br><span class="line">        <span class="keyword">try</span>:</span><br><span class="line">            msg = <span class="keyword">await</span> asyncio.wait_for(ws.__anext__(), timeout=<span class="number">1</span>)</span><br><span class="line">            data = json.loads(msg)</span><br><span class="line">            <span class="keyword">if</span> data.get(<span class="string">&quot;method&quot;</span>) == <span class="string">&quot;Page.javascriptDialogOpening&quot;</span>:</span><br><span class="line">                params = data[<span class="string">&quot;params&quot;</span>]</span><br><span class="line">                dialogs.append(&#123;</span><br><span class="line">                    <span class="string">&quot;type&quot;</span>: params.get(<span class="string">&quot;type&quot;</span>),</span><br><span class="line">                    <span class="string">&quot;message&quot;</span>: params.get(<span class="string">&quot;message&quot;</span>, <span class="string">&quot;&quot;</span>),</span><br><span class="line">                    <span class="string">&quot;default_prompt&quot;</span>: params.get(<span class="string">&quot;defaultPrompt&quot;</span>, <span class="string">&quot;&quot;</span>)</span><br><span class="line">                &#125;)</span><br><span class="line">                <span class="built_in">print</span>(<span class="string">f&quot;[Dialog] <span class="subst">&#123;params.get(<span class="string">&#x27;type&#x27;</span>)&#125;</span>: <span class="subst">&#123;params.get(<span class="string">&#x27;message&#x27;</span>, <span class="string">&#x27;&#x27;</span>)[:<span class="number">50</span>]&#125;</span>&quot;</span>)</span><br><span class="line">        <span class="keyword">except</span> asyncio.TimeoutError:</span><br><span class="line">            <span class="keyword">continue</span></span><br><span class="line">    <span class="keyword">return</span> dialogs</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="Auto-Processing-Dialogs"><a href="#Auto-Processing-Dialogs" class="headerlink" title="Auto-Processing Dialogs"></a>Auto-Processing Dialogs</h2><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">async</span> <span class="keyword">def</span> <span class="title function_">smart_handle_dialogs</span>(<span class="params">ws, session_id, duration=<span class="number">30</span></span>):</span><br><span class="line">    start = asyncio.get_event_loop().time()</span><br><span class="line">    <span class="keyword">while</span> (asyncio.get_event_loop().time() - start) &lt; duration:</span><br><span class="line">        <span class="keyword">try</span>:</span><br><span class="line">            msg = <span class="keyword">await</span> asyncio.wait_for(ws.__anext__(), timeout=<span class="number">1</span>)</span><br><span class="line">            data = json.loads(msg)</span><br><span class="line">            </span><br><span class="line">            <span class="keyword">if</span> data.get(<span class="string">&quot;method&quot;</span>) == <span class="string">&quot;Page.javascriptDialogOpening&quot;</span>:</span><br><span class="line">                params = data[<span class="string">&quot;params&quot;</span>]</span><br><span class="line">                dtype = params.get(<span class="string">&quot;type&quot;</span>)</span><br><span class="line">                </span><br><span class="line">                <span class="keyword">if</span> dtype == <span class="string">&quot;alert&quot;</span>:</span><br><span class="line">                    <span class="keyword">await</span> cdp(ws, session_id, <span class="string">&quot;Page.handleJavaScriptDialog&quot;</span>, &#123;<span class="string">&quot;accept&quot;</span>: <span class="literal">True</span>&#125;)</span><br><span class="line">                    </span><br><span class="line">                <span class="keyword">elif</span> dtype == <span class="string">&quot;confirm&quot;</span>:</span><br><span class="line">                    accept = <span class="string">&quot;delete&quot;</span> <span class="keyword">not</span> <span class="keyword">in</span> params.get(<span class="string">&quot;message&quot;</span>, <span class="string">&quot;&quot;</span>).lower()</span><br><span class="line">                    <span class="keyword">await</span> cdp(ws, session_id, <span class="string">&quot;Page.handleJavaScriptDialog&quot;</span>, &#123;<span class="string">&quot;accept&quot;</span>: accept&#125;)</span><br><span class="line">                </span><br><span class="line">                <span class="keyword">elif</span> dtype == <span class="string">&quot;prompt&quot;</span>:</span><br><span class="line">                    <span class="keyword">await</span> cdp(ws, session_id, <span class="string">&quot;Page.handleJavaScriptDialog&quot;</span>, &#123;</span><br><span class="line">                        <span class="string">&quot;accept&quot;</span>: <span class="literal">True</span>, <span class="string">&quot;promptText&quot;</span>: <span class="string">&quot;auto_filled_value&quot;</span></span><br><span class="line">                    &#125;)</span><br><span class="line">                </span><br><span class="line">                <span class="keyword">elif</span> dtype == <span class="string">&quot;beforeunload&quot;</span>:</span><br><span class="line">                    <span class="keyword">await</span> cdp(ws, session_id, <span class="string">&quot;Page.handleJavaScriptDialog&quot;</span>, &#123;<span class="string">&quot;accept&quot;</span>: <span class="literal">True</span>&#125;)</span><br><span class="line">                    </span><br><span class="line">        <span class="keyword">except</span> asyncio.TimeoutError:</span><br><span class="line">            <span class="keyword">continue</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">DialogHandler</span>:</span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">__init__</span>(<span class="params">self, ws, session_id</span>):</span><br><span class="line">        <span class="variable language_">self</span>.ws = ws; <span class="variable language_">self</span>.session_id = session_id</span><br><span class="line">        <span class="variable language_">self</span>._cmd_id = <span class="number">0</span>; <span class="variable language_">self</span>.dialogs_log = []</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">async</span> <span class="keyword">def</span> <span class="title function_">_cmd</span>(<span class="params">self, method, params=<span class="literal">None</span></span>):</span><br><span class="line">        <span class="variable language_">self</span>._cmd_id += <span class="number">1</span></span><br><span class="line">        <span class="keyword">await</span> <span class="variable language_">self</span>.ws.send(json.dumps(&#123;</span><br><span class="line">            <span class="string">&quot;sessionId&quot;</span>: <span class="variable language_">self</span>.session_id, <span class="string">&quot;id&quot;</span>: <span class="variable language_">self</span>._cmd_id,</span><br><span class="line">            <span class="string">&quot;method&quot;</span>: method, <span class="string">&quot;params&quot;</span>: params <span class="keyword">or</span> &#123;&#125;</span><br><span class="line">        &#125;))</span><br><span class="line">        <span class="keyword">async</span> <span class="keyword">for</span> resp <span class="keyword">in</span> <span class="variable language_">self</span>.ws:</span><br><span class="line">            data = json.loads(resp)</span><br><span class="line">            <span class="keyword">if</span> data.get(<span class="string">&quot;id&quot;</span>) == <span class="variable language_">self</span>._cmd_id:</span><br><span class="line">                <span class="keyword">return</span> data.get(<span class="string">&quot;result&quot;</span>, &#123;&#125;)</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">async</span> <span class="keyword">def</span> <span class="title function_">accept_all</span>(<span class="params">self</span>):</span><br><span class="line">        <span class="keyword">async</span> <span class="keyword">for</span> msg <span class="keyword">in</span> <span class="variable language_">self</span>.ws:</span><br><span class="line">            data = json.loads(msg)</span><br><span class="line">            <span class="keyword">if</span> data.get(<span class="string">&quot;method&quot;</span>) == <span class="string">&quot;Page.javascriptDialogOpening&quot;</span>:</span><br><span class="line">                <span class="variable language_">self</span>.dialogs_log.append(data[<span class="string">&quot;params&quot;</span>])</span><br><span class="line">                <span class="keyword">await</span> <span class="variable language_">self</span>._cmd(<span class="string">&quot;Page.handleJavaScriptDialog&quot;</span>, &#123;<span class="string">&quot;accept&quot;</span>: <span class="literal">True</span>&#125;)</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">async</span> <span class="keyword">def</span> <span class="title function_">fill_prompt</span>(<span class="params">self, text</span>):</span><br><span class="line">        <span class="keyword">await</span> <span class="variable language_">self</span>._cmd(<span class="string">&quot;Page.handleJavaScriptDialog&quot;</span>, &#123;</span><br><span class="line">            <span class="string">&quot;accept&quot;</span>: <span class="literal">True</span>, <span class="string">&quot;promptText&quot;</span>: text</span><br><span class="line">        &#125;)</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="Handling-beforeunload"><a href="#Handling-beforeunload" class="headerlink" title="Handling beforeunload"></a>Handling beforeunload</h2><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">async</span> <span class="keyword">def</span> <span class="title function_">handle_beforeunload</span>(<span class="params">ws, session_id, accept=<span class="literal">True</span></span>):</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">await</span> cdp(ws, session_id, <span class="string">&quot;Page.handleJavaScriptDialog&quot;</span>, &#123;</span><br><span class="line">        <span class="string">&quot;accept&quot;</span>: accept</span><br><span class="line">    &#125;)</span><br><span class="line"></span><br><span class="line"><span class="keyword">async</span> <span class="keyword">def</span> <span class="title function_">navigate_ignore_beforeunload</span>(<span class="params">ws, session_id, url</span>):</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">await</span> cdp(ws, session_id, <span class="string">&quot;Page.navigate&quot;</span>, &#123;</span><br><span class="line">        <span class="string">&quot;url&quot;</span>: url,</span><br><span class="line">        <span class="string">&quot;handleBeforeUnload&quot;</span>: <span class="literal">True</span></span><br><span class="line">    &#125;)</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="Practical-Interruption-Free-Automation"><a href="#Practical-Interruption-Free-Automation" class="headerlink" title="Practical: Interruption-Free Automation"></a>Practical: Interruption-Free Automation</h2><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">async</span> <span class="keyword">def</span> <span class="title function_">automated_test_with_dialogs</span>(<span class="params">ws, session_id, url</span>):</span><br><span class="line">    <span class="keyword">async</span> <span class="keyword">def</span> <span class="title function_">dialog_watcher</span>():</span><br><span class="line">        <span class="keyword">while</span> <span class="literal">True</span>:</span><br><span class="line">            <span class="keyword">try</span>:</span><br><span class="line">                msg = <span class="keyword">await</span> asyncio.wait_for(ws.__anext__(), timeout=<span class="number">0.5</span>)</span><br><span class="line">                data = json.loads(msg)</span><br><span class="line">                <span class="keyword">if</span> data.get(<span class="string">&quot;method&quot;</span>) == <span class="string">&quot;Page.javascriptDialogOpening&quot;</span>:</span><br><span class="line">                    p = data[<span class="string">&quot;params&quot;</span>]</span><br><span class="line">                    <span class="built_in">print</span>(<span class="string">f&quot;[Dialog] <span class="subst">&#123;p.get(<span class="string">&#x27;type&#x27;</span>)&#125;</span>: <span class="subst">&#123;p.get(<span class="string">&#x27;message&#x27;</span>, <span class="string">&#x27;&#x27;</span>)[:<span class="number">60</span>]&#125;</span>&quot;</span>)</span><br><span class="line">                    <span class="keyword">if</span> p.get(<span class="string">&quot;type&quot;</span>) == <span class="string">&quot;prompt&quot;</span>:</span><br><span class="line">                        <span class="keyword">await</span> cdp(ws, session_id, <span class="string">&quot;Page.handleJavaScriptDialog&quot;</span>, &#123;</span><br><span class="line">                            <span class="string">&quot;accept&quot;</span>: <span class="literal">True</span>, <span class="string">&quot;promptText&quot;</span>: <span class="string">&quot;test_value&quot;</span></span><br><span class="line">                        &#125;)</span><br><span class="line">                    <span class="keyword">else</span>:</span><br><span class="line">                        <span class="keyword">await</span> cdp(ws, session_id, <span class="string">&quot;Page.handleJavaScriptDialog&quot;</span>, &#123;</span><br><span class="line">                            <span class="string">&quot;accept&quot;</span>: <span class="literal">True</span></span><br><span class="line">                        &#125;)</span><br><span class="line">            <span class="keyword">except</span> asyncio.TimeoutError:</span><br><span class="line">                <span class="keyword">continue</span></span><br><span class="line">            <span class="keyword">except</span> Exception:</span><br><span class="line">                <span class="keyword">break</span></span><br><span class="line">    </span><br><span class="line">    watcher = asyncio.create_task(dialog_watcher())</span><br><span class="line">    <span class="keyword">await</span> cdp(ws, session_id, <span class="string">&quot;Page.navigate&quot;</span>, &#123;<span class="string">&quot;url&quot;</span>: url&#125;)</span><br><span class="line">    <span class="keyword">await</span> asyncio.sleep(<span class="number">5</span>)</span><br><span class="line">    watcher.cancel()</span><br><span class="line">    <span class="built_in">print</span>(<span class="string">&quot;Test complete — all dialogs handled automatically&quot;</span>)</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="Common-Pitfalls-Best-Practices"><a href="#Common-Pitfalls-Best-Practices" class="headerlink" title="Common Pitfalls &amp; Best Practices"></a>Common Pitfalls &amp; Best Practices</h2><h3 id="Pitfall-1-Handle-Dialogs-Immediately"><a href="#Pitfall-1-Handle-Dialogs-Immediately" class="headerlink" title="Pitfall 1: Handle Dialogs Immediately"></a>Pitfall 1: Handle Dialogs Immediately</h3><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># ❌ Too slow — dialog may timeout</span></span><br><span class="line"><span class="keyword">if</span> data.get(<span class="string">&quot;method&quot;</span>) == <span class="string">&quot;Page.javascriptDialogOpening&quot;</span>:</span><br><span class="line">    <span class="keyword">await</span> asyncio.sleep(<span class="number">5</span>)  <span class="comment"># Dialog may auto-dismiss or block</span></span><br><span class="line">    <span class="keyword">await</span> cdp(ws, session_id, <span class="string">&quot;Page.handleJavaScriptDialog&quot;</span>, &#123;<span class="string">&quot;accept&quot;</span>: <span class="literal">True</span>&#125;)</span><br><span class="line"></span><br><span class="line"><span class="comment"># ✅ Handle immediately</span></span><br><span class="line"><span class="keyword">if</span> data.get(<span class="string">&quot;method&quot;</span>) == <span class="string">&quot;Page.javascriptDialogOpening&quot;</span>:</span><br><span class="line">    <span class="keyword">await</span> cdp(ws, session_id, <span class="string">&quot;Page.handleJavaScriptDialog&quot;</span>, &#123;<span class="string">&quot;accept&quot;</span>: <span class="literal">True</span>&#125;)</span><br></pre></td></tr></table></figure>
+
+<h3 id="Pitfall-2-promptText-Only-with-accept-True"><a href="#Pitfall-2-promptText-Only-with-accept-True" class="headerlink" title="Pitfall 2: promptText Only with accept&#x3D;True"></a>Pitfall 2: promptText Only with accept&#x3D;True</h3><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># ❌ promptText ignored when accept=False</span></span><br><span class="line"><span class="keyword">await</span> cdp(ws, session_id, <span class="string">&quot;Page.handleJavaScriptDialog&quot;</span>, &#123;</span><br><span class="line">    <span class="string">&quot;accept&quot;</span>: <span class="literal">False</span>, <span class="string">&quot;promptText&quot;</span>: <span class="string">&quot;text&quot;</span>  <span class="comment"># Ignored</span></span><br><span class="line">&#125;)</span><br><span class="line"></span><br><span class="line"><span class="comment"># ✅ promptText only with accept=True</span></span><br><span class="line"><span class="keyword">await</span> cdp(ws, session_id, <span class="string">&quot;Page.handleJavaScriptDialog&quot;</span>, &#123;</span><br><span class="line">    <span class="string">&quot;accept&quot;</span>: <span class="literal">True</span>, <span class="string">&quot;promptText&quot;</span>: <span class="string">&quot;text&quot;</span></span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure>
+
+<h3 id="Best-Practices-Checklist"><a href="#Best-Practices-Checklist" class="headerlink" title="Best Practices Checklist"></a>Best Practices Checklist</h3><table>
+<thead>
+<tr>
+<th>Consideration</th>
+<th>Recommendation</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Handle promptly</td>
+<td>Process dialogOpening event immediately</td>
+</tr>
+<tr>
+<td>Background listener</td>
+<td>Use asyncio.create_task for dialog watching</td>
+</tr>
+<tr>
+<td>promptText</td>
+<td>Only use with accept&#x3D;True</td>
+</tr>
+<tr>
+<td>beforeunload</td>
+<td>Accept in automation scenarios</td>
+</tr>
+<tr>
+<td>Logging</td>
+<td>Record dialog type and message</td>
+</tr>
+<tr>
+<td>Timeout</td>
+<td>Dialogs may have browser-level timeout</td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="Complete-Reference-CDP-Dialog-Handler-Class"><a href="#Complete-Reference-CDP-Dialog-Handler-Class" class="headerlink" title="Complete Reference: CDP Dialog Handler Class"></a>Complete Reference: CDP Dialog Handler Class</h2><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">CDPDialogHandler</span>:</span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">__init__</span>(<span class="params">self, ws, session_id</span>):</span><br><span class="line">        <span class="variable language_">self</span>.ws = ws; <span class="variable language_">self</span>.session_id = session_id</span><br><span class="line">        <span class="variable language_">self</span>._cmd_id = <span class="number">0</span>; <span class="variable language_">self</span>.dialogs = []</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">async</span> <span class="keyword">def</span> <span class="title function_">_cmd</span>(<span class="params">self, method, params=<span class="literal">None</span></span>):</span><br><span class="line">        <span class="variable language_">self</span>._cmd_id += <span class="number">1</span></span><br><span class="line">        <span class="keyword">await</span> <span class="variable language_">self</span>.ws.send(json.dumps(&#123;</span><br><span class="line">            <span class="string">&quot;sessionId&quot;</span>: <span class="variable language_">self</span>.session_id, <span class="string">&quot;id&quot;</span>: <span class="variable language_">self</span>._cmd_id,</span><br><span class="line">            <span class="string">&quot;method&quot;</span>: method, <span class="string">&quot;params&quot;</span>: params <span class="keyword">or</span> &#123;&#125;</span><br><span class="line">        &#125;))</span><br><span class="line">        <span class="keyword">async</span> <span class="keyword">for</span> resp <span class="keyword">in</span> <span class="variable language_">self</span>.ws:</span><br><span class="line">            data = json.loads(resp)</span><br><span class="line">            <span class="keyword">if</span> data.get(<span class="string">&quot;id&quot;</span>) == <span class="variable language_">self</span>._cmd_id:</span><br><span class="line">                <span class="keyword">return</span> data.get(<span class="string">&quot;result&quot;</span>, &#123;&#125;)</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">async</span> <span class="keyword">def</span> <span class="title function_">start_auto_accept</span>(<span class="params">self</span>):</span><br><span class="line">        <span class="keyword">while</span> <span class="literal">True</span>:</span><br><span class="line">            <span class="keyword">try</span>:</span><br><span class="line">                msg = <span class="keyword">await</span> asyncio.wait_for(ws.__anext__(), timeout=<span class="number">0.5</span>)</span><br><span class="line">                data = json.loads(msg)</span><br><span class="line">                <span class="keyword">if</span> data.get(<span class="string">&quot;method&quot;</span>) == <span class="string">&quot;Page.javascriptDialogOpening&quot;</span>:</span><br><span class="line">                    <span class="variable language_">self</span>.dialogs.append(data[<span class="string">&quot;params&quot;</span>])</span><br><span class="line">                    <span class="keyword">await</span> <span class="variable language_">self</span>._cmd(<span class="string">&quot;Page.handleJavaScriptDialog&quot;</span>, &#123;<span class="string">&quot;accept&quot;</span>: <span class="literal">True</span>&#125;)</span><br><span class="line">            <span class="keyword">except</span> asyncio.TimeoutError:</span><br><span class="line">                <span class="keyword">continue</span></span><br><span class="line">            <span class="keyword">except</span> Exception:</span><br><span class="line">                <span class="keyword">break</span></span><br><span class="line">    </span><br><span class="line">    <span class="keyword">async</span> <span class="keyword">def</span> <span class="title function_">accept</span>(<span class="params">self, prompt_text=<span class="literal">None</span></span>):</span><br><span class="line">        params = &#123;<span class="string">&quot;accept&quot;</span>: <span class="literal">True</span>&#125;</span><br><span class="line">        <span class="keyword">if</span> prompt_text: params[<span class="string">&quot;promptText&quot;</span>] = prompt_text</span><br><span class="line">        <span class="keyword">await</span> <span class="variable language_">self</span>._cmd(<span class="string">&quot;Page.handleJavaScriptDialog&quot;</span>, params)</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">async</span> <span class="keyword">def</span> <span class="title function_">dismiss</span>(<span class="params">self</span>):</span><br><span class="line">        <span class="keyword">await</span> <span class="variable language_">self</span>._cmd(<span class="string">&quot;Page.handleJavaScriptDialog&quot;</span>, &#123;<span class="string">&quot;accept&quot;</span>: <span class="literal">False</span>&#125;)</span><br></pre></td></tr></table></figure>
+
+<p><strong>Usage:</strong></p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">async</span> <span class="keyword">with</span> websockets.connect(CDP_URL) <span class="keyword">as</span> ws:</span><br><span class="line">    session_id = <span class="keyword">await</span> connect_page(ws)</span><br><span class="line">    dlg = CDPDialogHandler(ws, session_id)</span><br><span class="line">    handler = asyncio.create_task(dlg.start_auto_accept())</span><br><span class="line">    <span class="keyword">await</span> cdp(ws, session_id, <span class="string">&quot;Page.navigate&quot;</span>, &#123;<span class="string">&quot;url&quot;</span>: <span class="string">&quot;https://example.com&quot;</span>&#125;)</span><br><span class="line">    <span class="keyword">await</span> asyncio.sleep(<span class="number">5</span>)</span><br><span class="line">    handler.cancel()</span><br></pre></td></tr></table></figure>
+
+<hr>
+<blockquote>
+<p><strong>Summary</strong>: CDP’s dialog events give you elegant control over page popups — auto-dismiss alerts, selectively accept confirms, fill prompts with preset text, and handle beforeunload cleanly — keeping automation flows interruption-free.</p>
+</blockquote>
+<hr>
+<p><em>Previous: CDP Storage Operations Guide: Manage LocalStorage, IndexedDB &amp; Cache with Python</em></p>
+<p><em>Next up: CDP Frame Management Guide: Handle iframes &amp; Cross-Origin Frames with Python</em></p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>Author: </span><span class="post-copyright-info"><a href="https://lmlx07.github.io/tools-review">John Doe</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>Link: </span><span class="post-copyright-info"><a href="https://lmlx07.github.io/tools-review/cdp-dialog-guide/">https://lmlx07.github.io/tools-review/cdp-dialog-guide/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>Copyright Notice: </span><span class="post-copyright-info">All articles on this blog are licensed under <a target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a> unless otherwise stated.</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tools-review/en/tags/Chrome-DevTools-Protocol/">Chrome DevTools Protocol</a><a class="post-meta__tags" href="/tools-review/en/tags/CDP/">CDP</a><a class="post-meta__tags" href="/tools-review/en/tags/Python/">Python</a><a class="post-meta__tags" href="/tools-review/en/tags/Browser-Automation/">Browser Automation</a><a class="post-meta__tags" href="/tools-review/en/tags/Dialog/">Dialog</a><a class="post-meta__tags" href="/tools-review/en/tags/Popup-Handling/">Popup Handling</a></div><div class="post-share"><div class="social-share" data-image="/tools-review/en/img/avatar.png" data-sites="facebook,x,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/tools-review/en/cdp-frame-guide/" title="CDP Frame Management Guide: Handle iframes &amp; Cross-Origin Frames with Python"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info"><div class="info-1"><div class="info-item-1">Previous</div><div class="info-item-2">CDP Frame Management Guide: Handle iframes & Cross-Origin Frames with Python</div></div><div class="info-2"><div class="info-item-1">A comprehensive guide to managing browser frames using Chrome DevTools Protocol (CDP). Learn to get the frame tree, execute JavaScript in iframes, handle cross-origin frames, listen to frame lifecycle events, and extract content across all frames.</div></div></div></a><a class="pagination-related" href="/tools-review/en/cdp-ci-cd-guide/" title="CDP CI/CD Integration Guide: Deploying Browser Automation with Docker"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-right"><div class="info-1"><div class="info-item-1">Next</div><div class="info-item-2">CDP CI/CD Integration Guide: Deploying Browser Automation with Docker</div></div><div class="info-2"><div class="info-item-1">A comprehensive guide to integrating CDP browser automation into CI/CD pipelines. Covers Dockerized Chrome/Chromium setup, docker-compose orchestration, GitHub Actions integration, XVFB virtual display, resource management, and Headless vs Headful mode selection.</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>Related Articles</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/tools-review/en/cdp-file-upload-guide/" title="CDP File Upload &amp; Download: Handling File Operations with Python"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-06-05</div><div class="info-item-2">CDP File Upload &amp; Download: Handling File Operations with Python</div></div><div class="info-2"><div class="info-item-1">A comprehensive guide to handling browser file upload and download operations using Chrome DevTools Protocol (CDP). Covers intercepting file chooser dialogs, bypassing file selectors to set file paths directly, listening to download events, configuring download behavior, monitoring download progress, and a complete FileHandler wrapper class.</div></div></div></a><a class="pagination-related" href="/tools-review/en/cdp-cookie-guide/" title="The Complete Guide to CDP Cookie Operations: CRUD with Python &amp; Auto-Login"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-06-05</div><div class="info-item-2">The Complete Guide to CDP Cookie Operations: CRUD with Python &amp; Auto-Login</div></div><div class="info-2"><div class="info-item-1">A comprehensive guide to manipulating browser cookies using Chrome DevTools Protocol (CDP). Learn how to read all cookies, filter by domain, set new cookies, delete specific cookies, clear all cookies, inject cookies for auto-login, and export cookies for use with the Python requests library.</div></div></div></a><a class="pagination-related" href="/tools-review/en/cdp-console-guide/" title="CDP Console Debugging Guide: Capture Page Logs &amp; Exceptions with Python"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-06-05</div><div class="info-item-2">CDP Console Debugging Guide: Capture Page Logs &amp; Exceptions with Python</div></div><div class="info-2"><div class="info-item-1">A comprehensive guide to capturing browser console output using Chrome DevTools Protocol (CDP). Learn to listen for console.log/warn/error, catch uncaught exceptions, filter log levels, inject custom console commands, and build automated error monitoring tools.</div></div></div></a><a class="pagination-related" href="/tools-review/en/cdp-react-controlled-input-experience/" title="Filling React Controlled Inputs with CDP: Bypassing the Virtual DOM"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-06-09</div><div class="info-item-2">Filling React Controlled Inputs with CDP: Bypassing the Virtual DOM</div></div><div class="info-2"><div class="info-item-1">When automating form filling, React controlled components won't respond to direct el.value = x assignments. This article shows how to retrieve the native value setter via Object.getOwnPropertyDescriptor, bypass React's interception, and trigger state synchronization.</div></div></div></a><a class="pagination-related" href="/tools-review/en/cdp-target-manager-guide/" title="CDP Target Management: Controlling Multiple Pages with Python"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-06-05</div><div class="info-item-2">CDP Target Management: Controlling Multiple Pages with Python</div></div><div class="info-2"><div class="info-item-1">A comprehensive guide to managing multiple browser tabs using Chrome DevTools Protocol (CDP). Learn how to list all targets, create new tabs, attach to specific pages, switch between tabs, listen for target lifecycle events, isolate sessions per tab, and a complete TargetManager wrapper class.</div></div></div></a><a class="pagination-related" href="/tools-review/en/cdp-frame-guide/" title="CDP Frame Management Guide: Handle iframes &amp; Cross-Origin Frames with Python"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-06-05</div><div class="info-item-2">CDP Frame Management Guide: Handle iframes &amp; Cross-Origin Frames with Python</div></div><div class="info-2"><div class="info-item-1">A comprehensive guide to managing browser frames using Chrome DevTools Protocol (CDP). Learn to get the frame tree, execute JavaScript in iframes, handle cross-origin frames, listen to frame lifecycle events, and extract content across all frames.</div></div></div></a></div></div><hr class="custom-hr"/><div id="post-comment"><div class="comment-head"><div class="comment-headline"><i class="fas fa-comments fa-fw"></i><span> Comments</span></div></div><div class="comment-wrap"><div><div id="utterances-wrap"></div></div></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/tools-review/en/img/avatar.png" onerror="this.onerror=null;this.src='/tools-review/en/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">John Doe</div><div class="author-info-description">Chrome DevTools Protocol Tutorial</div><div class="site-data"><a href="/tools-review/en/archives/"><div class="headline">Articles</div><div class="length-num">47</div></a><a href="/tools-review/en/tags/"><div class="headline">Tags</div><div class="length-num">112</div></a><a href="/tools-review/en/categories/"><div class="headline">Categories</div><div class="length-num">10</div></a></div><a id="card-info-btn" target="_blank" rel="noopener" href="https://github.com/lmlx07"><i class="fab fa-github"></i><span>Follow me</span></a><div class="card-info-social-icons"><a class="social-icon" href="https://github.com/lmlx07" target="_blank" title="GitHub"><i class="fab fa-github" style="color: #24292e;"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>Announcement</span></div><div class="announcement_content">📢 CDP Automation Guide is a Chinese tech blog focused on Chrome DevTools Protocol, providing hands-on tutorials for controlling browsers with Python.</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>Contents</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#Table-of-Contents"><span class="toc-number">1.</span> <span class="toc-text">Table of Contents</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Why-Use-CDP-for-Dialog-Handling"><span class="toc-number">2.</span> <span class="toc-text">Why Use CDP for Dialog Handling</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Listening-for-Dialog-Events"><span class="toc-number">3.</span> <span class="toc-text">Listening for Dialog Events</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Auto-Processing-Dialogs"><span class="toc-number">4.</span> <span class="toc-text">Auto-Processing Dialogs</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Handling-beforeunload"><span class="toc-number">5.</span> <span class="toc-text">Handling beforeunload</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Practical-Interruption-Free-Automation"><span class="toc-number">6.</span> <span class="toc-text">Practical: Interruption-Free Automation</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Common-Pitfalls-Best-Practices"><span class="toc-number">7.</span> <span class="toc-text">Common Pitfalls &amp; Best Practices</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#Pitfall-1-Handle-Dialogs-Immediately"><span class="toc-number">7.1.</span> <span class="toc-text">Pitfall 1: Handle Dialogs Immediately</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Pitfall-2-promptText-Only-with-accept-True"><span class="toc-number">7.2.</span> <span class="toc-text">Pitfall 2: promptText Only with accept&#x3D;True</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Best-Practices-Checklist"><span class="toc-number">7.3.</span> <span class="toc-text">Best Practices Checklist</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Complete-Reference-CDP-Dialog-Handler-Class"><span class="toc-number">8.</span> <span class="toc-text">Complete Reference: CDP Dialog Handler Class</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>Recent Posts</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/tools-review/en/cdp-seo-timeline-experience/" title="New Site SEO: Expectation Management from Submission to Indexing">New Site SEO: Expectation Management from Submission to Indexing</a><time datetime="2026-06-09T07:30:00.000Z" title="Created 2026-06-09 15:30:00">2026-06-09</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/tools-review/en/cdp-seo-webmaster-experience/" title="Static Site Webmaster Platform Guide: Optimal Indexing Strategy Under Constraints">Static Site Webmaster Platform Guide: Optimal Indexing Strategy Under Constraints</a><time datetime="2026-06-09T07:00:00.000Z" title="Created 2026-06-09 15:00:00">2026-06-09</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/tools-review/en/cdp-seo-api-submit-experience/" title="API Submission Script Development: From Sitemap to Search Engine Indexing">API Submission Script Development: From Sitemap to Search Engine Indexing</a><time datetime="2026-06-09T06:30:00.000Z" title="Created 2026-06-09 14:30:00">2026-06-09</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/tools-review/en/cdp-seo-github-pages-experience/" title="Complete SEO Guide for Unlicensed GitHub Pages Sites">Complete SEO Guide for Unlicensed GitHub Pages Sites</a><time datetime="2026-06-09T06:00:00.000Z" title="Created 2026-06-09 14:00:00">2026-06-09</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/tools-review/en/cdp-debug-inspect-experience/" title="CDP Debug Utility Collection: Quick Page Inspection and Element Diagnostics">CDP Debug Utility Collection: Quick Page Inspection and Element Diagnostics</a><time datetime="2026-06-09T05:00:00.000Z" title="Created 2026-06-09 13:00:00">2026-06-09</time></div></div></div></div></div></div></main><footer id="footer"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2026 By John Doe</span><span class="framework-info"><span>Framework </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>Theme </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div><div class="footer_custom_text">🚀 CDP Automation Guide</div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="Reading Mode"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="Toggle Between Light and Dark Mode"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="Toggle Between Single-column and Double-column"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="Settings"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="Table of Contents"><i class="fas fa-list-ul"></i></button><a id="to_comment" href="#post-comment" title="Scroll to Comments"><i class="fas fa-comments"></i></a><button id="go-up" type="button" title="Back to Top"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/tools-review/en/js/utils.js?v=5.5.4"></script><script src="/tools-review/en/js/main.js?v=5.5.4"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload@19.1.3/dist/lazyload.iife.min.js"></script><div class="js-pjax"><script>(() => {
+  const isShuoshuo = GLOBAL_CONFIG_SITE.pageType === 'shuoshuo'
+  const option = null
+  const getUtterancesTheme = theme => theme === 'dark' ? 'github-dark' : 'github-light'
+
+  const loadUtterances = (el = document, key) => {
+    if (isShuoshuo) {
+      window.shuoshuoComment.destroyUtterances = () => {
+        if (el.children.length) {
+          el.innerHTML = ''
+          el.classList.add('no-comment')
+        }
+      }
+    }
+
+    const config = {
+      src: 'https://utteranc.es/client.js',
+      repo: 'lmlx07/tools-review',
+      theme: getUtterancesTheme(document.documentElement.getAttribute('data-theme')),
+      crossorigin: 'anonymous',
+      async: true,
+      ...option,
+      'issue-term': isShuoshuo ? key : (option && option['issue-term']) || 'pathname'
+    }
+
+    const ele = document.createElement('script')
+    Object.entries(config).forEach(([key, value]) => ele.setAttribute(key, value))
+    el.querySelector('#utterances-wrap').appendChild(ele)
+  }
+
+  const changeUtterancesTheme = theme => {
+    const iframe = document.querySelector('#utterances-wrap iframe')
+    if (iframe) {
+      const message = {
+        type: 'set-theme',
+        theme: getUtterancesTheme(theme)
+      };
+      iframe.contentWindow.postMessage(message, 'https://utteranc.es')
+    }
+  }
+
+  btf.addGlobalFn('themeChange', changeUtterancesTheme, 'utterances')
+
+  if (isShuoshuo) {
+    'Utterances' === 'Utterances'
+      ? window.shuoshuoComment = { loadComment: loadUtterances }
+      : window.loadOtherComment = loadUtterances
+    return
+  }
+  
+  if ('Utterances' === 'Utterances' || !false) {
+    if (false) btf.loadComment(document.getElementById('utterances-wrap'), loadUtterances)
+    else loadUtterances()
+  } else {
+    window.loadOtherComment = loadUtterances
+  }
+})()</script></div><div id="lang-switch"><span class="lo" data-lang="zh-CN">中文</span><span class="sp">|</span><span class="lo" data-lang="en">EN</span></div><script>!function(){var H='<span class="lo" data-lang="zh-CN">中文</span><span class="sp">|</span><span class="lo" data-lang="en">EN</span>';function E(){var e=document.getElementById("lang-switch")||function(){var e=document.createElement("div");return e.id="lang-switch",e.style.display="inline-flex",e.innerHTML=H,e}();var n=window.location.pathname.startsWith("/en");e.querySelectorAll(".lo").forEach(function(e){e.classList.toggle("on",n?e.dataset.lang==="en":e.dataset.lang==="zh-CN")}),e.removeEventListener("click",e._l),e._l=function(t){var o=(t=t||window.event).target.closest(".lo");if(!o)return;var l=o.dataset.lang;if(l==="en"&&!n){var a=window.location.pathname.replace(/\/$/,"")||"";window.location.href="/en"+a+window.location.search}else if(l==="zh-CN"&&n){var i=window.location.pathname.replace(/^\/en/,"").replace(/\/$/,"")||"/";window.location.href=i+window.location.search}},e.addEventListener("click",e._l)}function I(){var e=document.getElementById("lang-switch")||function(){var e=document.createElement("div");return e.id="lang-switch",e.style.display="inline-flex",e.innerHTML=H,e}();var t=document.querySelector("#nav .menus_items");if(!t||t.contains(e))return;var n=document.createElement("li");n.className="menus_item",n.appendChild(e),t.appendChild(n)}E(),setTimeout(I,300),document.addEventListener("pjax:complete",function(){setTimeout(I,300),setTimeout(E,500)})}();</script><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js" defer="defer"></script><script>document.addEventListener('DOMContentLoaded', () => {
+  const pjaxSelectors = ["meta[property=\"og:image\"]","meta[property=\"og:title\"]","meta[property=\"og:url\"]","meta[property=\"og:description\"]","link[rel=\"canonical\"]","head > title","#config-diff","#body-wrap","#rightside-config-hide","#rightside-config-show",".js-pjax"]
+
+  window.pjax = new Pjax({
+    elements: 'a:not([target="_blank"])',
+    selectors: pjaxSelectors,
+    cacheBust: false,
+    analytics: false,
+    scrollRestoration: false
+  })
+
+  const triggerPjaxFn = (val) => {
+    if (!val) return
+    Object.values(val).forEach(fn => {
+      try {
+        fn()
+      } catch (err) {
+        console.debug('Pjax callback failed:', err)
+      }
+    })
+  }
+
+  document.addEventListener('pjax:send', () => {
+    // removeEventListener
+    btf.removeGlobalFnEvent('pjaxSendOnce')
+    btf.removeGlobalFnEvent('themeChange')
+
+    // reset readmode
+    const $bodyClassList = document.body.classList
+    if ($bodyClassList.contains('read-mode')) $bodyClassList.remove('read-mode')
+
+    triggerPjaxFn(window.globalFn.pjaxSend)
+  })
+
+  document.addEventListener('pjax:complete', () => {
+    btf.removeGlobalFnEvent('pjaxCompleteOnce')
+    document.querySelectorAll('script[data-pjax]').forEach(item => {
+      const newScript = document.createElement('script')
+      const content = item.text || item.textContent || item.innerHTML || ""
+      Array.from(item.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value))
+      newScript.appendChild(document.createTextNode(content))
+      item.parentNode.replaceChild(newScript, item)
+    })
+
+    triggerPjaxFn(window.globalFn.pjaxComplete)
+  })
+
+  document.addEventListener('pjax:error', e => {
+    if (e.request.status === 404) {
+      false
+        ? pjax.loadUrl('/tools-review/en/404.html')
+        : window.location.href = e.request.responseURL
+    }
+  })
+})</script><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script></div></body></html>
